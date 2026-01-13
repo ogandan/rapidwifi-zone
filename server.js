@@ -1,0 +1,258 @@
+// File: server.js
+require('dotenv').config();
+
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const bodyParser = require('body-parser');
+const i18n = require('i18n');
+const session = require('express-session');
+const os = require('os');
+
+const voucherManager = require('./modules/voucherManager');
+const paymentHandler = require('./modules/paymentHandler');
+const emailAlerts = require('./modules/emailAlerts');
+const db = require('./data/db');
+
+const app = express();
+const PORT = parseInt(process.env.PORT || '3000', 10);
+
+// -----------------------------
+// i18n setup
+// -----------------------------
+i18n.configure({
+  locales: ['en', 'fr'],
+  directory: path.join(__dirname, 'locales'),
+  defaultLocale: 'en',
+  queryParameter: 'lang'
+});
+app.use(i18n.init);
+
+// -----------------------------
+// Sessions
+// -----------------------------
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'rapidwifi-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
+
+// -----------------------------
+// Middleware
+// -----------------------------
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// -----------------------------
+// Helpers
+// -----------------------------
+function getTunnelURL() {
+  try {
+    const urlPath = path.join(__dirname, 'data', 'tunnel_url.txt');
+    return fs.readFileSync(urlPath, 'utf8').trim();
+  } catch (err) {
+    console.error('[TUNNEL URL ERROR]', err);
+    return 'http://localhost:3000';
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) return next();
+  res.redirect('/login');
+}
+
+// -----------------------------
+// Auth routes
+// -----------------------------
+app.get('/login', (req, res) => {
+  res.render('login', { error: null, __: res.__ });
+});
+
+app.post('/login', (req, res) => {
+  const { username, password } = req.body || {};
+  const expectedUser = process.env.ADMIN_USER || 'admin';
+  const expectedPass = process.env.ADMIN_PASS || 'admin';
+
+  if (username === expectedUser && password === expectedPass) {
+    req.session.isAdmin = true;
+    return res.redirect('/admin');
+  }
+  res.render('login', { error: 'Invalid credentials', __: res.__ });
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login'));
+});
+
+// -----------------------------
+// Public portal
+// -----------------------------
+app.get('/', (req, res) => {
+  res.render('index', { __: res.__, tunnelURL: getTunnelURL() });
+});
+
+// -----------------------------
+// Payment handler
+// -----------------------------
+app.post('/payment', async (req, res) => {
+  try {
+    const result = await paymentHandler.processPayment(req.body);
+    if (result.success) {
+      await voucherManager.createBatch(1, result.profile, `payment-${Date.now()}`);
+      res.render('success', { __: res.__ });
+    } else {
+      res.render('error', { __: res.__ });
+    }
+  } catch (err) {
+    console.error('[PAYMENT ERROR]', err);
+    emailAlerts.systemError(err.message);
+    res.render('error', { __: res.__ });
+  }
+});
+
+// -----------------------------
+// Admin dashboard
+// -----------------------------
+const adminDashboard = require('./modules/adminDashboard')(getTunnelURL);
+app.use('/admin', requireAdmin, adminDashboard);
+
+// -----------------------------
+// Voucher creation (AJAX)
+// -----------------------------
+app.post('/admin/voucher/create', requireAdmin, async (req, res) => {
+  const { count, profile, batch } = req.body;
+  try {
+    const created = await voucherManager.createBatch(
+      parseInt(count, 10) || 1,
+      profile || 'default',
+      batch || `batch-${Date.now()}`
+    );
+    created.forEach(v => db.logVoucher?.(v.name, v.profile));
+    res.json({ success: true, created });
+  } catch (err) {
+    console.error('[ADMIN CREATE ERROR]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------
+// Batch actions (AJAX)
+// -----------------------------
+app.post('/admin/voucher/batch', requireAdmin, async (req, res) => {
+  try {
+    console.log('[BATCH ROUTE HIT]');
+    console.log('[RAW BODY]', req.body);
+
+    const { selected, action } = req.body;
+    console.log('[BATCH REQUEST]', { selected, action });
+
+    const usernames = Array.isArray(selected) ? selected : (selected ? [selected] : []);
+    if (!usernames.length || !action) {
+      console.warn('[BATCH ERROR] Missing selected or action');
+      return res.status(400).json({ success: false, error: 'Missing parameters' });
+    }
+
+    for (const username of usernames) {
+      if (action === 'block') {
+        console.log(`[VoucherManager] TEST MODE: would run -> block ${username}`);
+        await voucherManager.blockVoucher(username);
+        db.logBlock?.(username);
+      } else if (action === 'delete') {
+        console.log(`[VoucherManager] TEST MODE: would run -> delete ${username}`);
+        await voucherManager.deleteVoucher(username);
+        db.logDelete?.(username);
+      } else {
+        console.warn('[BATCH ERROR] Unknown action:', action);
+      }
+    }
+
+    res.json({ success: true, processed: usernames.length, action });
+  } catch (err) {
+    console.error('[ADMIN BATCH ERROR]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// -----------------------------
+// CSV export routes
+// -----------------------------
+app.get('/admin/export/vouchers.csv', requireAdmin, async (req, res) => {
+  try {
+    const users = await voucherManager.exportAll();
+    const header = 'Username,Password,Profile,Price,Batch,Status\n';
+    const body = users.map(u => `${u.name},${u.password},${u.profile},,${u.comment},${u.status}`).join('\n');
+    res.header('Content-Type', 'text/csv');
+    res.attachment('vouchers_all.csv');
+    res.send(header + body);
+  } catch (err) {
+    console.error('[EXPORT VOUCHERS ERROR]', err);
+    res.status(500).send('Error exporting vouchers');
+  }
+});
+
+app.get('/admin/export/audit.csv', requireAdmin, async (req, res) => {
+  try {
+    const { action, username, from, to } = req.query;
+    const logs = await db.getFilteredAuditLogs({ action, username, from, to });
+    const header = 'Action,Username,Details,Timestamp\n';
+    const body = logs.map(l => `${l.action},${l.username},${l.details},${l.timestamp}`).join('\n');
+    res.header('Content-Type', 'text/csv');
+    res.attachment('audit.csv');
+    res.send(header + body);
+  } catch (err) {
+    console.error('[EXPORT AUDIT ERROR]', err);
+    res.status(500).send('Error exporting audit logs');
+  }
+});
+
+// -----------------------------
+// Chart.js data endpoints
+// -----------------------------
+app.get('/admin/data/vouchers', requireAdmin, async (req, res) => {
+  try {
+    const users = await voucherManager.fetchUsers();
+    const counts = {};
+    users.forEach(u => {
+      counts[u.profile] = (counts[u.profile] || 0) + 1;
+    });
+    res.json(counts);
+  } catch (err) {
+    console.error('[CHART VOUCHERS ERROR]', err);
+    res.status(500).json({ error: 'Failed to load voucher data' });
+  }
+});
+
+app.get('/admin/data/system', requireAdmin, (req, res) => {
+  try {
+    res.json({
+      load: os.loadavg(),
+      uptime: os.uptime(),
+      memory: { free: os.freemem(), total: os.totalmem() }
+    });
+  } catch (err) {
+    console.error('[CHART SYSTEM ERROR]', err);
+    res.status(500).json({ error: 'Failed to load system data' });
+  }
+});
+
+// -----------------------------
+// Error handling
+// -----------------------------
+app.use((err, req, res, next) => {
+  console.error('[SERVER ERROR]', err);
+  emailAlerts.systemError(err.message);
+  res.status(500).send('Internal Server Error');
+});
+
+// -----------------------------
+// Start server
+// -----------------------------
+app.listen(PORT, () => {
+  console.log(`RAPIDWIFI-ZONE running on port ${PORT}`);
+});
+

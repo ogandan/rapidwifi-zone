@@ -1,0 +1,28 @@
+// File: voucherManager.js
+// Path: /home/pi/rapidwifi-zone/modules/voucherManager.js
+// Device: Raspberry Pi 3
+// Purpose: Create, validate, block, and delete vouchers via MikroTik API
+
+const MikroTikAPI = require('mikrotik-api');
+const db = require('../data/db');
+
+const api = new MikroTikAPI({
+  host: '192.168.88.1',
+  user: 'admin',
+  password: 'yourPassword'
+});
+
+module.exports = {
+  createVoucher: async (username, profile) => {
+    await api.addHotspotUser({ name: username, password: username, profile });
+    db.logVoucher(username, profile);
+  },
+  blockVoucher: async (username) => {
+    await api.disableHotspotUser(username);
+    db.logBlock(username);
+  },
+  deleteVoucher: async (username) => {
+    await api.removeHotspotUser(username);
+    db.logDelete(username);
+  }
+};

@@ -1,0 +1,81 @@
+// File: adminDashboard.js
+// Path: /home/pi/rapidwifi-zone/modules/adminDashboard.js
+// Device: Raspberry Pi 3
+// Purpose: Provide admin dashboard routes and logic
+
+const express = require('express');
+const router = express.Router();
+const voucherManager = require('./voucherManager');
+const db = require('../data/db');
+const os = require('os');
+
+// Export a function that receives getTunnelURL
+module.exports = (getTunnelURL) => {
+  // Dashboard home
+  router.get('/', async (req, res) => {
+    try {
+      const vouchers = await db.getAllVouchers();
+      const activeUsers = await db.getActiveUsers();
+      const auditLogs = await db.getAuditLogs();
+      const systemHealth = {
+        uptime: os.uptime(),
+        load: os.loadavg(),
+        memory: {
+          free: os.freemem(),
+          total: os.totalmem()
+        }
+      };
+      const tunnelURL = getTunnelURL();
+
+      res.render('admin', {
+        vouchers,
+        activeUsers,
+        auditLogs,
+        systemHealth,
+        tunnelURL
+      });
+    } catch (err) {
+      console.error('[ADMIN DASHBOARD ERROR]', err);
+      res.status(500).send('Error loading dashboard');
+    }
+  });
+
+  // Create voucher manually
+  router.post('/voucher/create', async (req, res) => {
+    const { username, profile } = req.body;
+    try {
+      await voucherManager.createVoucher(username, profile);
+      res.redirect('/admin');
+    } catch (err) {
+      console.error('[ADMIN CREATE VOUCHER ERROR]', err);
+      res.status(500).send('Error creating voucher');
+    }
+  });
+
+  // Block voucher
+  router.post('/voucher/block', async (req, res) => {
+    const { username } = req.body;
+    try {
+      await voucherManager.blockVoucher(username);
+      res.redirect('/admin');
+    } catch (err) {
+      console.error('[ADMIN BLOCK VOUCHER ERROR]', err);
+      res.status(500).send('Error blocking voucher');
+    }
+  });
+
+  // Delete voucher
+  router.post('/voucher/delete', async (req, res) => {
+    const { username } = req.body;
+    try {
+      await voucherManager.deleteVoucher(username);
+      res.redirect('/admin');
+    } catch (err) {
+      console.error('[ADMIN DELETE VOUCHER ERROR]', err);
+      res.status(500).send('Error deleting voucher');
+    }
+  });
+
+  return router;
+};
+

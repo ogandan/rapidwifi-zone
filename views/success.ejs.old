@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Payment Success</title>
+  <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+  <h1>✅ Payment Successful</h1>
+  <p>Your voucher has been activated. You can now browse the internet.</p>
+</body>
+</html>
+

@@ -1,0 +1,15 @@
+{
+  "welcome": "Welcome to RAPIDWIFI-ZONE",
+  "select_plan": "Select your plan and pay securely:",
+  "phone_number": "Phone Number",
+  "pay_mtn": "Pay with MTN MoMo",
+  "pay_moov": "Pay with Moov Money",
+  "admin_dashboard": "Admin Dashboard",
+  "active_vouchers": "Active Vouchers",
+  "system_health": "System Health",
+  "payment_success": "Payment Successful",
+  "payment_error": "Payment Failed",
+  "voucher_blocked": "Voucher has been blocked",
+  "voucher_deleted": "Voucher has been deleted"
+}
+

@@ -1,0 +1,76 @@
+/* General page styling */
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background-color: #f8f9fa;
+  color: #333;
+}
+
+h1, h2 {
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+section {
+  margin-bottom: 30px;
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background-color: #fff;
+}
+
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+table th {
+  background-color: #34495e;
+  color: #fff;
+}
+
+table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+table tr:hover {
+  background-color: #e6f7ff;
+}
+
+/* Buttons */
+button {
+  background-color: #3498db;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  margin: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+button:hover {
+  background-color: #2980b9;
+}
+
+/* Forms inline */
+form {
+  display: inline;
+}
+
+/* Tunnel URL highlight */
+#tunnel-url {
+  font-weight: bold;
+  color: #27ae60;
+}
+
+/* System health section */
+section p {
+  margin: 5px 0;
+}
+

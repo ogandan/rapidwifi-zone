@@ -1,0 +1,49 @@
+// File: modules/mikrotik-api.js
+// Purpose: Local wrapper for Mikrotik RouterOS API
+// Stubbed now, upgrade later with mikronode-ng or routeros-client
+
+class MikrotikAPI {
+  constructor({ host, user, password, port = 8728 }) {
+    this.host = host;
+    this.user = user;
+    this.password = password;
+    this.port = port;
+  }
+
+  connect() {
+    console.log(`[MikrotikAPI] Connecting to ${this.host}:${this.port} as ${this.user}`);
+    // TODO: Replace with real RouterOS API connection
+    return true;
+  }
+
+  async createVoucher(code, duration) {
+    console.log(`[MikrotikAPI] Creating voucher ${code} for ${duration} minutes`);
+    // TODO: Implement RouterOS hotspot user add
+    return true;
+  }
+
+  async validateVoucher(code) {
+    console.log(`[MikrotikAPI] Validating voucher ${code}`);
+    // TODO: Implement RouterOS hotspot user check
+    return true;
+  }
+
+  async blockVoucher(code) {
+    console.log(`[MikrotikAPI] Blocking voucher ${code}`);
+    // TODO: Implement RouterOS hotspot user disable
+    return true;
+  }
+
+  async getVoucherStats() {
+    console.log('[MikrotikAPI] Fetching voucher stats');
+    // TODO: Implement RouterOS queries
+    return {
+      active: 12,
+      blocked: 3,
+      total: 45
+    };
+  }
+}
+
+module.exports = MikrotikAPI;
+

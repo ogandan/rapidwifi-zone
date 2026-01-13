@@ -1,0 +1,50 @@
+{
+  "apps": [
+    {
+      "name": "rapidwifi-server",
+      "script": "./server.js",
+      "cwd": "/home/pi/rapidwifi-zone",
+      "instances": 1,
+      "exec_mode": "fork",
+      "watch": true,
+      "env": {
+        "NODE_ENV": "production",
+        "PORT": "3000"
+      }
+    },
+    {
+      "name": "voucher-manager",
+      "script": "./modules/voucherManager.js",
+      "cwd": "/home/pi/rapidwifi-zone",
+      "instances": 1,
+      "exec_mode": "fork",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    {
+      "name": "payment-handler",
+      "script": "./modules/paymentHandler.js",
+      "cwd": "/home/pi/rapidwifi-zone",
+      "instances": 1,
+      "exec_mode": "fork",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    },
+    {
+      "name": "admin-dashboard",
+      "script": "./modules/adminDashboard.js",
+      "cwd": "/home/pi/rapidwifi-zone",
+      "instances": 1,
+      "exec_mode": "fork",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}
+

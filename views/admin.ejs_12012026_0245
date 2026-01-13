@@ -1,0 +1,197 @@
+<%- include('partials/header') %>
+
+<!-- Tunnel URL -->
+<section>
+  <h2><%= __("current_tunnel_url") %></h2>
+  <p id="tunnel-url"><%= tunnelURL %></p>
+</section>
+
+<!-- Exports -->
+<section>
+  <h2><%= __("exports") %></h2>
+  <a href="/admin/export/vouchers.csv"><button><%= __("download_vouchers_csv") %></button></a>
+  <a href="/admin/export/audit.csv"><button><%= __("download_audit_logs_csv") %></button></a>
+</section>
+
+<!-- Voucher list -->
+<section>
+  <h2><%= __("active_vouchers") %></h2>
+  <table>
+    <thead>
+      <tr>
+        <th><%= __("username") %></th>
+        <th><%= __("profile") %></th>
+        <th><%= __("status") %></th>
+        <th><%= __("actions") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (vouchers && vouchers.length > 0) { %>
+        <% vouchers.forEach(function(voucher){ %>
+          <tr>
+            <td><%= voucher.username %></td>
+            <td><%= voucher.profile %></td>
+            <td><%= voucher.status %></td>
+            <td>
+              <form action="/admin/voucher/block" method="POST" style="display:inline;">
+                <input type="hidden" name="username" value="<%= voucher.username %>">
+                <button type="submit"><%= __("block") %></button>
+              </form>
+              <form action="/admin/voucher/delete" method="POST" style="display:inline;">
+                <input type="hidden" name="username" value="<%= voucher.username %>">
+                <button type="submit"><%= __("delete") %></button>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      <% } else { %>
+        <tr><td colspan="4"><%= __("no_vouchers_found") %></td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>
+
+<!-- Active users -->
+<section>
+  <h2><%= __("active_users") %></h2>
+  <table>
+    <thead>
+      <tr>
+        <th><%= __("username") %></th>
+        <th><%= __("ip_address") %></th>
+        <th><%= __("login_time") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (activeUsers && activeUsers.length > 0) { %>
+        <% activeUsers.forEach(function(user){ %>
+          <tr>
+            <td><%= user.username %></td>
+            <td><%= user.ip_address %></td>
+            <td><%= user.login_time %></td>
+          </tr>
+        <% }); %>
+      <% } else { %>
+        <tr><td colspan="3"><%= __("no_active_users") %></td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>
+
+<!-- Audit logs -->
+<section>
+  <h2><%= __("audit_logs") %></h2>
+  <table>
+    <thead>
+      <tr>
+        <th><%= __("action") %></th>
+        <th><%= __("username") %></th>
+        <th><%= __("details") %></th>
+        <th><%= __("timestamp") %></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% if (auditLogs && auditLogs.length > 0) { %>
+        <% auditLogs.forEach(function(log){ %>
+          <tr>
+            <td><%= log.action %></td>
+            <td><%= log.username %></td>
+            <td><%= log.details %></td>
+            <td><%= log.timestamp %></td>
+          </tr>
+        <% }); %>
+      <% } else { %>
+        <tr><td colspan="4"><%= __("no_audit_logs_available") %></td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>
+
+<!-- System health -->
+<section>
+  <h2><%= __("system_health") %></h2>
+  <p><%= __("uptime_seconds") %>: <%= systemHealth.uptime %></p>
+  <p><%= __("load_average") %>: <%= systemHealth.load.join(", ") %></p>
+  <p><%= __("memory_free") %>: <%= systemHealth.memory.free %> / <%= systemHealth.memory.total %></p>
+</section>
+
+<!-- Charts -->
+<section>
+  <h2><%= __("voucher_distribution") %></h2>
+  <canvas id="voucherChart" width="600" height="280"></canvas>
+</section>
+
+<section>
+  <h2><%= __("system_load") %></h2>
+  <canvas id="systemChart" width="600" height="280"></canvas>
+</section>
+
+<!-- Inline scripts for Chart.js (kept here for completeness of this file) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function(){
+  // Voucher distribution chart
+  fetch('/admin/data/vouchers', { credentials: 'same-origin' })
+    .then(res => res.json())
+    .then(data => {
+      const labels = Object.keys(data);
+      const values = Object.values(data);
+      const ctx = document.getElementById('voucherChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: '<%= __("voucher_count") %>',
+            data: values,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    })
+    .catch(err => console.error('Voucher chart error:', err));
+
+  // System load chart
+  fetch('/admin/data/system', { credentials: 'same-origin' })
+    .then(res => res.json())
+    .then(data => {
+      const ctx = document.getElementById('systemChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['1 min', '5 min', '15 min'],
+          datasets: [{
+            label: '<%= __("load_average") %>',
+            data: data.load,
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            borderWidth: 2,
+            tension: 0.3,
+            fill: true,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          },
+          plugins: {
+            tooltip: { mode: 'index', intersect: false },
+            legend: { display: true }
+          }
+        }
+      });
+    })
+    .catch(err => console.error('System chart error:', err));
+})();
+</script>
+
+<%- include('partials/footer') %>
+

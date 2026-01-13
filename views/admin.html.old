@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RAPIDWIFI-ZONE Admin Dashboard</title>
+  <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+  <h1>Admin Dashboard</h1>
+
+  <h2>Active Vouchers</h2>
+  <table>
+    <tr><th>Username</th><th>Profile</th><th>Status</th><th>Actions</th></tr>
+    <% vouchers.forEach(function(voucher){ %>
+      <tr>
+        <td><%= voucher.username %></td>
+        <td><%= voucher.profile %></td>
+        <td><%= voucher.status %></td>
+        <td>
+          <form action="/admin/voucher/block" method="POST">
+            <input type="hidden" name="username" value="<%= voucher.username %>">
+            <button type="submit">Block</button>
+          </form>
+          <form action="/admin/voucher/delete" method="POST">
+            <input type="hidden" name="username" value="<%= voucher.username %>">
+            <button type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }); %>
+  </table>
+
+  <h2>System Health</h2>
+  <p>Uptime: <%= systemHealth.uptime %> seconds</p>
+  <p>Load Average: <%= systemHealth.load %></p>
+  <p>Memory Free: <%= systemHealth.memory.free %> / <%= systemHealth.memory.total %></p>
+</body>
+</html>
+

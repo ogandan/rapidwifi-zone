@@ -1,0 +1,63 @@
+// File: db.js
+// Path: /home/pi/rapidwifi-zone/data/db.js
+// Purpose: SQLite helper functions
+
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+const dbPath = path.join(__dirname, 'db.sqlite');
+const db = new sqlite3.Database(dbPath);
+
+module.exports = {
+  logVoucher: (username, profile) => {
+    db.run(
+      'INSERT INTO vouchers (username, profile) VALUES (?, ?)',
+      [username, profile],
+      (err) => {
+        if (err) console.error('[DB ERROR] logVoucher:', err);
+      }
+    );
+    db.run(
+      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
+      ['create', username, `Voucher created with profile ${profile}`]
+    );
+  },
+
+  logBlock: (username) => {
+    db.run(
+      'UPDATE vouchers SET status = ? WHERE username = ?',
+      ['blocked', username]
+    );
+    db.run(
+      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
+      ['block', username, 'Voucher blocked']
+    );
+  },
+
+  logDelete: (username) => {
+    db.run('DELETE FROM vouchers WHERE username = ?', [username]);
+    db.run(
+      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
+      ['delete', username, 'Voucher deleted']
+    );
+  },
+
+  getAllVouchers: () => {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM vouchers', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  getActiveUsers: () => {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM active_users', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  }
+};
+

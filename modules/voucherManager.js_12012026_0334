@@ -1,0 +1,203 @@
+// File: modules/voucherManager.js
+// Purpose: Manage voucher creation, export, email, print, blocking, and stats
+
+require('dotenv').config();
+const { exec } = require('node:child_process');
+const fs = require('fs');
+const nodemailer = require('nodemailer');
+
+const HOST = '192.168.88.1';
+const USER = 'admin';
+const SSH_TARGET = `${USER}@${HOST}`;
+const LOCK_FILE = '/tmp/voucher.lock';
+
+// Feature flags
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true';
+const PRINT_ENABLED = process.env.PRINT_ENABLED === 'true';
+
+// Gmail transporter (forces IPv4)
+let transporter = null;
+if (EMAIL_ENABLED) {
+  transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    },
+    family: 4
+  });
+  console.log('[VoucherManager] Email transporter configured');
+}
+
+// Profile → Price mapping
+const profilePrices = {
+  "1h-100FCFA": 100,
+  "3h-200FCFA": 200,
+  "8h-500FCFA": 500,
+  "24h-1000FCFA": 1000,
+  "default": 0
+};
+
+// Generate random alphanumeric password
+function randomPassword(len = 10) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: len }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+// Run RouterOS command via SSH
+function ros(cmd) {
+  return new Promise((resolve, reject) => {
+    const fullCmd = `ssh -T -o BatchMode=yes -o StrictHostKeyChecking=no -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostkeyAlgorithms=+ssh-rsa ${SSH_TARGET} "${cmd}"`;
+    exec(fullCmd, { timeout: 12000 }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr || err.message));
+      resolve(stdout.trim());
+    });
+  });
+}
+
+// Check if user already exists
+async function userExists(name) {
+  const out = await ros(`/ip hotspot user find where name="${name}"`);
+  return out !== '';
+}
+
+// Add user with profile + batch tag
+async function addUser({ name, password, profile, comment }) {
+  const cmd = `/ip hotspot user add name="${name}" password="${password}" profile="${profile}" comment="${comment}"`;
+  return ros(cmd);
+}
+
+// Email vouchers file (optional)
+async function sendEmail(filePath, profile) {
+  if (!EMAIL_ENABLED || !transporter) return console.log(`[VoucherManager] Email skipped for ${filePath}`);
+  const to = process.env.EMAIL_TO || process.env.EMAIL_USER;
+  await transporter.sendMail({
+    from: `"Voucher System" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: `Vouchers for ${profile}`,
+    text: `Attached are vouchers for ${profile}.`,
+    attachments: [{ filename: `${profile}.csv`, path: filePath }]
+  });
+  console.log(`[VoucherManager] Emailed ${filePath} to ${to}`);
+}
+
+// Print vouchers file (optional)
+function printFile(filePath) {
+  if (!PRINT_ENABLED) return console.log(`[VoucherManager] Print skipped for ${filePath}`);
+  const cmd = process.platform === 'win32'
+    ? `PowerShell -Command "Start-Process -FilePath '${filePath}' -Verb Print"`
+    : `lp "${filePath}"`;
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error(`[VoucherManager] Print error: ${stderr || err.message}`);
+    } else {
+      console.log(`[VoucherManager] Sent ${filePath} to printer`);
+    }
+  });
+}
+
+// Fetch all hotspot users
+async function fetchUsers() {
+  const out = await ros('/ip hotspot user print detail without-paging');
+  const users = [];
+  out.split('\n').forEach(line => {
+    const match = line.match(/name="([^"]+)"(?:\s+password="([^"]+)")?(?:\s+profile=([^\s]+))?(?:.*comment="([^"]+)")?/);
+    if (match) {
+      users.push({
+        name: match[1],
+        password: match[2] || '(none)',
+        profile: match[3] || '(none)',
+        comment: match[4] || ''
+      });
+    }
+  });
+  return users;
+}
+
+// Export helpers
+function exportCSV(filename, users) {
+  const csv = 'Username,Password,Profile,Price,Batch\n' + users.map(u => {
+    const price = profilePrices[u.profile] || '';
+    return `${u.name},${u.password},${u.profile},${price},${u.comment}`;
+  }).join('\n');
+  fs.writeFileSync(filename, csv);
+  console.log(`[VoucherManager] Exported ${users.length} users to ${filename}`);
+}
+
+// Public API
+module.exports = {
+  randomPassword,
+  userExists,
+  addUser,
+  fetchUsers,
+
+  async createBatch(count = 10, profile = 'default', batchTag = `batch-${Date.now()}`) {
+    if (fs.existsSync(LOCK_FILE)) throw new Error('Another run is already in progress.');
+    fs.writeFileSync(LOCK_FILE, String(process.pid));
+
+    try {
+      const created = [];
+      for (let i = 0; i < count; i++) {
+        const name = `VCHR-${batchTag}-${String(i + 1).padStart(3, '0')}`;
+        const password = randomPassword(10);
+
+        if (await userExists(name)) {
+          console.log(`[VoucherManager] Skip existing: ${name}`);
+          continue;
+        }
+
+        console.log(`[VoucherManager] Creating voucher ${name} with profile ${profile}`);
+        await addUser({ name, password, profile, comment: batchTag });
+        created.push({ name, password, profile, batch: batchTag });
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return created;
+    } finally {
+      if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+    }
+  },
+
+  async exportAll() {
+    const users = await fetchUsers();
+    exportCSV('vouchers_all.csv', users);
+    return users;
+  },
+
+  async exportBatch(batchTag) {
+    const users = await fetchUsers();
+    const batchUsers = users.filter(u => u.comment === batchTag);
+    exportCSV(`vouchers_${batchTag}.csv`, batchUsers);
+    return batchUsers;
+  },
+
+  async exportProfiles() {
+    const users = await fetchUsers();
+    const profiles = [...new Set(users.map(u => u.profile))];
+    for (const p of profiles) {
+      const profileUsers = users.filter(u => u.profile === p);
+      const filePath = `vouchers_${p}.csv`;
+      exportCSV(filePath, profileUsers);
+      await sendEmail(filePath, p).catch(err => console.error(`[VoucherManager] Email error: ${err.message}`));
+      printFile(filePath);
+    }
+    return profiles;
+  },
+
+  async blockVoucher(username) {
+    return ros(`/ip hotspot user set [find where name="${username}"] disabled=yes`);
+  },
+
+  async deleteVoucher(username) {
+    return ros(`/ip hotspot user remove [find where name="${username}"]`);
+  },
+
+  async getStats() {
+    const users = await fetchUsers();
+    const active = users.filter(u => u.status !== 'blocked').length;
+    const blocked = users.filter(u => u.status === 'blocked').length;
+    return { active, blocked, total: users.length };
+  }
+};
+

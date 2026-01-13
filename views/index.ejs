@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title><%= __("welcome") %></title>
+  <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+  <h1><%= __("welcome") %></h1>
+  <p><%= __("select_plan") %></p>
+
+  <!-- Show current Quick Tunnel URL -->
+  <p>Access portal at: <span id="tunnel-url"><%= tunnelURL %></span></p>
+
+  <form action="/payment" method="POST">
+    <label for="plan"><%= __("choose_plan") || "Choose Plan:" %></label>
+    <select name="plan" id="plan">
+      <option value="3h-100FCFA">3h - 100 FCFA</option>
+      <option value="24h-200FCFA">24h - 200 FCFA</option>
+      <option value="72h-500FCFA">72h - 500 FCFA</option>
+      <option value="7jours-1000FCFA">7 jours - 1000 FCFA</option>
+    </select>
+    <br><br>
+    <label for="phone"><%= __("phone_number") %>:</label>
+    <input type="text" name="phone" id="phone" required>
+    <br><br>
+    <button type="submit"><%= __("pay_mtn") %></button>
+    <button type="submit"><%= __("pay_moov") %></button>
+  </form>
+</body>
+</html>
+
