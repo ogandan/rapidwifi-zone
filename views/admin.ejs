@@ -1,49 +1,194 @@
-<form id="batchForm" method="POST">
-  <div class="batch-actions">
-    <select id="batchAction" name="action" required>
-      <option value="">-- Select Action --</option>
-      <option value="block">Block Selected</option>
-      <option value="delete">Delete Selected</option>
-    </select>
-    <button type="submit">Apply</button>
+<%- include('partials/header') %>
+
+<!-- TEST MODE badge -->
+<% if (process.env.TEST_MODE === 'true') { %>
+  <div style="background:#f39c12;color:#fff;padding:5px;text-align:center;">
+    ⚠ TEST MODE ACTIVE — commands are simulated
   </div>
+<% } %>
 
-  <table>
-    <thead>
-      <tr>
-        <th><input type="checkbox" id="selectAll"></th>
-        <th>Username</th>
-        <th>Profile</th>
-        <th>Status</th>
-        <th>Created At</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% vouchers.forEach(function(v) { %>
+<!-- Voucher creation -->
+<section>
+   <h1>Admin Dashboard</h1>
+  <h2><%= __("create_vouchers") %></h2>
+  <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
+    <label>Count:
+      <input type="number" name="count" value="5" min="1">
+    </label>
+    <label>Profile:
+      <select name="profile">
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h-100FCFA</option>
+        <option value="3h-200FCFA">3h-200FCFA</option>
+        <option value="8h-500FCFA">8h-500FCFA</option>
+        <option value="24h-1000FCFA">24h-1000FCFA</option>
+      </select>
+    </label>
+    <label>Batch Tag:
+      <input type="text" name="batch" placeholder="batch-<%= Date.now() %>">
+    </label>
+    <button type="submit">Create</button>
+  </form>
+  <div id="create-result"></div>
+</section>
+
+<!-- Voucher list with batch management -->
+<section>
+  <h2><%= __("active_vouchers") %></h2>
+
+  <form id="batch-voucher-form">
+    <div class="batch-actions">
+      <select id="batchAction" name="action" required>
+        <option value="">-- Select Action --</option>
+        <option value="block">Block Selected</option>
+        <option value="delete">Delete Selected</option>
+      </select>
+      <button type="submit">Apply</button>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
         <tr>
-          <td><input type="checkbox" name="usernames" value="<%= v.username %>"></td>
-          <td><%= v.username %></td>
-          <td><%= v.profile %></td>
-          <td><%= v.status %></td>
-          <td><%= v.created_at %></td>
+          <th><input type="checkbox" id="select-all"></th>
+          <th>Username</th>
+          <th>Profile</th>
+          <th>Status</th>
+          <th>Distribute</th>
         </tr>
-      <% }); %>
-    </tbody>
-  </table>
-</form>
+      </thead>
+      <tbody id="voucher-table-body">
+        <% vouchers.forEach(function(voucher){ %>
+          <tr data-status="<%= voucher.status %>"
+              data-username="<%= voucher.name.toLowerCase() %>"
+              data-profile="<%= voucher.profile.toLowerCase() %>">
+            <td><input type="checkbox" name="selected" value="<%= voucher.name %>"></td>
+            <td><%= voucher.name %></td>
+            <td><%= voucher.profile %></td>
+            <td>
+              <% if (voucher.status === 'blocked') { %>
+                <span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>
+              <% } else { %>
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              <% } %>
+            </td>
+            <td>
+              <!-- Distribution buttons -->
+              <button type="button" onclick="sendSMS('<%= voucher.name %>')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('<%= voucher.name %>')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('<%= voucher.name %>')">Telegram</button>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </form>
+  <div id="batch-result"></div>
+</section>
 
+<!-- Exports -->
+<section>
+  <h2><%= __("exports") %></h2>
+  <form action="/admin/export/vouchers.csv" method="GET">
+    <button type="submit">Export All Vouchers</button>
+  </form>
+  <form action="/admin/export/audit_logs.csv" method="GET">
+    <button type="submit">Export Audit Logs</button>
+  </form>
+</section>
+
+<!-- Status -->
+<section>
+  <h2>Status</h2>
+  <div id="statusContent">Loading export status...</div>
+</section>
+
+<!-- Charts -->
+<section>
+  <h2>Charts</h2>
+  <canvas id="voucherChart"></canvas>
+  <canvas id="systemChart"></canvas>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Select/Deselect all checkboxes
-  document.getElementById('selectAll').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('input[name="usernames"]');
-    checkboxes.forEach(cb => cb.checked = this.checked);
-  });
+  // Chart.js integration
+  async function loadVoucherChart() {
+    const res = await fetch('/admin/data/vouchers');
+    const data = await res.json();
+    const ctx = document.getElementById('voucherChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(data.counts),
+        datasets: [{
+          label: 'Vouchers by Profile',
+          data: Object.values(data.counts),
+          backgroundColor: '#3498db'
+        }]
+      }
+    });
+  }
 
-  // Handle batch form submission
-  document.getElementById('batchForm').addEventListener('submit', async function(e) {
+  async function loadSystemChart() {
+    const res = await fetch('/admin/data/system');
+    const data = await res.json();
+    const ctx = document.getElementById('systemChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Load1', 'Load5', 'Load15'],
+        datasets: [{
+          label: 'System Load',
+          data: data.load,
+          borderColor: '#e67e22',
+          fill: false
+        }]
+      }
+    });
+  }
+
+  loadVoucherChart();
+  loadSystemChart();
+
+  // Distribution AJAX stubs
+  function sendSMS(voucherId) {
+    fetch('/admin/distribute/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('SMS result:', data))
+    .catch(err => console.error('SMS error:', err));
+  }
+
+  function sendWhatsApp(voucherId) {
+    fetch('/admin/distribute/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('WhatsApp result:', data))
+    .catch(err => console.error('WhatsApp error:', err));
+  }
+
+  function sendTelegram(voucherId) {
+    fetch('/admin/distribute/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('Telegram result:', data))
+    .catch(err => console.error('Telegram error:', err));
+  }
+
+  // ✅ Batch block/delete
+  document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const action = document.getElementById('batchAction').value;
-    const selected = Array.from(document.querySelectorAll('input[name="usernames"]:checked'))
+    const selected = Array.from(document.querySelectorAll('input[name="selected"]:checked'))
                           .map(cb => cb.value);
 
     if (!action || selected.length === 0) {
@@ -69,5 +214,23 @@
       alert('Error performing batch action');
     }
   });
+
+  // ✅ Load export status
+  async function loadStatus() {
+    try {
+      const res = await fetch('/admin/status');
+      const status = await res.json();
+      document.getElementById('statusContent').innerHTML = `
+        <p>Vouchers CSV last updated: ${status.vouchers_csv || 'N/A'}</p>
+        <p>Audit Logs CSV last updated: ${status.audit_logs_csv || 'N/A'}</p>
+        <p>System uptime: ${status.system_uptime} seconds</p>
+      `;
+    } catch (err) {
+      console.error('Failed to load status:', err);
+    }
+  }
+  loadStatus();
 </script>
+
+<%- include('partials/footer') %>
 
