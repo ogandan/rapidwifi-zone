@@ -81,7 +81,16 @@ function outputData(data) {
   try {
     switch (cmd) {
       case 'createBatch': {
-        const [count, profile, batch] = cleanArgs;
+        let [count, profile, batch] = cleanArgs;
+
+        // Auto-generate batch name if not provided
+        if (!batch) {
+          const timestamp = new Date().toISOString()
+            .replace(/[-:T]/g, '')   // remove separators
+            .slice(0, 14);           // keep YYYYMMDDHHMMSS
+          batch = `batch-${timestamp}`;
+        }
+
         const created = await vm.createBatch(count, profile, batch);
         outputData(created);
         break;
