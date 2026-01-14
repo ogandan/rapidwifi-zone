@@ -140,16 +140,6 @@ async function ros(cmd) {
       connOpts.password = process.env.ROS_PASS;
     }
 
-    // Debug log (non-sensitive)
-    console.log('[VoucherManager] Connecting with options:', {
-      host: connOpts.host,
-      port: connOpts.port,
-      username: connOpts.username,
-      algorithms: connOpts.algorithms,
-      keyPath: process.env.ROS_KEY_PATH || null,
-      usingPassword: !!process.env.ROS_PASS
-    });
-
     conn.on('ready', () => {
       conn.exec(cmd, (err, stream) => {
         if (err) {
@@ -234,8 +224,15 @@ async function deleteVoucher(username) {
 }
 
 async function createBatch(count, profile, batch) {
+  // Auto-generate batch tag if none provided
+  let tag = batch && batch.trim() ? sanitize(batch) : (() => {
+    const timestamp = new Date().toISOString()
+      .replace(/[-:T]/g, '')   // remove separators
+      .slice(0, 14);           // keep YYYYMMDDHHMMSS
+    return `batch-${timestamp}`;
+  })();
+
   const created = [];
-  const tag = batch ? sanitize(batch) : `batch-${Date.now()}`;
   for (let i = 0; i < Number(count || 1); i++) {
     const suffix = crypto.randomBytes(2).toString('hex').slice(0, USERNAME_LEN);
     const username = `${tag}-${suffix}-${i}`;
@@ -246,74 +243,84 @@ async function createBatch(count, profile, batch) {
 
   const lines = created.map(v => `${v.name},${v.password},${v.profile},${v.comment}`);
   await sendEmail(`Vouchers created: ${created.length}`, lines.join('\n'));
-  logAction('createBatch', { count, profile, batch: tag });
+  logAction('createBatch', { count: Number(count || 1), profile, batch: tag });
   return created;
+}
+
+// -----------------------------
+// Export & Stats
+// -----------------------------
+async function exportBatch(batchName) {
+  const users = await fetchUsers();
+  const filtered = users.filter(u => (u.comment || '') === batchName);
+  logAction('exportBatch', { batch: batchName, count: filtered.length });
+  return filtered;
 }
 
 async function exportAll() {
   const users = await fetchUsers();
-  const file = path.join(DATA_DIR, 'vouchers_all.csv');
-  const header = 'Username,Password,Profile,Batch,Status';
-  const rows = users.map(u => `${u.name},${u.password},${u.profile},${u.comment},${u.status}`);
-  writeCSV(file, rows, header);
-  logAction('exportAll', { count: users.length, file });
+  logAction('exportAll', { count: users.length });
   return users;
-}
-
-async function exportBatch(batch) {
-  const users = await fetchUsers();
-  const tag = sanitize(batch);
-  const filtered = users.filter(u => (u.comment || '') === tag);
-  const file = path.join(DATA_DIR, `vouchers_${tag}.csv`);
-  const header = 'Username,Password,Profile,Batch,Status';
-  const rows = filtered.map(u => `${u.name},${u.password},${u.profile},${u.comment},${u.status}`);
-  writeCSV(file, rows, header);
-  logAction('exportBatch', { batch: tag, count: filtered.length, file });
-  return filtered;
 }
 
 async function exportProfiles() {
   const users = await fetchUsers();
-  const profiles = [...new Set(users.map(u => u.profile))];
-  for (const profile of profiles) {
-    const subset = users.filter(u => u.profile === profile);
-    const file = path.join(DATA_DIR, `vouchers_${sanitize(profile)}.csv`);
-    const header = 'Username,Password,Profile,Batch,Status';
-    const rows = subset.map(u => `${u.name},${u.password},${u.profile},${u.comment},${u.status}`);
-    writeCSV(file, rows, header);
-    logAction('exportProfile', { profile, count: subset.length, file });
+  const profiles = {};
+  for (const u of users) {
+    const key = u.profile || 'default';
+    if (!profiles[key]) profiles[key] = 0;
+    profiles[key] += 1;
   }
+  logAction('exportProfiles', { profiles });
   return profiles;
 }
 
 async function getStats() {
   const users = await fetchUsers();
   const total = users.length;
+  const active = users.filter(u => u.status === 'active').length;
   const blocked = users.filter(u => u.status === 'blocked').length;
-  const active = total - blocked;
   const byProfile = users.reduce((acc, u) => {
-    acc[u.profile] = (acc[u.profile] || 0) + 1;
+    const key = u.profile || 'default';
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
   const stats = { total, active, blocked, byProfile };
-  logAction('getStats', stats);
+  logAction('stats', stats);
   return stats;
 }
 
 // -----------------------------
-// Exports
+// Optional: revoke a whole batch
+// -----------------------------
+async function revokeBatch(batchName) {
+  const users = await exportBatch(batchName);
+  for (const u of users) {
+    await blockVoucher(u.name);
+  }
+  logAction('revokeBatch', { batch: batchName, count: users.length });
+  return { batch: batchName, blocked: users.length };
+}
+
+// -----------------------------
+// Module Exports
 // -----------------------------
 module.exports = {
-  randomPassword,
-  userExists,
+  // Core
+  createBatch,
   addUser,
   fetchUsers,
-  createBatch,
-  exportAll,
-  exportBatch,
-  exportProfiles,
   blockVoucher,
   deleteVoucher,
-  getStats
+  userExists,
+
+  // Export & Stats
+  exportBatch,
+  exportAll,
+  exportProfiles,
+  getStats,
+
+  // Optional lifecycle
+  revokeBatch
 };
 
