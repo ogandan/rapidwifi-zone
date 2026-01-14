@@ -1,5 +1,4 @@
-// File: db.js
-// Path: /home/pi/rapidwifi-zone/data/db.js
+// File: data/db.js
 // Purpose: SQLite helper functions
 
 const sqlite3 = require('sqlite3').verbose();
@@ -19,8 +18,8 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
-      ['create', username, profile, `Voucher created with profile ${profile}`],
+      'INSERT INTO audit_logs (action, username, profile, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+      ['create', username, profile, `Voucher created with profile ${profile}`, new Date().toISOString()],
       (err) => {
         if (err) console.error('[DB ERROR] logVoucher audit:', err);
       }
@@ -36,8 +35,8 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
-      ['block', username, profile, 'Voucher blocked'],
+      'INSERT INTO audit_logs (action, username, profile, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+      ['block', username, profile, 'Voucher blocked', new Date().toISOString()],
       (err) => {
         if (err) console.error('[DB ERROR] logBlock audit:', err);
       }
@@ -53,12 +52,45 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
-      ['delete', username, profile, 'Voucher deleted'],
+      'INSERT INTO audit_logs (action, username, profile, details, timestamp) VALUES (?, ?, ?, ?, ?)',
+      ['delete', username, profile, 'Voucher deleted', new Date().toISOString()],
       (err) => {
         if (err) console.error('[DB ERROR] logDelete audit:', err);
       }
     );
+  },
+
+  // --- NEW: Structured audit logging for lifecycle & distribution ---
+  logAudit: (action, username, target, channel = null, status = 'success', details = {}) => {
+    const entry = {
+      id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: new Date().toISOString(),
+      action,            // e.g., "sms_distribution", "create", "block"
+      username,          // operator or "system"
+      target,            // voucher username or batch tag
+      channel,           // "SMS", "WhatsApp", "Telegram", "Dashboard" or null
+      status,            // "success" | "failed"
+      details: JSON.stringify(details) // serialized metadata
+    };
+
+    db.run(
+      'INSERT INTO audit_logs (id, timestamp, action, username, profile, details, channel, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        entry.id,
+        entry.timestamp,
+        entry.action,
+        entry.username,
+        entry.target,     // stored in "profile" column for backward compatibility
+        entry.details,
+        entry.channel,
+        entry.status
+      ],
+      (err) => {
+        if (err) console.error('[DB ERROR] logAudit:', err);
+      }
+    );
+
+    return entry;
   },
 
   // --- Query helpers for dashboard ---

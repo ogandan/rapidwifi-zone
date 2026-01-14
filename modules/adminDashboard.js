@@ -6,7 +6,7 @@ const voucherManager = require('./voucherManager');
 const db = require('../data/db');
 const os = require('os');
 
-// Distribution modules (stubbed, controlled by .env flags)
+// Distribution modules (optional, feature-flagged via .env inside each module)
 const { sendSMS } = require('./smsSender');
 const { handleWhatsAppMessage } = require('./whatsappBot');
 const { handleTelegramCommand } = require('./telegramBot');
@@ -92,11 +92,11 @@ module.exports = function(getTunnelURL) {
     }
   });
 
-  // ✅ Audit logs JSON endpoint
+  // Audit logs JSON endpoint
   router.get('/data/audit', async (req, res) => {
     try {
-      const { action, username, from, to } = req.query;
-      const logs = await db.getFilteredAuditLogs({ action, username, from, to });
+      const { action, username, from, to, profile } = req.query;
+      const logs = await db.getFilteredAuditLogs({ action, username, from, to, profile });
       res.json(logs);
     } catch (err) {
       console.error('[ADMIN DATA ERROR] Failed to load audit logs:', err);
@@ -104,39 +104,84 @@ module.exports = function(getTunnelURL) {
     }
   });
 
-  // ✅ Distribution endpoints
+  // --- Distribution endpoints with audit logging ---
   router.post('/distribute/sms', async (req, res) => {
-    const { number, voucher } = req.body;
+    const { number, voucher, batch } = req.body;
     try {
       const result = await sendSMS(number, voucher);
-      await db.logAudit('sms_distribution', req.user?.username || 'system', voucher);
+      await db.logAudit(
+        'sms_distribution',
+        req.user?.username || 'system',
+        voucher,
+        'SMS',
+        result?.success ? 'success' : 'failed',
+        { recipient: number, batchTag: batch || null }
+      );
       res.json(result);
     } catch (err) {
       console.error('[ADMIN DISTRIBUTION ERROR] SMS failed:', err);
+      await db.logAudit(
+        'sms_distribution',
+        req.user?.username || 'system',
+        voucher,
+        'SMS',
+        'failed',
+        { recipient: number, errorMessage: String(err), batchTag: batch || null }
+      );
       res.status(500).json({ error: 'SMS distribution failed' });
     }
   });
 
   router.post('/distribute/whatsapp', async (req, res) => {
-    const { userId, message } = req.body;
+    const { userId, message, voucher, batch } = req.body;
     try {
-      const result = await handleWhatsAppMessage(userId, message);
-      await db.logAudit('whatsapp_distribution', req.user?.username || 'system', message);
+      const result = await handleWhatsAppMessage(userId, message || voucher);
+      await db.logAudit(
+        'whatsapp_distribution',
+        req.user?.username || 'system',
+        voucher || message,
+        'WhatsApp',
+        result?.success ? 'success' : 'failed',
+        { recipient: userId, batchTag: batch || null }
+      );
       res.json(result);
     } catch (err) {
       console.error('[ADMIN DISTRIBUTION ERROR] WhatsApp failed:', err);
+      await db.logAudit(
+        'whatsapp_distribution',
+        req.user?.username || 'system',
+        voucher || message,
+        'WhatsApp',
+        'failed',
+        { recipient: userId, errorMessage: String(err), batchTag: batch || null }
+      );
       res.status(500).json({ error: 'WhatsApp distribution failed' });
     }
   });
 
   router.post('/distribute/telegram', async (req, res) => {
-    const { userId, command } = req.body;
+    const { userId, command, voucher, batch } = req.body;
     try {
-      const result = await handleTelegramCommand(userId, command);
-      await db.logAudit('telegram_distribution', req.user?.username || 'system', command);
+      const result = await handleTelegramCommand(userId, command || voucher);
+      await db.logAudit(
+        'telegram_distribution',
+        req.user?.username || 'system',
+        voucher || command,
+        'Telegram',
+        result?.success ? 'success' : 'failed',
+        { recipient: userId, batchTag: batch || null }
+      );
       res.json(result);
     } catch (err) {
       console.error('[ADMIN DISTRIBUTION ERROR] Telegram failed:', err);
+      await db.logAudit(
+        'telegram_distribution',
+        req.user?.username || 'system',
+        voucher || command,
+        'Telegram',
+        'failed',
+        { recipient: userId, errorMessage: String(err), batchTag: batch || null }
+      );
       res.status(500).json({ error: 'Telegram distribution failed' });
     }
   });
