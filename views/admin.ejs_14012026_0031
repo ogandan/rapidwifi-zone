@@ -1,7 +1,6 @@
 <%- include('partials/header') %>
 
 <!-- Navigation bar -->
-<!--
 <header>
   <h1>Admin Dashboard</h1>
   <nav>
@@ -11,7 +10,6 @@
     <a href="/logout">Logout</a>
   </nav>
 </header>
--->
 
 <!-- TEST MODE badge -->
 <% if (process.env.TEST_MODE === 'true') { %>
@@ -22,7 +20,6 @@
 
 <!-- Voucher creation -->
 <section>
-   <h1>Admin Dashboard</h1>
   <h2><%= __("create_vouchers") %></h2>
   <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
     <label>Count:

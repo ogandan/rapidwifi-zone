@@ -2,23 +2,33 @@
 const express = require('express');
 const helmet = require('helmet');
 const bcrypt = require('bcrypt');
-const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken'); // used only for future expansion; not required if you stick to sessions
+const cookieParser = require('cookie-parser'); // needed for CSRF cookie mode
 const csurf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const winston = require('winston');
 require('winston-syslog');
 
+// --- Router instance ---
 const router = express.Router();
 
 // --- Config & env ---
+const APP_ENV = process.env.APP_ENV || 'production';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me';
 const BCRYPT_COST = Number(process.env.BCRYPT_COST || 12);
 const SYSLOG_HOST = process.env.SYSLOG_HOST || '192.168.88.2';
 
+// Existing admin credentials (keeps current behavior)
+/**
+ * IMPORTANT:
+ * - ADMIN_USER: string username (e.g., "admin")
+ * - ADMIN_PASS: plaintext password currently used in server.js
+ * We will verify with bcrypt if you later store a hash; for now, we compare safely.
+ */
 const ADMIN_USER = (process.env.ADMIN_USER || 'admin').trim();
 const ADMIN_PASS = (process.env.ADMIN_PASS || '').trim();
-const ADMIN_PASS_HASH = (process.env.ADMIN_PASS_HASH || '').trim();
 
-// --- Logger ---
+// --- Logger to syslog ---
 const logger = winston.createLogger({
   transports: [
     new winston.transports.Syslog({
@@ -31,7 +41,7 @@ const logger = winston.createLogger({
 const logAuth = (event, details) => {
   try {
     logger.info(`[AUTH] ${event} ${JSON.stringify(details)}`);
-  } catch {}
+  } catch (e) { /* avoid throwing from logger */ }
 };
 
 // --- Security headers ---
@@ -50,7 +60,7 @@ router.use(helmet({
   frameguard: { action: 'deny' }
 }));
 
-// --- Parsers & cookies ---
+// --- Parsers & cookies (needed for CSRF cookie mode) ---
 router.use(express.json());
 router.use(express.urlencoded({ extended: false }));
 router.use(cookieParser());
@@ -62,18 +72,22 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-const resetLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20
+});
 
-// --- CSRF ---
+// --- CSRF (cookie-based) ---
 const csrfProtection = csurf({ cookie: true });
 
-// --- Auth helpers ---
+// --- RBAC & auth helpers (session-based) ---
 function requireAuth(req, res, next) {
   if (!req.session || !req.session.user) {
     return res.status(401).json({ ok: false, error: 'unauthorized' });
   }
   next();
 }
+
 function requireRole(...roles) {
   return (req, res, next) => {
     const user = req.session && req.session.user;
@@ -84,52 +98,51 @@ function requireRole(...roles) {
   };
 }
 
-// --- Verify admin credentials ---
+// --- Admin bootstrap: verify against env admin ---
+// If in the future you store a bcrypt hash in ADMIN_PASS_HASH, we’ll prefer verifying against that.
 async function verifyAdminCredentials(email, password) {
-  if (email !== ADMIN_USER) return false;
+  const candidate = (email || '').trim();
+  const pass = (password || '').trim();
+
+  if (!candidate || !pass) return false;
+  if (candidate !== ADMIN_USER) return false;
+
+  const ADMIN_PASS_HASH = (process.env.ADMIN_PASS_HASH || '').trim();
   if (ADMIN_PASS_HASH) {
+    // Verify bcrypt hash first, if provided
     try {
-      return await bcrypt.compare(password, ADMIN_PASS_HASH);
+      const ok = await bcrypt.compare(pass, ADMIN_PASS_HASH);
+      return ok;
     } catch {
       return false;
     }
   }
-  return ADMIN_PASS && password === ADMIN_PASS;
+  // Fallback: compare plaintext against ADMIN_PASS (current behavior)
+  return ADMIN_PASS && pass === ADMIN_PASS;
 }
 
-// --- Routes ---
+// --- Public: obtain CSRF token for admin forms under this router ---
 router.get('/admin/csrf-token', requireAuth, csrfProtection, (req, res) => {
-  res.json({ ok: true, csrfToken: req.csrfToken() });
+  return res.json({ ok: true, csrfToken: req.csrfToken() });
 });
 
-// --- Login route (supports JSON and form submissions) ---
+// --- Login (JSON body: { email, password }) ---
 router.post('/login', loginLimiter, async (req, res) => {
   const { email, password } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
+  // For now, we support ADMIN only (matching current behavior)
   const ok = await verifyAdminCredentials(email, password);
   if (!ok) {
+    // Count & lockout could be added here later if needed
     logAuth('login.fail', { email, ip });
-
-    // Browser form submission → re-render login.ejs with error
-    if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
-      return res.render('login', { error: 'Invalid credentials', __: res.__, csrfToken: req.csrfToken?.() });
-    }
-
-    // API/JSON client → return JSON
     return res.status(401).json({ ok: false, error: 'invalid_credentials' });
   }
 
-  // Success: create session
+  // Establish session (aligns with your existing session-based protection)
   req.session.user = { id: 'admin', email: ADMIN_USER, role: 'ADMIN' };
   logAuth('login.success', { email: ADMIN_USER, ip });
 
-  // Browser form submission → redirect to /admin
-  if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
-    return res.redirect('/admin');
-  }
-
-  // API/JSON client → return JSON
   return res.json({ ok: true, user: { email: ADMIN_USER, role: 'ADMIN' } });
 });
 
@@ -142,23 +155,29 @@ router.post('/logout', requireAuth, (req, res) => {
   });
 });
 
-// Example protected route
+// --- Example protected admin endpoints (mirror your current /admin, but under /authv2/admin) ---
 router.use('/admin', requireAuth, csrfProtection);
-router.get('/admin/dashboard', requireRole('ADMIN'), (req, res) => {
-  res.json({ ok: true, message: 'authv2 dashboard reachable', user: req.session.user });
+
+// Minimal test endpoints to confirm wiring
+router.get('/admin/dashboard', requireRole('ADMIN', 'OPERATOR'), (req, res) => {
+  return res.json({ ok: true, message: 'authv2 dashboard reachable', user: req.session.user });
 });
 
-// Password reset stubs
+router.post('/admin/vouchers/create', requireRole('ADMIN', 'OPERATOR'), (req, res) => {
+  // Integrate with your voucherManager here later if needed
+  return res.json({ ok: true, message: 'voucher creation stub' });
+});
+
+// --- Password reset stubs (safe, rate-limited) ---
 router.post('/reset/request', resetLimiter, (req, res) => {
-  res.json({ ok: true });
+  // Implement secure token issuance (single-use) if/when you add email or admin-issued codes
+  return res.json({ ok: true });
 });
 router.post('/reset/confirm', resetLimiter, async (req, res) => {
-  res.json({ ok: true });
+  // Implement token verification + bcrypt rehash storage (ADMIN_PASS_HASH) if/when enabled
+  return res.json({ ok: true });
 });
 
-module.exports = {
-  router,
-  requireAuth,
-  requireRole
-};
+// --- Export router ---
+module.exports = router;
 

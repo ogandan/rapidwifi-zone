@@ -114,35 +114,37 @@ async function ros(cmd) {
   return new Promise((resolve, reject) => {
     const conn = new SSHClient();
 
+    // Allow overriding algorithms via env, default to legacy ssh-rsa for RouterOS compatibility
+    const serverHostKeyAlgos = (process.env.ROS_SERVER_HOST_KEY_ALGOS || 'ssh-rsa')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const publicKeyAlgos = (process.env.ROS_PUBLIC_KEY_ALGOS || 'ssh-rsa')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
     const connOpts = {
       host: process.env.ROS_HOST || '192.168.88.1',
       port: parseInt(process.env.ROS_PORT || '22', 10),
       username: process.env.ROS_USER || 'admin',
+      // Force legacy algorithms to match: ssh -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostkeyAlgorithms=+ssh-rsa
       algorithms: {
-        serverHostKey: (process.env.ROS_SERVER_HOST_KEY_ALGOS || 'ssh-rsa').split(',').map(s => s.trim()).filter(Boolean),
-        publicKey: (process.env.ROS_PUBLIC_KEY_ALGOS || 'ssh-rsa').split(',').map(s => s.trim()).filter(Boolean)
+        serverHostKey: serverHostKeyAlgos,
+        publicKey: publicKeyAlgos
       },
-      readyTimeout: parseInt(process.env.ROS_READY_TIMEOUT || '10000', 10)
+      readyTimeout: parseInt(process.env.ROS_READY_TIMEOUT || '10000', 10) // optional: avoid long hangs
     };
 
     if (process.env.ROS_KEY_PATH && fs.existsSync(process.env.ROS_KEY_PATH)) {
       connOpts.privateKey = fs.readFileSync(process.env.ROS_KEY_PATH);
+      // Optional: passphrase support if your key is encrypted
       if (process.env.ROS_KEY_PASSPHRASE) {
         connOpts.passphrase = process.env.ROS_KEY_PASSPHRASE;
       }
     } else if (process.env.ROS_PASS) {
       connOpts.password = process.env.ROS_PASS;
     }
-
-    // Debug log (non-sensitive)
-    console.log('[VoucherManager] Connecting with options:', {
-      host: connOpts.host,
-      port: connOpts.port,
-      username: connOpts.username,
-      algorithms: connOpts.algorithms,
-      keyPath: process.env.ROS_KEY_PATH || null,
-      usingPassword: !!process.env.ROS_PASS
-    });
 
     conn.on('ready', () => {
       conn.exec(cmd, (err, stream) => {

@@ -1,0 +1,52 @@
+const express = require('express');
+const router = express.Router();
+const vm = require('../modules/voucherManager');
+const path = require('path');
+
+// Stats
+router.get('/api/vouchers/stats', async (req, res) => {
+  try {
+    const stats = await vm.getStats();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export batch (JSON/CSV)
+router.get('/api/vouchers/export/:batch', async (req, res) => {
+  try {
+    const format = req.query.format || 'json';
+    const vouchers = await vm.exportBatch(req.params.batch);
+    if (format === 'csv') {
+      const filePath = path.join(__dirname, '..', 'data', `${req.params.batch}.csv`);
+      res.download(filePath);
+    } else {
+      res.json(vouchers);
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Print-friendly batch
+router.get('/api/vouchers/print/:batch', async (req, res) => {
+  try {
+    const vouchers = await vm.exportBatch(req.params.batch);
+    let html = `
+      <html><head><title>Batch ${req.params.batch}</title></head><body>
+      <h2>Batch ${req.params.batch}</h2>
+      <table border="1" cellpadding="5">
+        <tr><th>Username</th><th>Password</th><th>Profile</th></tr>
+        ${vouchers.map(v => `<tr><td>${v.name}</td><td>${v.password}</td><td>${v.profile}</td></tr>`).join('')}
+      </table>
+      <script>window.print()</script>
+      </body></html>`;
+    res.send(html);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;
+

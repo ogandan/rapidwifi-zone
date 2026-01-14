@@ -19,15 +19,15 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
-      ['create', username, `Voucher created with profile ${profile}`],
+      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
+      ['create', username, profile, `Voucher created with profile ${profile}`],
       (err) => {
         if (err) console.error('[DB ERROR] logVoucher audit:', err);
       }
     );
   },
 
-  logBlock: (username) => {
+  logBlock: (username, profile = null) => {
     db.run(
       'UPDATE vouchers SET status = ? WHERE username = ?',
       ['blocked', username],
@@ -36,15 +36,15 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
-      ['block', username, 'Voucher blocked'],
+      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
+      ['block', username, profile, 'Voucher blocked'],
       (err) => {
         if (err) console.error('[DB ERROR] logBlock audit:', err);
       }
     );
   },
 
-  logDelete: (username) => {
+  logDelete: (username, profile = null) => {
     db.run(
       'DELETE FROM vouchers WHERE username = ?',
       [username],
@@ -53,8 +53,8 @@ module.exports = {
       }
     );
     db.run(
-      'INSERT INTO audit_logs (action, username, details) VALUES (?, ?, ?)',
-      ['delete', username, 'Voucher deleted'],
+      'INSERT INTO audit_logs (action, username, profile, details) VALUES (?, ?, ?, ?)',
+      ['delete', username, profile, 'Voucher deleted'],
       (err) => {
         if (err) console.error('[DB ERROR] logDelete audit:', err);
       }
@@ -114,7 +114,7 @@ module.exports = {
   },
 
   // --- Filtered audit log export ---
-  getFilteredAuditLogs: ({ action, username, from, to }) => {
+  getFilteredAuditLogs: ({ action, username, from, to, profile }) => {
     return new Promise((resolve, reject) => {
       let query = 'SELECT * FROM audit_logs WHERE 1=1';
       const params = [];
@@ -126,6 +126,10 @@ module.exports = {
       if (username) {
         query += ' AND username = ?';
         params.push(username);
+      }
+      if (profile) {
+        query += ' AND profile = ?';
+        params.push(profile);
       }
       if (from) {
         query += ' AND timestamp >= ?';

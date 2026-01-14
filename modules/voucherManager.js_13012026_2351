@@ -1,0 +1,132 @@
+const fs = require('fs');
+const path = require('path');
+const { logAction } = require('./auditLogger');
+const { sendEmail } = require('./emailAlerts');
+const MikrotikAPI = require('./mikrotik-api');
+
+// Instantiate Mikrotik API client
+const ros = new MikrotikAPI();
+
+const TEST_MODE = process.env.TEST_MODE === 'true';
+const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true';
+
+let simulatedUsers = [];
+
+// Utility: write CSV
+function writeCSV(filename, rows) {
+  const filePath = path.join(__dirname, '..', 'data', filename);
+  if (!rows || rows.length === 0) return filePath;
+  const keys = Object.keys(rows[0]);
+  const csv = [keys.join(','), ...rows.map(r => keys.map(k => r[k]).join(','))].join('\n');
+  fs.writeFileSync(filePath, csv);
+  return filePath;
+}
+
+// Create batch
+async function createBatch(count, profile, batch) {
+  const created = [];
+  for (let i = 0; i < count; i++) {
+    const username = Math.random().toString(36).substring(2, 6);
+    const password = Math.random().toString(36).substring(2, 8);
+    const user = { name: username, password, profile, batch, status: 'active' };
+
+    if (TEST_MODE) {
+      simulatedUsers.push(user);
+    } else {
+      await ros.run(`/user/add name=${username} password=${password} profile=${profile} comment=${batch}`);
+    }
+    created.push(user);
+  }
+  logAction('createBatch', { count, profile, batch });
+  return created;
+}
+
+// Export batch
+async function exportBatch(batch) {
+  let users;
+  if (TEST_MODE) {
+    users = simulatedUsers.filter(u => u.batch === batch);
+  } else {
+    users = await ros.run(`/user/print where comment=${batch}`);
+  }
+  writeCSV(`vouchers_${batch}.csv`, users);
+  return users;
+}
+
+// Export all
+async function exportAll() {
+  let users;
+  if (TEST_MODE) {
+    users = simulatedUsers;
+  } else {
+    users = await ros.run(`/user/print`);
+  }
+  writeCSV('vouchers_all.csv', users);
+  return users;
+}
+
+// Export profiles
+async function exportProfiles() {
+  let profiles;
+  if (TEST_MODE) {
+    profiles = [...new Set(simulatedUsers.map(u => u.profile))].map(p => ({ profile: p }));
+  } else {
+    profiles = await ros.run(`/ppp/profile/print`);
+  }
+  writeCSV('vouchers_profiles.csv', profiles);
+  return profiles;
+}
+
+// Stats
+async function getStats() {
+  const users = TEST_MODE ? simulatedUsers : await ros.run(`/user/print`);
+  const total = users.length;
+  const active = users.filter(u => u.status === 'active').length;
+  const blocked = users.filter(u => u.status === 'blocked').length;
+  const byProfile = {};
+  users.forEach(u => {
+    byProfile[u.profile] = (byProfile[u.profile] || 0) + 1;
+  });
+  return { total, active, blocked, byProfile };
+}
+
+// Block voucher
+async function blockVoucher(username) {
+  if (TEST_MODE) {
+    simulatedUsers = simulatedUsers.map(u => u.name === username ? { ...u, status: 'blocked' } : u);
+  } else {
+    await ros.run(`/user/set [find name=${username}] disabled=yes`);
+  }
+  logAction('blockVoucher', { username });
+}
+
+// Delete voucher
+async function deleteVoucher(username) {
+  if (TEST_MODE) {
+    simulatedUsers = simulatedUsers.filter(u => u.name !== username);
+  } else {
+    await ros.run(`/user/remove [find name=${username}]`);
+  }
+  logAction('deleteVoucher', { username });
+}
+
+// Optional email distribution
+async function emailBatch(batch, recipient) {
+  if (!EMAIL_ENABLED) return;
+  const vouchers = await exportBatch(batch);
+  const text = vouchers.map(v => `${v.name}, ${v.password}, ${v.profile}`).join('\n');
+  await sendEmail(`Voucher Batch ${batch}`, text, recipient);
+  logAction('emailBatch', { batch, recipient });
+}
+
+module.exports = {
+  createBatch,
+  exportBatch,
+  exportAll,
+  exportProfiles,
+  getStats,
+  blockVoucher,
+  deleteVoucher,
+  emailBatch
+};
+

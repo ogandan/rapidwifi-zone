@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard - RAPIDWIFI-ZONE</title>
+  <link rel="stylesheet" href="/styles/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Admin Dashboard</h1>
+    <nav>
+      <a href="/">Portal</a> |
+      <a href="/admin">Dashboard</a> |
+      <a href="/audit">View Audit Logs</a> |
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Voucher Statistics</h2>
+    <div id="statsPanel">
+      <!-- Stats will be loaded via AJAX -->
+    </div>
+  </section>
+
+  <section>
+    <h2>Create Vouchers</h2>
+    <form id="createVoucherForm">
+      <label>Count: <input type="number" name="count" value="1" /></label>
+      <label>Profile: <input type="text" name="profile" value="default" /></label>
+      <label>Batch: <input type="text" name="batch" /></label>
+      <button type="submit">Create</button>
+    </form>
+    <div id="createResult"></div>
+  </section>
+
+  <section>
+    <h2>Batch Actions</h2>
+    <form id="batchForm">
+      <label>Usernames (comma-separated): <input type="text" name="selected" /></label>
+      <select name="action">
+        <option value="block">Block</option>
+        <option value="delete">Delete</option>
+      </select>
+      <button type="submit">Apply</button>
+    </form>
+    <div id="batchResult"></div>
+  </section>
+
+  <section>
+    <h2>Exports</h2>
+    <button onclick="window.location='/admin/export/vouchers.csv'">Export All Vouchers</button>
+    <button onclick="window.location='/admin/export/audit.csv'">Export Audit Logs (CSV)</button>
+    <button onclick="window.location='/api/vouchers/audit/download'">Download Raw Audit Log</button>
+  </section>
+
+  <section>
+    <h2>Charts</h2>
+    <canvas id="voucherChart"></canvas>
+    <canvas id="systemChart"></canvas>
+  </section>
+
+  <footer>
+    <p>© 2026 RAPIDWIFI-ZONE</p>
+  </footer>
+
+  <script>
+    // Load stats
+    async function loadStats() {
+      const res = await fetch('/api/vouchers/stats');
+      const stats = await res.json();
+      document.getElementById('statsPanel').innerHTML = `
+        <p>Total: ${stats.total}</p>
+        <p>Active: ${stats.active}</p>
+        <p>Blocked: ${stats.blocked}</p>
+        <p>By Profile: ${JSON.stringify(stats.byProfile)}</p>
+      `;
+    }
+    loadStats();
+    setInterval(loadStats, 10000);
+
+    // Handle voucher creation
+    document.getElementById('createVoucherForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/admin/voucher/create', {
+        method: 'POST',
+        body: new URLSearchParams(formData)
+      });
+      const result = await res.json();
+      document.getElementById('createResult').textContent = JSON.stringify(result);
+    });
+
+    // Handle batch actions
+    document.getElementById('batchForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/admin/voucher/batch', {
+        method: 'POST',
+        body: new URLSearchParams(formData)
+      });
+      const result = await res.json();
+      document.getElementById('batchResult').textContent = JSON.stringify(result);
+    });
+  </script>
+</body>
+</html>
+

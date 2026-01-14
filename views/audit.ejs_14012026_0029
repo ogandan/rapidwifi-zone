@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Audit Log Viewer - RAPIDWIFI-ZONE</title>
+  <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+  <header>
+    <h1>Audit Log Viewer</h1>
+    <nav>
+      <a href="/">Portal</a> |
+      <a href="/admin">Dashboard</a> |
+      <a href="/audit">View Audit Logs</a> |
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
+
+  <section>
+    <h2>Audit Entries</h2>
+    <table border="1" cellpadding="5">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Type</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="auditTable">
+        <tr><td colspan="3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Exports</h2>
+    <button onclick="window.location='/admin/export/audit.csv'">Export Audit Logs (CSV)</button>
+    <button onclick="window.location='/api/vouchers/audit/download'">Download Raw Audit Log</button>
+  </section>
+
+  <footer>
+    <p>© 2026 RAPIDWIFI-ZONE</p>
+  </footer>
+
+  <script>
+    async function loadAudit() {
+      try {
+        const res = await fetch('/api/vouchers/audit');
+        const entries = await res.json();
+        const table = document.getElementById('auditTable');
+        table.innerHTML = '';
+        if (!entries.length) {
+          table.innerHTML = '<tr><td colspan="3">No audit entries found</td></tr>';
+          return;
+        }
+        entries.forEach(entry => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${entry.timestamp}</td>
+            <td>${entry.type}</td>
+            <td><pre>${JSON.stringify(entry.details, null, 2)}</pre></td>
+          `;
+          table.appendChild(tr);
+        });
+      } catch (err) {
+        const table = document.getElementById('auditTable');
+        table.innerHTML = `<tr><td colspan="3">Failed to load audit logs: ${err.message}</td></tr>`;
+      }
+    }
+    loadAudit();
+  </script>
+</body>
+</html>
+

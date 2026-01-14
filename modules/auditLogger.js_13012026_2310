@@ -1,0 +1,16 @@
+const fs = require('fs');
+const path = require('path');
+
+const AUDIT_FILE = path.join(__dirname, '..', 'data', 'audit.log');
+
+function logAction(type, details) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    type,
+    details
+  };
+  fs.appendFileSync(AUDIT_FILE, JSON.stringify(entry) + '\n');
+}
+
+module.exports = { logAction };
+

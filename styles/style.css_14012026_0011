@@ -1,0 +1,135 @@
+/* File: style.css
+   Path: /home/pi/rapidwifi-zone/styles/style.css
+   Purpose: Styling for RAPIDWIFI-ZONE portal and dashboard */
+
+/* General page styling */
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f4f4;
+  margin: 0;
+  padding: 0;
+  color: #333;
+}
+
+/* Headings */
+h1, h2 {
+  color: #2c3e50;
+  margin-top: 0;
+}
+
+/* Header */
+header {
+  background: #2c3e50;
+  color: #fff;
+  padding: 15px 20px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8em;
+}
+
+/* Navigation bar */
+nav {
+  margin-top: 10px;
+}
+
+nav a {
+  color: #ecf0f1;
+  text-decoration: none;
+  margin: 0 10px;
+  font-weight: bold;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
+/* Sections */
+section {
+  margin: 20px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+table, th, td {
+  border: 1px solid #ccc;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+}
+
+th {
+  background: #34495e;
+  color: #fff;
+}
+
+table tr:nth-child(even) {
+  background: #f9f9f9;
+}
+
+/* Buttons */
+button {
+  background: #0078d7;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  margin: 5px 0;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s ease-in-out;
+}
+
+button:hover {
+  background: #005a9e;
+}
+
+/* Forms */
+form {
+  margin: 10px 0;
+}
+
+input, select {
+  padding: 6px;
+  margin: 5px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 15px;
+  background: #2c3e50;
+  color: #fff;
+  margin-top: 30px;
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  nav a {
+    display: block;
+    margin: 5px 0;
+  }
+
+  section {
+    margin: 10px;
+    padding: 10px;
+  }
+
+  table, th, td {
+    font-size: 0.9em;
+  }
+}
+

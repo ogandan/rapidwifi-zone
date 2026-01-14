@@ -122,14 +122,6 @@ const adminDashboard = require('./modules/adminDashboard')(getTunnelURL);
 app.use('/admin', requireAuth, requireRole('ADMIN'), adminDashboard);
 
 // -----------------------------
-// Audit viewer page (protected)
-// -----------------------------
-app.get('/audit', requireAuth, requireRole('ADMIN'), (req, res) => {
-  // Render the audit viewer page; filters are handled client-side via /api/vouchers/audit
-  res.render('audit', { __: res.__ });
-});
-
-// -----------------------------
 // Voucher creation (AJAX)
 // -----------------------------
 app.post('/admin/voucher/create', requireAuth, requireRole('ADMIN'), async (req, res) => {
@@ -183,9 +175,7 @@ app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (
   try {
     const users = await voucherManager.exportAll();
     const header = 'Username,Password,Profile,Price,Batch,Status\n';
-    const body = users
-      .map(u => `${u.name},${u.password},${u.profile},,${u.comment},${u.status}`)
-      .join('\n');
+    const body = users.map(u => `${u.name},${u.password},${u.profile},,${u.comment},${u.status}`).join('\n');
     res.header('Content-Type', 'text/csv');
     res.attachment('vouchers_all.csv');
     res.send(header + body);
@@ -197,12 +187,10 @@ app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (
 
 app.get('/admin/export/audit.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
-    const { action, username, from, to, profile } = req.query;
-    const logs = await db.getFilteredAuditLogs({ action, username, from, to, profile });
-    const header = 'Action,Username,Profile,Details,Timestamp\n';
-    const body = logs
-      .map(l => `${l.action},${l.username || ''},${l.profile || ''},${(l.details || '').toString().replace(/\n/g, ' ')},${l.timestamp}`)
-      .join('\n');
+    const { action, username, from, to } = req.query;
+    const logs = await db.getFilteredAuditLogs({ action, username, from, to });
+    const header = 'Action,Username,Details,Timestamp\n';
+    const body = logs.map(l => `${l.action},${l.username},${l.details},${l.timestamp}`).join('\n');
     res.header('Content-Type', 'text/csv');
     res.attachment('audit.csv');
     res.send(header + body);

@@ -1,0 +1,280 @@
+<%- include('partials/header') %>
+
+<header>
+  <h1>Audit Log Viewer</h1>
+  <nav>
+    <a href="/">Portal</a> |
+    <a href="/admin">Dashboard</a> |
+    <a href="/audit">View Audit Logs</a> |
+    <a href="/logout">Logout</a>
+  </nav>
+</header>
+
+<!-- TEST MODE badge -->
+<% if (process.env.TEST_MODE === 'true') { %>
+  <div style="background:#f39c12;color:#fff;padding:5px;text-align:center;">
+    ⚠ TEST MODE ACTIVE — commands are simulated
+  </div>
+<% } %>
+
+<section>
+  <h2>Audit Entries</h2>
+
+  <!-- Filter form -->
+  <form id="filter-form" style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+    <label>From:
+      <input type="date" id="from-date">
+    </label>
+    <label>To:
+      <input type="date" id="to-date">
+    </label>
+    <label>Profile:
+      <select id="profile-filter">
+        <option value="">All</option>
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h-100FCFA</option>
+        <option value="3h-200FCFA">3h-200FCFA</option>
+        <option value="8h-500FCFA">8h-500FCFA</option>
+        <option value="24h-1000FCFA">24h-1000FCFA</option>
+      </select>
+    </label>
+    <label>Username:
+      <input type="text" id="username-search" placeholder="Search by username">
+    </label>
+    <label>Action:
+      <select id="action-filter">
+        <option value="">All</option>
+        <option value="createBatch">Create</option>
+        <option value="blockVoucher">Block</option>
+        <option value="deleteVoucher">Delete</option>
+        <option value="exportAll">Export</option>
+      </select>
+    </label>
+    <button type="submit">Apply Filter</button>
+    <button type="button" id="reset-filter">Reset</button>
+    <label style="margin-left:10px;">
+      <input type="checkbox" id="auto-refresh"> Auto‑refresh
+    </label>
+    <button type="button" id="export-filtered">Export Filtered CSV</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Action</th>
+        <th>Username</th>
+        <th>Profile</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody id="auditTable">
+      <tr><td colspan="5">Loading...</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Pagination controls -->
+  <div id="pagination" style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+    <button type="button" id="prev-page" disabled>Previous</button>
+    <span id="page-info">Page 1</span>
+    <button type="button" id="next-page">Next</button>
+    <label style="margin-left:auto;">Per page:
+      <select id="page-size">
+        <option value="10">10</option>
+        <option value="25" selected>25</option>
+        <option value="50">50</option>
+      </select>
+    </label>
+  </div>
+</section>
+
+<section>
+  <h2>Exports</h2>
+  <button onclick="window.location='/admin/export/audit.csv'">Export All Audit Logs (CSV)</button>
+  <button onclick="window.location='/api/vouchers/audit/download'">Download Raw Audit Log</button>
+</section>
+
+<section>
+  <h2>Charts</h2>
+  <canvas id="auditChart"></canvas>
+</section>
+
+<footer>
+  <p>© 2026 RAPIDWIFI-ZONE</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let currentPage = 1;
+  let autoRefreshInterval;
+  let lastFilters = {};
+
+  async function fetchAuditEntries(filters = {}) {
+    let url = '/api/vouchers/audit';
+    const params = [];
+    if (filters.from) params.push(`from=${filters.from}`);
+    if (filters.to) params.push(`to=${filters.to}`);
+    if (filters.profile) params.push(`profile=${filters.profile}`);
+    if (filters.username) params.push(`username=${encodeURIComponent(filters.username)}`);
+    if (filters.action) params.push(`action=${filters.action}`);
+    if (params.length) url += '?' + params.join('&');
+    const res = await fetch(url);
+    return res.json();
+  }
+
+  async function loadAudit(filters = {}) {
+    lastFilters = filters;
+    const entries = await fetchAuditEntries(filters);
+    const table = document.getElementById('auditTable');
+    table.innerHTML = '';
+    if (!entries.length) {
+      table.innerHTML = '<tr><td colspan="5">No audit entries found</td></tr>';
+      applyPagination(); // still update pagination UI
+      return;
+    }
+    entries.forEach(entry => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${entry.timestamp}</td>
+        <td>${entry.type || entry.action}</td>
+        <td>${entry.username || ''}</td>
+        <td>${entry.profile || ''}</td>
+        <td><pre>${JSON.stringify(entry.details, null, 2)}</pre></td>
+      `;
+      table.appendChild(tr);
+    });
+    currentPage = 1; // reset to first page on new data
+    applyPagination();
+  }
+
+  let auditChartInstance;
+  async function loadAuditChart(filters = {}) {
+    const entries = await fetchAuditEntries(filters);
+    const counts = {};
+    entries.forEach(e => {
+      const action = e.type || e.action || 'unknown';
+      counts[action] = (counts[action] || 0) + 1;
+    });
+    const ctx = document.getElementById('auditChart').getContext('2d');
+    if (auditChartInstance) {
+      auditChartInstance.destroy();
+    }
+    auditChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(counts),
+        datasets: [{
+          label: 'Audit Actions Count',
+          data: Object.values(counts),
+          backgroundColor: '#3498db'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+  }
+
+  // Pagination
+  function getRows() {
+    return Array.from(document.querySelectorAll('#auditTable tr'));
+  }
+  function applyPagination() {
+    const pageSize = parseInt(document.getElementById('page-size').value, 10);
+    const rows = getRows();
+    const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    rows.forEach((row, idx) => {
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = startIdx + pageSize;
+      row.style.display = (idx >= startIdx && idx < endIdx) ? '' : 'none';
+    });
+    document.getElementById('prev-page').disabled = currentPage <= 1;
+    document.getElementById('next-page').disabled = currentPage >= totalPages;
+    document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+  }
+  document.getElementById('prev-page').addEventListener('click', () => { currentPage--; applyPagination(); });
+  document.getElementById('next-page').addEventListener('click', () => { currentPage++; applyPagination(); });
+  document.getElementById('page-size').addEventListener('change', () => { currentPage = 1; applyPagination(); });
+
+  // Filter form
+  const filterForm = document.getElementById('filter-form');
+  const resetBtn = document.getElementById('reset-filter');
+  filterForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const filters = {
+      from: document.getElementById('from-date').value,
+      to: document.getElementById('to-date').value,
+      profile: document.getElementById('profile-filter').value,
+      username: document.getElementById('username-search').value.trim(),
+      action: document.getElementById('action-filter').value
+    };
+    loadAudit(filters);
+    loadAuditChart(filters);
+  });
+  resetBtn.addEventListener('click', () => {
+    document.getElementById('from-date').value = '';
+    document.getElementById('to-date').value = '';
+    document.getElementById('profile-filter').value = '';
+    document.getElementById('username-search').value = '';
+    document.getElementById('action-filter').value = '';
+    loadAudit({});
+    loadAuditChart({});
+  });
+
+  // Auto-refresh
+  document.getElementById('auto-refresh').addEventListener('change', e => {
+    if (e.target.checked) {
+      // refresh every 10 seconds using the last applied filters
+      autoRefreshInterval = setInterval(() => {
+        loadAudit(lastFilters);
+        loadAuditChart(lastFilters);
+      }, 10000);
+    } else {
+      clearInterval(autoRefreshInterval);
+    }
+  });
+
+  // Export filtered subset as CSV
+  document.getElementById('export-filtered').addEventListener('click', async () => {
+    const rows = getRows();
+    if (!rows.length) return;
+    const header = ['Timestamp', 'Action', 'Username', 'Profile', 'Details'];
+    const csvRows = [header];
+    rows.forEach(row => {
+      if (row.style.display === 'none') return; // only export visible (current page) rows
+      const tds = row.querySelectorAll('td');
+      if (tds.length < 5) return;
+      const timestamp = tds[0].innerText.trim();
+      const action = tds[1].innerText.trim();
+      const username = tds[2].innerText.trim();
+      const profile = tds[3].innerText.trim();
+      const details = tds[4].innerText.trim();
+      csvRows.push([timestamp, action, username, profile, details]);
+    });
+    const csvContent = csvRows
+      .map(arr => arr.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    a.href = url;
+    a.download = `audit_filtered_${ts}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  // Initial load
+  loadAudit({});
+  loadAuditChart({});
+</script>
+
+<%- include('partials/footer') %>
+

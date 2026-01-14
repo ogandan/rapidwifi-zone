@@ -114,6 +114,7 @@ async function ros(cmd) {
   return new Promise((resolve, reject) => {
     const conn = new SSHClient();
 
+    // Force legacy ssh-rsa algorithms for RouterOS compatibility
     const connOpts = {
       host: process.env.ROS_HOST || '192.168.88.1',
       port: parseInt(process.env.ROS_PORT || '22', 10),
@@ -133,16 +134,6 @@ async function ros(cmd) {
     } else if (process.env.ROS_PASS) {
       connOpts.password = process.env.ROS_PASS;
     }
-
-    // Debug log (non-sensitive)
-    console.log('[VoucherManager] Connecting with options:', {
-      host: connOpts.host,
-      port: connOpts.port,
-      username: connOpts.username,
-      algorithms: connOpts.algorithms,
-      keyPath: process.env.ROS_KEY_PATH || null,
-      usingPassword: !!process.env.ROS_PASS
-    });
 
     conn.on('ready', () => {
       conn.exec(cmd, (err, stream) => {
