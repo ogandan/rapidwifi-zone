@@ -10,9 +10,10 @@
 <!-- CSRF token for AJAX -->
 <input type="hidden" id="csrfToken" value="<%= csrfToken %>">
 
-<!-- Voucher creation -->
 <section>
   <h1>Admin Dashboard</h1>
+
+  <!-- Voucher creation -->
   <h2><%= __("create_vouchers") %></h2>
   <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -36,10 +37,38 @@
   <div id="create-result"></div>
 </section>
 
-<!-- Active vouchers with batch management -->
+<!-- Active vouchers with filters and batch management -->
 <section>
   <h2><%= __("active_vouchers") %></h2>
 
+  <!-- Filters -->
+  <div class="filters" style="margin-bottom:10px;">
+    <label>Filter by status:
+      <select id="filterStatus">
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="blocked">Blocked</option>
+      </select>
+    </label>
+    <label>Profile:
+      <select id="filterProfile">
+        <option value="all">All</option>
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h-100FCFA</option>
+        <option value="3h-200FCFA">3h-200FCFA</option>
+        <option value="8h-500FCFA">8h-500FCFA</option>
+        <option value="24h-1000FCFA">24h-1000FCFA</option>
+      </select>
+    </label>
+    <label>Search:
+      <input type="text" id="searchInput" placeholder="Search vouchers…">
+    </label>
+    <button type="button" id="resetFilters">Reset</button>
+    <button type="button" id="selectBlocked">Select Blocked</button>
+    <button type="button" id="exportFiltered">Export Filtered CSV</button>
+  </div>
+
+  <!-- Batch actions -->
   <form id="batch-voucher-form">
     <div class="batch-actions" style="margin-bottom:10px;">
       <select id="batchAction" required>
@@ -66,9 +95,9 @@
               data-username="<%= voucher.name.toLowerCase() %>"
               data-profile="<%= voucher.profile.toLowerCase() %>">
             <td><input type="checkbox" name="selected" value="<%= voucher.name %>"></td>
-            <td><%= voucher.name %></td>
-            <td><%= voucher.profile %></td>
-            <td>
+            <td class="col-username"><%= voucher.name %></td>
+            <td class="col-profile"><%= voucher.profile %></td>
+            <td class="col-status">
               <% if (voucher.status === 'blocked') { %>
                 <span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>
               <% } else { %>
@@ -85,7 +114,6 @@
       </tbody>
     </table>
   </form>
-  <div id="batch-result"></div>
 </section>
 
 <!-- Exports -->
@@ -161,13 +189,76 @@
   loadVoucherChart();
   loadSystemChart();
 
+  // Filters
+  const filterStatus = document.getElementById('filterStatus');
+  const filterProfile = document.getElementById('filterProfile');
+  const searchInput = document.getElementById('searchInput');
+  const tableBody = document.getElementById('voucher-table-body');
+
+  function applyFilters() {
+    const statusVal = filterStatus.value;
+    const profileVal = filterProfile.value.toLowerCase();
+    const searchVal = searchInput.value.toLowerCase();
+
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const rowProfile = row.getAttribute('data-profile');
+      const rowUsername = row.getAttribute('data-username');
+
+      const statusMatch = (statusVal === 'all') || (statusVal === rowStatus);
+      const profileMatch = (profileVal === 'all') || (profileVal === rowProfile);
+      const searchMatch = !searchVal || rowUsername.includes(searchVal);
+
+      row.style.display = (statusMatch && profileMatch && searchMatch) ? '' : 'none';
+    });
+  }
+
+  filterStatus.addEventListener('change', applyFilters);
+  filterProfile.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    filterStatus.value = 'all';
+    filterProfile.value = 'all';
+    searchInput.value = '';
+    applyFilters();
+  });
+
+  document.getElementById('selectBlocked').addEventListener('click', () => {
+    applyFilters();
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const isBlocked = row.getAttribute('data-status') === 'blocked';
+      const checkbox = row.querySelector('input[name="selected"]');
+      if (checkbox) checkbox.checked = isBlocked && row.style.display !== 'none';
+    });
+  });
+
+  document.getElementById('exportFiltered').addEventListener('click', () => {
+    // Simple client-side export of currently visible rows
+    const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+    const lines = ['Username,Profile,Status'];
+    rows.forEach(r => {
+      const username = r.querySelector('.col-username').innerText.trim();
+      const profile = r.querySelector('.col-profile').innerText.trim();
+      const status = r.querySelector('.col-status').innerText.trim();
+      lines.push(`${username},${profile},${status}`);
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vouchers_filtered_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   // Select/Deselect all checkboxes
   document.getElementById('select-all').addEventListener('change', function() {
     const checkboxes = document.querySelectorAll('input[name="selected"]');
     checkboxes.forEach(cb => cb.checked = this.checked);
   });
 
-  // Batch block/delete with CSRF and hardening
+  // Batch block/delete with CSRF and hardening + optimistic UI update
   document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const action = document.getElementById('batchAction').value;
@@ -190,25 +281,36 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'CSRF-Token': csrfToken
+          'csrf-token': csrfToken // ✅ header name expected by csurf
         },
         body: JSON.stringify({ usernames: selected })
       });
 
-      if (!response.ok) {
-        const text = await response.text();
-        console.error('Batch action failed:', text);
-        alert('Batch action failed');
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        console.error('Batch action failed:', result);
+        alert(result.error || 'Batch action failed');
         return;
       }
 
-      const result = await response.json();
-      if (result.success) {
-        alert(`${action} completed for ${selected.length} vouchers`);
-        location.reload();
-      } else {
-        alert(result.error || 'Batch action failed');
-      }
+      // Optimistic UI: update rows immediately
+      selected.forEach(username => {
+        const row = Array.from(tableBody.querySelectorAll('tr')).find(r => {
+          return r.querySelector('.col-username')?.innerText.trim() === username;
+        });
+        if (!row) return;
+        if (action === 'delete') {
+          row.remove();
+        } else if (action === 'block') {
+          row.setAttribute('data-status', 'blocked');
+          const statusCell = row.querySelector('.col-status');
+          if (statusCell) statusCell.innerHTML = '<span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>';
+        }
+      });
+
+      alert(`${action} completed for ${selected.length} voucher(s)`);
+      // Full refresh to reflect backend state
+      location.reload();
     } catch (err) {
       console.error('Batch action error:', err);
       alert('Error performing batch action');
@@ -241,7 +343,7 @@
     const csrfToken = document.getElementById('csrfToken').value;
     fetch('/admin/distribute/sms', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
       body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
     })
     .then(res => res.json())
@@ -253,7 +355,7 @@
     const csrfToken = document.getElementById('csrfToken').value;
     fetch('/admin/distribute/whatsapp', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
       body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
     })
     .then(res => res.json())
@@ -265,7 +367,7 @@
     const csrfToken = document.getElementById('csrfToken').value;
     fetch('/admin/distribute/telegram', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
       body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
     })
     .then(res => res.json())
