@@ -2,11 +2,12 @@
 // Purpose: Admin dashboard routes
 
 const express = require('express');
+const path = require('path');
 const voucherManager = require('./voucherManager');
 const db = require('../data/db');
 const os = require('os');
 
-// Distribution modules (optional, feature-flagged via .env inside each module)
+// Distribution modules
 const { sendSMS } = require('./smsSender');
 const { handleWhatsAppMessage } = require('./whatsappBot');
 const { handleTelegramCommand } = require('./telegramBot');
@@ -183,6 +184,25 @@ module.exports = function(getTunnelURL) {
         { recipient: userId, errorMessage: String(err), batchTag: batch || null }
       );
       res.status(500).json({ error: 'Telegram distribution failed' });
+    }
+  });
+
+  // --- Unified export routes ---
+  router.get('/export/vouchers.csv', (req, res) => {
+    try {
+      res.download(path.join(__dirname, '../exports/vouchers_all.csv'));
+    } catch (err) {
+      console.error('[ADMIN EXPORT ERROR] Failed to export vouchers:', err);
+      res.status(500).send('Voucher export failed');
+    }
+  });
+
+  router.get('/export/audit_logs.csv', (req, res) => {
+    try {
+      res.download(path.join(__dirname, '../exports/audit_logs.csv'));
+    } catch (err) {
+      console.error('[ADMIN EXPORT ERROR] Failed to export audit logs:', err);
+      res.status(500).send('Audit log export failed');
     }
   });
 
