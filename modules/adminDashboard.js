@@ -6,6 +6,11 @@ const voucherManager = require('./voucherManager');
 const db = require('../data/db');
 const os = require('os');
 
+// Distribution modules (stubbed, controlled by .env flags)
+const { sendSMS } = require('./smsSender');
+const { handleWhatsAppMessage } = require('./whatsappBot');
+const { handleTelegramCommand } = require('./telegramBot');
+
 module.exports = function(getTunnelURL) {
   const router = express.Router();
 
@@ -96,6 +101,43 @@ module.exports = function(getTunnelURL) {
     } catch (err) {
       console.error('[ADMIN DATA ERROR] Failed to load audit logs:', err);
       res.status(500).json({ error: 'Failed to load audit logs' });
+    }
+  });
+
+  // ✅ Distribution endpoints
+  router.post('/distribute/sms', async (req, res) => {
+    const { number, voucher } = req.body;
+    try {
+      const result = await sendSMS(number, voucher);
+      await db.logAudit('sms_distribution', req.user?.username || 'system', voucher);
+      res.json(result);
+    } catch (err) {
+      console.error('[ADMIN DISTRIBUTION ERROR] SMS failed:', err);
+      res.status(500).json({ error: 'SMS distribution failed' });
+    }
+  });
+
+  router.post('/distribute/whatsapp', async (req, res) => {
+    const { userId, message } = req.body;
+    try {
+      const result = await handleWhatsAppMessage(userId, message);
+      await db.logAudit('whatsapp_distribution', req.user?.username || 'system', message);
+      res.json(result);
+    } catch (err) {
+      console.error('[ADMIN DISTRIBUTION ERROR] WhatsApp failed:', err);
+      res.status(500).json({ error: 'WhatsApp distribution failed' });
+    }
+  });
+
+  router.post('/distribute/telegram', async (req, res) => {
+    const { userId, command } = req.body;
+    try {
+      const result = await handleTelegramCommand(userId, command);
+      await db.logAudit('telegram_distribution', req.user?.username || 'system', command);
+      res.json(result);
+    } catch (err) {
+      console.error('[ADMIN DISTRIBUTION ERROR] Telegram failed:', err);
+      res.status(500).json({ error: 'Telegram distribution failed' });
     }
   });
 
