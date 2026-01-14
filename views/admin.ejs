@@ -7,11 +7,15 @@
   </div>
 <% } %>
 
+<!-- CSRF token for AJAX -->
+<input type="hidden" id="csrfToken" value="<%= csrfToken %>">
+
 <!-- Voucher creation -->
 <section>
-   <h1>Admin Dashboard</h1>
+  <h1>Admin Dashboard</h1>
   <h2><%= __("create_vouchers") %></h2>
   <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Count:
       <input type="number" name="count" value="5" min="1">
     </label>
@@ -32,13 +36,13 @@
   <div id="create-result"></div>
 </section>
 
-<!-- Voucher list with batch management -->
+<!-- Active vouchers with batch management -->
 <section>
   <h2><%= __("active_vouchers") %></h2>
 
   <form id="batch-voucher-form">
-    <div class="batch-actions">
-      <select id="batchAction" name="action" required>
+    <div class="batch-actions" style="margin-bottom:10px;">
+      <select id="batchAction" required>
         <option value="">-- Select Action --</option>
         <option value="block">Block Selected</option>
         <option value="delete">Delete Selected</option>
@@ -72,7 +76,6 @@
               <% } %>
             </td>
             <td>
-              <!-- Distribution buttons -->
               <button type="button" onclick="sendSMS('<%= voucher.name %>')">SMS</button>
               <button type="button" onclick="sendWhatsApp('<%= voucher.name %>')">WhatsApp</button>
               <button type="button" onclick="sendTelegram('<%= voucher.name %>')">Telegram</button>
@@ -111,103 +114,100 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // Chart.js integration
+  // Charts
   async function loadVoucherChart() {
-    const res = await fetch('/admin/data/vouchers');
-    const data = await res.json();
-    const ctx = document.getElementById('voucherChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: Object.keys(data.counts),
-        datasets: [{
-          label: 'Vouchers by Profile',
-          data: Object.values(data.counts),
-          backgroundColor: '#3498db'
-        }]
-      }
-    });
+    try {
+      const res = await fetch('/admin/data/vouchers');
+      const data = await res.json();
+      const ctx = document.getElementById('voucherChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Vouchers by Profile',
+            data: Object.values(data),
+            backgroundColor: '#3498db'
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('Voucher chart error:', err);
+    }
   }
 
   async function loadSystemChart() {
-    const res = await fetch('/admin/data/system');
-    const data = await res.json();
-    const ctx = document.getElementById('systemChart').getContext('2d');
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Load1', 'Load5', 'Load15'],
-        datasets: [{
-          label: 'System Load',
-          data: data.load,
-          borderColor: '#e67e22',
-          fill: false
-        }]
-      }
-    });
+    try {
+      const res = await fetch('/admin/data/system');
+      const data = await res.json();
+      const ctx = document.getElementById('systemChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Load1', 'Load5', 'Load15'],
+          datasets: [{
+            label: 'System Load',
+            data: data.load,
+            borderColor: '#e67e22',
+            fill: false
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('System chart error:', err);
+    }
   }
 
   loadVoucherChart();
   loadSystemChart();
 
-  // Distribution AJAX stubs
-  function sendSMS(voucherId) {
-    fetch('/admin/distribute/sms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('SMS result:', data))
-    .catch(err => console.error('SMS error:', err));
-  }
+  // Select/Deselect all checkboxes
+  document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="selected"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+  });
 
-  function sendWhatsApp(voucherId) {
-    fetch('/admin/distribute/whatsapp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('WhatsApp result:', data))
-    .catch(err => console.error('WhatsApp error:', err));
-  }
-
-  function sendTelegram(voucherId) {
-    fetch('/admin/distribute/telegram', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('Telegram result:', data))
-    .catch(err => console.error('Telegram error:', err));
-  }
-
-  // ✅ Batch block/delete
+  // Batch block/delete with CSRF and hardening
   document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
     e.preventDefault();
     const action = document.getElementById('batchAction').value;
     const selected = Array.from(document.querySelectorAll('input[name="selected"]:checked'))
                           .map(cb => cb.value);
+    const csrfToken = document.getElementById('csrfToken').value;
 
     if (!action || selected.length === 0) {
       alert('Please select an action and at least one voucher.');
       return;
     }
 
+    if (action === 'delete') {
+      const ok = confirm(`Delete ${selected.length} voucher(s)? This cannot be undone.`);
+      if (!ok) return;
+    }
+
     try {
       const response = await fetch(`/admin/batch/${action}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken
+        },
         body: JSON.stringify({ usernames: selected })
       });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error('Batch action failed:', text);
+        alert('Batch action failed');
+        return;
+      }
+
       const result = await response.json();
       if (result.success) {
         alert(`${action} completed for ${selected.length} vouchers`);
         location.reload();
       } else {
-        alert('Batch action failed');
+        alert(result.error || 'Batch action failed');
       }
     } catch (err) {
       console.error('Batch action error:', err);
@@ -215,10 +215,14 @@
     }
   });
 
-  // ✅ Load export status
+  // Load export status
   async function loadStatus() {
     try {
       const res = await fetch('/admin/status');
+      if (!res.ok) {
+        document.getElementById('statusContent').innerText = 'Failed to load status';
+        return;
+      }
       const status = await res.json();
       document.getElementById('statusContent').innerHTML = `
         <p>Vouchers CSV last updated: ${status.vouchers_csv || 'N/A'}</p>
@@ -227,9 +231,47 @@
       `;
     } catch (err) {
       console.error('Failed to load status:', err);
+      document.getElementById('statusContent').innerText = 'Error loading status';
     }
   }
   loadStatus();
+
+  // Distribution stubs (include CSRF header)
+  function sendSMS(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('SMS result:', data))
+    .catch(err => console.error('SMS error:', err));
+  }
+
+  function sendWhatsApp(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('WhatsApp result:', data))
+    .catch(err => console.error('WhatsApp error:', err));
+  }
+
+  function sendTelegram(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'CSRF-Token': csrfToken },
+      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('Telegram result:', data))
+    .catch(err => console.error('Telegram error:', err));
+  }
 </script>
 
 <%- include('partials/footer') %>
