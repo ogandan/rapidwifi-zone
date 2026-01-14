@@ -34,9 +34,15 @@ if (EMAIL_ENABLED) {
 let simulatedUsers = [];
 
 // -----------------------------
+// Configurable lengths
+// -----------------------------
+const USERNAME_LEN = parseInt(process.env.VOUCHER_USER_LEN || '4', 10);
+const PASSWORD_LEN = parseInt(process.env.VOUCHER_PASS_LEN || '5', 10);
+
+// -----------------------------
 // Utilities
 // -----------------------------
-function randomPassword(length = 5) {
+function randomPassword(length = PASSWORD_LEN) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
@@ -231,8 +237,9 @@ async function createBatch(count, profile, batch) {
   const created = [];
   const tag = batch ? sanitize(batch) : `batch-${Date.now()}`;
   for (let i = 0; i < Number(count || 1); i++) {
-    const username = `${tag}-${crypto.randomBytes(2).toString('hex').slice(0,4)}-${i}`;
-    const password = randomPassword(5);
+    const suffix = crypto.randomBytes(2).toString('hex').slice(0, USERNAME_LEN);
+    const username = `${tag}-${suffix}-${i}`;
+    const password = randomPassword(PASSWORD_LEN);
     await addUser(username, password, profile, tag);
     created.push({ name: username, password, profile, comment: tag, status: 'active' });
   }
