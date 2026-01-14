@@ -48,8 +48,14 @@ app.use(session({
 // Middleware
 // -----------------------------
 app.use(cookieParser()); // required for csurf with cookie:true
+
+// Explicit body parsing (JSON + URL-encoded)
+// bodyParser is already present, but we add express parsers for consistency
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('view engine', 'ejs');
@@ -149,7 +155,7 @@ app.post('/admin/voucher/create', requireAuth, requireRole('ADMIN'), async (req,
 });
 
 // -----------------------------
-// Batch actions (AJAX)
+// Batch actions (AJAX) — legacy endpoint retained for compatibility
 // -----------------------------
 app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
@@ -177,7 +183,7 @@ app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, 
 });
 
 // -----------------------------
-// CSV export routes
+// CSV export routes — aligned with unified filenames
 // -----------------------------
 app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
@@ -195,7 +201,7 @@ app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (
   }
 });
 
-app.get('/admin/export/audit.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
+app.get('/admin/export/audit_logs.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const { action, username, from, to, profile } = req.query;
     const logs = await db.getFilteredAuditLogs({ action, username, from, to, profile });
@@ -204,7 +210,7 @@ app.get('/admin/export/audit.csv', requireAuth, requireRole('ADMIN'), async (req
       .map(l => `${l.action},${l.username || ''},${l.profile || ''},${(l.details || '').toString().replace(/\n/g, ' ')},${l.timestamp}`)
       .join('\n');
     res.header('Content-Type', 'text/csv');
-    res.attachment('audit.csv');
+    res.attachment('audit_logs.csv');
     res.send(header + body);
   } catch (err) {
     console.error('[EXPORT AUDIT ERROR]', err);
