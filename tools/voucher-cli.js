@@ -119,6 +119,11 @@ function outputData(data) {
         console.log(`Voucher ${username} deleted.`);
         break;
       }
+      case 'list': {
+        const users = await vm.fetchUsers();
+        outputData(users);
+        break;
+      }
       default:
         console.log(`Unknown command: ${cmd}
 Usage:
@@ -128,7 +133,8 @@ Usage:
   exportProfiles [--json|--table] [--file <path>]
   stats [--json|--table] [--file <path>]
   blockVoucher <username>
-  deleteVoucher <username>`);
+  deleteVoucher <username>
+  list [--json|--table] [--file <path>]`);
     }
   } catch (err) {
     console.error('Error:', err.message);
