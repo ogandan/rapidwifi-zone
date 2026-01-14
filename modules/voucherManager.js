@@ -36,7 +36,7 @@ let simulatedUsers = [];
 // -----------------------------
 // Utilities
 // -----------------------------
-function randomPassword(length = 8) {
+function randomPassword(length = 5) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
 }
@@ -231,8 +231,8 @@ async function createBatch(count, profile, batch) {
   const created = [];
   const tag = batch ? sanitize(batch) : `batch-${Date.now()}`;
   for (let i = 0; i < Number(count || 1); i++) {
-    const username = `${tag}-${crypto.randomInt(100000, 999999)}-${i}`;
-    const password = randomPassword(8);
+    const username = `${tag}-${crypto.randomBytes(2).toString('hex').slice(0,4)}-${i}`;
+    const password = randomPassword(5);
     await addUser(username, password, profile, tag);
     created.push({ name: username, password, profile, comment: tag, status: 'active' });
   }
