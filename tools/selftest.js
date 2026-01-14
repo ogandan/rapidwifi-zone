@@ -7,6 +7,7 @@ const vm = require('../modules/voucherManager');
 let total = 0;
 let passed = 0;
 let failed = 0;
+let autoTagBatch = null; // track auto-generated batch for cleanup
 
 async function runTest(name, fn) {
   total++;
@@ -15,20 +16,23 @@ async function runTest(name, fn) {
     passed++;
     console.log(`✅ PASS: ${name}`);
     console.log(result);
+    return result;
   } catch (err) {
     failed++;
     console.error(`❌ FAIL: ${name} -> ${err.message}`);
+    return null;
   }
 }
 
 (async () => {
   console.log('=== VoucherManager Self-Test ===');
 
-  await runTest('createBatch', async () => {
+  // Explicit batch creation
+  await runTest('createBatch (explicit tag)', async () => {
     return await vm.createBatch(2, 'default', 'selftest');
   });
 
-  await runTest('exportBatch', async () => {
+  await runTest('exportBatch (explicit tag)', async () => {
     return await vm.exportBatch('selftest');
   });
 
@@ -44,19 +48,38 @@ async function runTest(name, fn) {
     return await vm.getStats();
   });
 
-  await runTest('blockVoucher', async () => {
-    const batch = await vm.exportBatch('selftest');
-    if (batch.length === 0) throw new Error('No vouchers in batch');
-    await vm.blockVoucher(batch[0].name);
-    return `Blocked ${batch[0].name}`;
+  // Auto-tag batch creation
+  await runTest('createBatch (auto-tag)', async () => {
+    const created = await vm.createBatch(2, 'default'); // no batch name
+    autoTagBatch = created[0].comment; // save for later tests
+    if (!autoTagBatch || !autoTagBatch.startsWith('batch-')) {
+      throw new Error(`Auto-tag not generated, got: ${autoTagBatch}`);
+    }
+    return `Auto-generated batch tag: ${autoTagBatch}`;
   });
 
-  await runTest('deleteVoucher', async () => {
-    const batch = await vm.exportBatch('selftest');
-    if (batch.length === 0) throw new Error('No vouchers in batch');
-    await vm.deleteVoucher(batch[0].name);
-    return `Deleted ${batch[0].name}`;
+  // Block voucher directly from createBatch result
+  await runTest('blockVoucher (auto-tag)', async () => {
+    const created = await vm.createBatch(1, 'default'); // fresh voucher
+    autoTagBatch = created[0].comment;
+    await vm.blockVoucher(created[0].name);
+    return `Blocked ${created[0].name} in batch ${autoTagBatch}`;
   });
+
+  // Delete voucher directly from createBatch result
+  await runTest('deleteVoucher (auto-tag)', async () => {
+    const created = await vm.createBatch(1, 'default'); // fresh voucher
+    autoTagBatch = created[0].comment;
+    await vm.deleteVoucher(created[0].name);
+    return `Deleted ${created[0].name} in batch ${autoTagBatch}`;
+  });
+
+  // Cleanup: revoke the auto-tag batch
+  if (autoTagBatch) {
+    await runTest('cleanup (revoke auto-tag batch)', async () => {
+      return await vm.revokeBatch(autoTagBatch);
+    });
+  }
 
   console.log('=== Self-Test Complete ===');
   console.log(`Summary: Total=${total}, Passed=${passed}, Failed=${failed}`);
