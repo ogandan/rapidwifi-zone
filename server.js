@@ -48,14 +48,10 @@ app.use(session({
 // Middleware
 // -----------------------------
 app.use(cookieParser()); // required for csurf with cookie:true
-
-// Explicit body parsing (JSON + URL-encoded)
-// bodyParser is already present, but we add express parsers for consistency
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('view engine', 'ejs');
@@ -88,9 +84,6 @@ app.get('/login', csrfProtection, (req, res) => {
   res.render('login', { error: null, __: res.__, csrfToken: req.csrfToken() });
 });
 
-// Note: POST /login is handled by /authv2/login
-
-// Logout
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
 });
@@ -131,7 +124,6 @@ app.use('/admin', requireAuth, requireRole('ADMIN'), adminDashboard);
 // Audit viewer page (protected)
 // -----------------------------
 app.get('/audit', requireAuth, requireRole('ADMIN'), (req, res) => {
-  // Render the audit viewer page; filters are handled client-side via /api/vouchers/audit
   res.render('audit', { __: res.__ });
 });
 
@@ -155,7 +147,7 @@ app.post('/admin/voucher/create', requireAuth, requireRole('ADMIN'), async (req,
 });
 
 // -----------------------------
-// Batch actions (AJAX) — legacy endpoint retained for compatibility
+// Batch actions (AJAX)
 // -----------------------------
 app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
@@ -183,17 +175,17 @@ app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, 
 });
 
 // -----------------------------
-// CSV export routes — aligned with unified filenames
+// CSV export routes
 // -----------------------------
-app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
+app.get('/admin/export/vouchers', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const users = await voucherManager.exportAll();
-    const header = 'Username,Password,Profile,Price,Batch,Status\n';
+    const header = 'username,password,profile,batch,status\n';
     const body = users
-      .map(u => `${u.name},${u.password},${u.profile},,${u.comment},${u.status}`)
+      .map(u => `${u.name},${u.password},${u.profile},${u.comment},${u.status}`)
       .join('\n');
     res.header('Content-Type', 'text/csv');
-    res.attachment('vouchers_all.csv');
+    res.attachment('vouchers.csv');
     res.send(header + body);
   } catch (err) {
     console.error('[EXPORT VOUCHERS ERROR]', err);
@@ -215,6 +207,24 @@ app.get('/admin/export/audit_logs.csv', requireAuth, requireRole('ADMIN'), async
   } catch (err) {
     console.error('[EXPORT AUDIT ERROR]', err);
     res.status(500).send('Error exporting audit logs');
+  }
+});
+
+// -----------------------------
+// Status endpoint for smoke test
+// -----------------------------
+app.get('/admin/status', requireAuth, requireRole('ADMIN'), (req, res) => {
+  try {
+    res.json({
+      system_uptime: os.uptime(),
+      load_average: os.loadavg(),
+      memory_usage: { free: os.freemem(), total: os.totalmem() },
+      vouchers_csv: null,
+      audit_logs_csv: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[STATUS ERROR]', err);
+    res.status(500).json({ error: 'Failed to load status' });
   }
 });
 
