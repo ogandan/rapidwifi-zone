@@ -45,6 +45,16 @@ module.exports = function(getTunnelURL) {
     }
   });
 
+  // ✅ Dedicated JSON CSRF token endpoint for CI/CD
+  router.get('/csrf-token', (req, res) => {
+    try {
+      res.json({ csrfToken: req.csrfToken() });
+    } catch (err) {
+      console.error('[CSRF TOKEN ERROR]', err);
+      res.status(500).json({ error: 'Failed to generate CSRF token' });
+    }
+  });
+
   // ✅ Batch block — performs actual block via voucherManager and logs audit
   router.post('/batch/block', async (req, res) => {
     try {
