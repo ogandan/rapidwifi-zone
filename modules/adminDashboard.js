@@ -20,7 +20,7 @@ module.exports = function(getTunnelURL) {
   const csrfProtection = csrf({ cookie: true });
   router.use(csrfProtection);
 
-  // Dashboard page
+  // Dashboard page (HTML view)
   router.get('/', async (req, res) => {
     try {
       const vouchers = await voucherManager.fetchUsers();
@@ -33,6 +33,15 @@ module.exports = function(getTunnelURL) {
     } catch (err) {
       console.error('[ADMIN DASHBOARD ERROR]', err);
       res.status(500).send('Error loading dashboard');
+    }
+  });
+
+  // ✅ Lightweight JSON health check for CI/CD
+  router.get('/dashboard', (req, res) => {
+    if (req.session && req.session.user) {
+      res.json({ ok: true, message: "Admin dashboard reachable" });
+    } else {
+      res.status(401).json({ ok: false, message: "Unauthorized" });
     }
   });
 
