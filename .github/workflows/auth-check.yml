@@ -1,0 +1,54 @@
+# .github/workflows/auth-check.yml
+name: RAPIDWIFI-ZONE CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  auth-test:
+    name: Build and Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20]   # test against Node.js 18 and 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js with caching
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start server in background
+        run: |
+          nohup npm start &
+          echo $! > server.pid
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..10}; do
+            curl -s http://localhost:3000/login && exit 0
+            sleep 3
+          done
+          echo "Server did not start in time" && exit 1
+
+      - name: Run admin test script
+        env:
+          EMAIL: ${{ secrets.ADMIN_USER }}
+          PASS: ${{ secrets.ADMIN_PASS }}
+        run: ./test_admin.sh
+
+      - name: Stop server
+        if: always()
+        run: kill $(cat server.pid) || true
+

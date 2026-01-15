@@ -63,24 +63,22 @@ module.exports = {
   // --- NEW: Structured audit logging for lifecycle & distribution ---
   logAudit: (action, username, target, channel = null, status = 'success', details = {}) => {
     const entry = {
-      id: `${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       timestamp: new Date().toISOString(),
       action,            // e.g., "sms_distribution", "create", "block"
       username,          // operator or "system"
-      target,            // voucher username or batch tag
+      target,            // voucher username or batch tag (stored in profile column)
       channel,           // "SMS", "WhatsApp", "Telegram", "Dashboard" or null
       status,            // "success" | "failed"
       details: JSON.stringify(details) // serialized metadata
     };
 
     db.run(
-      'INSERT INTO audit_logs (id, timestamp, action, username, profile, details, channel, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO audit_logs (timestamp, action, username, profile, details, channel, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [
-        entry.id,
         entry.timestamp,
         entry.action,
         entry.username,
-        entry.target,     // stored in "profile" column for backward compatibility
+        entry.target,
         entry.details,
         entry.channel,
         entry.status
