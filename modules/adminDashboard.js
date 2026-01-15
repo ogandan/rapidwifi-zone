@@ -55,6 +55,24 @@ module.exports = function(getTunnelURL) {
     }
   });
 
+  // ✅ Voucher creation endpoint for CI/CD
+  router.post('/create-voucher', async (req, res) => {
+    try {
+      const { profile, count } = req.body;
+      if (!profile || !count) {
+        return res.status(400).json({ success: false, error: 'Missing profile or count' });
+      }
+
+      const vouchers = await voucherManager.createVouchers(profile, count);
+      db.logAudit?.('create_voucher', req.user?.username || 'admin', null, 'Dashboard', 'success', { profile, count });
+
+      res.json({ success: true, created: vouchers.length, vouchers });
+    } catch (err) {
+      console.error('[CREATE VOUCHER ERROR]', err);
+      res.status(500).json({ success: false, error: err.message || 'Voucher creation failed' });
+    }
+  });
+
   // ✅ Batch block — performs actual block via voucherManager and logs audit
   router.post('/batch/block', async (req, res) => {
     try {
