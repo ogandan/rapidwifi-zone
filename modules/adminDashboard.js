@@ -1,134 +1,125 @@
-// File: modules/adminDashboard.js
+// modules/adminDashboard.js — Part 1
+
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
+const router = express.Router();
 const csrf = require('csurf');
+const voucherManager = require('./voucherManager');
+const fs = require('fs');
+const path = require('path');
 
-let voucherManager, db, sendSMS, handleWhatsAppMessage, handleTelegramCommand;
-try {
-  voucherManager = require('./voucherManager.js');
-  db = require('../data/db.js');
-  ({ sendSMS } = require('./smsSender.js'));
-  ({ handleWhatsAppMessage } = require('./whatsappBot.js'));
-  ({ handleTelegramCommand } = require('./telegramBot.js'));
-} catch (err) {
-  console.error('[ADMIN DASHBOARD] Failed to load required modules:', err);
-  process.exit(1);
-}
-
-module.exports = function(getTunnelURL) {
-  const router = express.Router();
-
-  const csrfProtection = csrf({ cookie: true });
-  router.use(csrfProtection);
-
-  function renderBadge(status) {
-    const safeStatus = ['active', 'blocked', 'expired'].includes(status)
-      ? status
-      : 'unknown';
-    switch (safeStatus) {
-      case 'active':
-        return '<span class="badge badge-success">Active</span>';
-      case 'blocked':
-        return '<span class="badge badge-danger">Blocked</span>';
-      case 'expired':
-        return '<span class="badge badge-secondary">Expired</span>';
-      default:
-        return '<span class="badge badge-warning">Unknown</span>';
-    }
+// Middleware to enforce login
+const requireLogin = (req, res, next) => {
+  if (req.session && req.session.authenticated) {
+    return next();
   }
-
-  router.get('/', async (req, res) => {
-    try {
-      const vouchers = await voucherManager.fetchUsers();
-      const vouchersWithBadges = vouchers.map(v => ({
-        ...v,
-        badge: renderBadge(v.status)
-      }));
-      const toast = req.query.toast || null;
-      res.render('admin', {
-        __: res.__,
-        tunnelURL: getTunnelURL(),
-        vouchers: vouchersWithBadges,
-        csrfToken: req.csrfToken(),
-        toast
-      });
-    } catch (err) {
-      console.error('[ADMIN DASHBOARD ERROR]', err);
-      res.status(500).send('Error loading dashboard');
-    }
-  });
-
-  router.get('/dashboard', (req, res) => {
-    if (req.session && req.session.user) {
-      res.json({ ok: true, message: "Admin dashboard reachable" });
-    } else {
-      res.status(401).json({ ok: false, message: "Unauthorized" });
-    }
-  });
-
-  router.get('/csrf-token', (req, res) => {
-    try {
-      res.json({ csrfToken: req.csrfToken() });
-    } catch (err) {
-      console.error('[CSRF TOKEN ERROR]', err);
-      res.status(500).json({ error: 'Failed to generate CSRF token' });
-    }
-  });
-
-  router.post('/create-voucher', async (req, res) => {
-    try {
-      const { profile, count } = req.body;
-      if (!profile || !count) {
-        return res.status(400).json({ success: false, error: 'Missing profile or count' });
-      }
-      const vouchers = await voucherManager.createVouchers(profile, count);
-      db.logAudit?.('create_voucher', req.user?.username || 'admin', null, 'Dashboard', 'success', { profile, count });
-      return res.redirect('/?toast=' + encodeURIComponent(`Batch created: ${vouchers.length} vouchers`));
-    } catch (err) {
-      console.error('[CREATE VOUCHER ERROR]', err);
-      res.status(500).json({ success: false, error: err.message || 'Voucher creation failed' });
-    }
-  });
-
-  router.post('/batch/block', async (req, res) => {
-    try {
-      const { usernames } = req.body;
-      if (!Array.isArray(usernames) || usernames.length === 0) {
-        return res.status(400).json({ success: false, error: 'No usernames provided' });
-      }
-      for (const username of usernames) {
-        await voucherManager.blockVoucher(username);
-        db.logBlock?.(username);
-        db.logAudit?.('block', req.user?.username || 'admin', username, 'Dashboard', 'success', { batch: true });
-      }
-      return res.redirect('/?toast=' + encodeURIComponent(`Blocked ${usernames.length} vouchers`));
-    } catch (err) {
-      console.error('[BATCH BLOCK ERROR]', err);
-      res.status(500).json({ success: false, error: err.message || 'Batch block failed' });
-    }
-  });
-
-  router.post('/batch/delete', async (req, res) => {
-    try {
-      const { usernames } = req.body;
-      if (!Array.isArray(usernames) || usernames.length === 0) {
-        return res.status(400).json({ success: false, error: 'No usernames provided' });
-      }
-      for (const username of usernames) {
-        await voucherManager.deleteVoucher(username);
-        db.logDelete?.(username);
-        db.logAudit?.('delete', req.user?.username || 'admin', username, 'Dashboard', 'success', { batch: true });
-      }
-      return res.redirect('/?toast=' + encodeURIComponent(`Deleted ${usernames.length} vouchers`));
-    } catch (err) {
-      console.error('[BATCH DELETE ERROR]', err);
-      res.status(500).json({ success: false, error: err.message || 'Batch delete failed' });
-    }
-  });
-
-  // Remaining endpoints unchanged...
-  // Status, audit-logs, stats, distribute/sms, distribute/whatsapp, distribute/telegram
-
-  return router;
+  return res.redirect('/login');
 };
+
+// CSRF protection
+const csrfProtection = csrf({ cookie: true });
+router.use(requireLogin);
+router.use(csrfProtection);
+
+// Admin dashboard view
+router.get('/', async (req, res) => {
+  try {
+    const vouchers = await voucherManager.getAll();
+    res.render('admin', {
+      vouchers,
+      toast: req.session.toast || null,
+      csrfToken: req.csrfToken()
+    });
+    req.session.toast = null;
+  } catch (err) {
+    console.error('Error loading vouchers:', err);
+    res.status(500).send('Error loading dashboard');
+  }
+});
+// modules/adminDashboard.js — Part 2
+
+// Create vouchers
+router.post('/create-voucher', async (req, res) => {
+  try {
+    const { count, profile, batch } = req.body;
+    const created = await voucherManager.createBatch(count, profile, batch);
+    req.session.toast = `Batch created: ${created.length} vouchers`;
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Error creating vouchers:', err);
+    res.status(500).send('Error creating vouchers');
+  }
+});
+
+// Block vouchers
+router.post('/batch/block', async (req, res) => {
+  try {
+    const { selected } = req.body;
+    await voucherManager.block(selected);
+    req.session.toast = `Blocked ${selected.length} vouchers`;
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Error blocking vouchers:', err);
+    res.status(500).send('Error blocking vouchers');
+  }
+});
+
+// Delete vouchers
+router.post('/batch/delete', async (req, res) => {
+  try {
+    const { selected } = req.body;
+    await voucherManager.delete(selected);
+    req.session.toast = `Deleted ${selected.length} vouchers`;
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Error deleting vouchers:', err);
+    res.status(500).send('Error deleting vouchers');
+  }
+});
+// modules/adminDashboard.js — Part 3
+
+// Export vouchers CSV
+router.get('/export/vouchers.csv', async (req, res) => {
+  try {
+    const file = path.join(__dirname, '../data/vouchers_all.csv');
+    res.download(file, 'vouchers.csv');
+  } catch (err) {
+    console.error('Error exporting vouchers:', err);
+    res.status(500).send('Error exporting vouchers');
+  }
+});
+
+// Export audit logs CSV
+router.get('/export/audit_logs.csv', async (req, res) => {
+  try {
+    const file = path.join(__dirname, '../data/audit_logs.csv');
+    res.download(file, 'audit_logs.csv');
+  } catch (err) {
+    console.error('Error exporting audit logs:', err);
+    res.status(500).send('Error exporting audit logs');
+  }
+});
+
+// Chart data for vouchers
+router.get('/data/vouchers', async (req, res) => {
+  try {
+    const stats = await voucherManager.getStats();
+    res.json(stats);
+  } catch (err) {
+    console.error('Error fetching voucher stats:', err);
+    res.status(500).send('Error fetching voucher stats');
+  }
+});
+
+// Chart data for system
+router.get('/data/system', async (req, res) => {
+  try {
+    const systemStats = await voucherManager.getSystemStats();
+    res.json(systemStats);
+  } catch (err) {
+    console.error('Error fetching system stats:', err);
+    res.status(500).send('Error fetching system stats');
+  }
+});
+
+module.exports = router;
+
