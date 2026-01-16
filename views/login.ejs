@@ -9,7 +9,7 @@
 
   <form action="/authv2/login" method="POST">
     <div>
-      <label for="email">Username (Email):</label>
+      <label for="email">Email:</label>
       <input type="text" id="email" name="email" required>
     </div>
 
@@ -19,7 +19,6 @@
     </div>
 
     <% if (csrfToken) { %>
-      <!-- Hidden CSRF token field -->
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <% } %>
 
