@@ -4,12 +4,17 @@ const path = require('path');
 const fs = require('fs');
 const csrf = require('csurf');
 
-const voucherManager = require('./voucherManager');
-const db = require('../data/db');
-
-const { sendSMS } = require('./smsSender');
-const { handleWhatsAppMessage } = require('./whatsappBot');
-const { handleTelegramCommand } = require('./telegramBot');
+let voucherManager, db, sendSMS, handleWhatsAppMessage, handleTelegramCommand;
+try {
+  voucherManager = require('./voucherManager.js');
+  db = require('../data/db.js');
+  ({ sendSMS } = require('./smsSender.js'));
+  ({ handleWhatsAppMessage } = require('./whatsappBot.js'));
+  ({ handleTelegramCommand } = require('./telegramBot.js'));
+} catch (err) {
+  console.error('[ADMIN DASHBOARD] Failed to load required modules:', err);
+  process.exit(1);
+}
 
 module.exports = function(getTunnelURL) {
   const router = express.Router();
@@ -17,14 +22,35 @@ module.exports = function(getTunnelURL) {
   const csrfProtection = csrf({ cookie: true });
   router.use(csrfProtection);
 
+  // --- Helper: fallback badge renderer ---
+  function renderBadge(status) {
+    const safeStatus = ['active', 'blocked', 'expired'].includes(status)
+      ? status
+      : 'unknown';
+    switch (safeStatus) {
+      case 'active':
+        return '<span class="badge badge-success">Active</span>';
+      case 'blocked':
+        return '<span class="badge badge-danger">Blocked</span>';
+      case 'expired':
+        return '<span class="badge badge-secondary">Expired</span>';
+      default:
+        return '<span class="badge badge-warning">Unknown</span>';
+    }
+  }
+
   // Dashboard page (HTML view)
   router.get('/', async (req, res) => {
     try {
       const vouchers = await voucherManager.fetchUsers();
+      const vouchersWithBadges = vouchers.map(v => ({
+        ...v,
+        badge: renderBadge(v.status)
+      }));
       res.render('admin', {
         __: res.__,
         tunnelURL: getTunnelURL(),
-        vouchers,
+        vouchers: vouchersWithBadges,
         csrfToken: req.csrfToken()
       });
     } catch (err) {
@@ -105,7 +131,6 @@ module.exports = function(getTunnelURL) {
       res.status(500).json({ success: false, error: err.message || 'Batch delete failed' });
     }
   });
-
   // Status
   router.get('/status', (req, res) => {
     try {
@@ -123,7 +148,7 @@ module.exports = function(getTunnelURL) {
     }
   });
 
-  // ✅ Audit logs endpoint for CI/CD
+  // Audit logs endpoint
   router.get('/audit-logs', async (req, res) => {
     try {
       const logsFile = path.join(__dirname, '../exports/audit_logs.csv');
@@ -143,7 +168,7 @@ module.exports = function(getTunnelURL) {
     }
   });
 
-  // ✅ Stats endpoint for CI/CD
+  // Stats endpoint
   router.get('/stats', async (req, res) => {
     try {
       const stats = await voucherManager.getStats();
@@ -191,6 +216,7 @@ module.exports = function(getTunnelURL) {
     }
   });
 
+  // Return router at the end
   return router;
 };
 
