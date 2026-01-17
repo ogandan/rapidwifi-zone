@@ -8,6 +8,7 @@
   <div class="container py-4">
     <h2 class="mb-4">Admin Dashboard</h2>
 
+    <!-- Voucher Creation Form -->
     <form action="/admin/create" method="POST" class="row g-3 mb-4">
       <div class="col-auto">
         <select name="profile" class="form-select" required>
@@ -21,6 +22,27 @@
       </div>
     </form>
 
+    <!-- Export Buttons -->
+    <div class="mb-4">
+      <a href="/admin/export" class="btn btn-info">Export All Vouchers (CSV)</a>
+    </div>
+
+    <!-- Date Range Export Form -->
+    <form action="/admin/export-range" method="POST" class="row g-3 mb-4">
+      <div class="col-auto">
+        <label for="startDate" class="form-label">Start Date</label>
+        <input type="date" id="startDate" name="startDate" class="form-control" required>
+      </div>
+      <div class="col-auto">
+        <label for="endDate" class="form-label">End Date</label>
+        <input type="date" id="endDate" name="endDate" class="form-control" required>
+      </div>
+      <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">Export by Date Range</button>
+      </div>
+    </form>
+
+    <!-- Voucher Table -->
     <table class="table table-bordered table-striped">
       <thead class="table-dark">
         <tr>
@@ -55,6 +77,7 @@
       </tbody>
     </table>
 
+    <!-- Tunnel URL -->
     <div class="mt-4">
       <strong>Tunnel URL:</strong> <%= tunnelUrl %>
     </div>

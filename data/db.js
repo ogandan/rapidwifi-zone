@@ -73,6 +73,28 @@ function deleteVoucher(id) {
   });
 }
 
+function getAllVouchers() {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT * FROM vouchers ORDER BY created_at DESC", [], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+function getVouchersByDateRange(startDate, endDate) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      "SELECT * FROM vouchers WHERE date(created_at) BETWEEN date(?) AND date(?) ORDER BY created_at DESC",
+      [startDate, endDate],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
 // --------------------
 // Tunnel URL Functions
 // --------------------
@@ -107,6 +129,8 @@ module.exports = {
   createVoucher,
   blockVoucher,
   deleteVoucher,
+  getAllVouchers,
+  getVouchersByDateRange,
   getTunnelUrl,
   saveTunnelUrl
 };

@@ -3,6 +3,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
 const db = require('./data/db');
+const { Parser } = require('json2csv');
 
 const app = express();
 const PORT = 3000;
@@ -19,10 +20,9 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // --------------------
-// Routes
+// Login Routes
 // --------------------
 
-// Root login page
 app.get('/', (req, res) => {
   if (req.session.user) {
     return res.redirect('/success');
@@ -30,7 +30,6 @@ app.get('/', (req, res) => {
   res.render('login');
 });
 
-// Handle login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -45,7 +44,6 @@ app.post('/login', async (req, res) => {
       return res.render('login_result', { success: false, message: 'Voucher not active' });
     }
 
-    // Success
     req.session.user = voucher.username;
     res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
   } catch (err) {
@@ -54,7 +52,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// Success page
 app.get('/success', (req, res) => {
   if (!req.session.user) {
     return res.redirect('/');
@@ -62,7 +59,6 @@ app.get('/success', (req, res) => {
   res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
 });
 
-// Logout
 app.get('/logout', (req, res) => {
   req.session.destroy(() => {
     res.redirect('/');
@@ -84,7 +80,6 @@ app.get('/admin', async (req, res) => {
   }
 });
 
-// Create voucher
 app.post('/admin/create', async (req, res) => {
   const { profile } = req.body;
   try {
@@ -96,7 +91,6 @@ app.post('/admin/create', async (req, res) => {
   }
 });
 
-// Block voucher
 app.post('/admin/block/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -108,7 +102,6 @@ app.post('/admin/block/:id', async (req, res) => {
   }
 });
 
-// Delete voucher
 app.post('/admin/delete/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -117,6 +110,43 @@ app.post('/admin/delete/:id', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.send('Error deleting voucher');
+  }
+});
+
+// --------------------
+// Export Vouchers
+// --------------------
+
+app.get('/admin/export', async (req, res) => {
+  try {
+    const vouchers = await db.getAllVouchers();
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(vouchers);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('vouchers.csv');
+    return res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers');
+  }
+});
+
+app.post('/admin/export-range', async (req, res) => {
+  const { startDate, endDate } = req.body;
+  try {
+    const vouchers = await db.getVouchersByDateRange(startDate, endDate);
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(vouchers);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`vouchers_${startDate}_to_${endDate}.csv`);
+    return res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by date range');
   }
 });
 
