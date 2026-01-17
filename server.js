@@ -1,26 +1,29 @@
+// -----------------------------
 // File: server.js
+// -----------------------------
 require('dotenv').config();
 
 const express = require('express');
+const app = express(); // ✅ define app immediately
+
 const path = require('path');
 const fs = require('fs');
 const bodyParser = require('body-parser');
 const i18n = require('i18n');
-const session = require('express-session');
+const expressSession = require('express-session'); // ✅ renamed to avoid collision
 const os = require('os');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
 
 // Import hardened auth module and helpers
-const { router: authV2, requireAuth, requireRole } = require('./modules/auth/app-auth.js');
+const { router: authV2, requireAuth, requireRole } = require('./modules/auth/app-auth');
 
-const voucherManager = require('./modules/voucherManager');
-const paymentHandler = require('./modules/paymentHandler');
-const emailAlerts = require('./modules/emailAlerts');
-const db = require('./data/db');
+const voucherManager = require(path.join(__dirname, 'modules', 'voucherManager'));
+const paymentHandler = require(path.join(__dirname, 'modules', 'paymentHandler'));
+const emailAlerts = require(path.join(__dirname, 'modules', 'emailAlerts'));
+const db = require(path.join(__dirname, 'data', 'db'));
+const { getFilteredAuditLogs, exportLogsToCSV } = require('./modules/auditLogger');
 
-// Create Express app BEFORE using it
-const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // -----------------------------
@@ -37,19 +40,21 @@ app.use(i18n.init);
 // -----------------------------
 // Sessions
 // -----------------------------
-app.use(session({
+app.use(expressSession({
   secret: process.env.SESSION_SECRET || 'rapidwifi-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: {
+    secure: false,
+    httpOnly: true,
+    sameSite: 'lax'
+  }
 }));
 
 // -----------------------------
 // Middleware
 // -----------------------------
-app.use(cookieParser()); // required for csurf with cookie:true
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -76,7 +81,7 @@ function getTunnelURL() {
 app.use('/authv2', authV2);
 
 // -----------------------------
-// Auth routes (browser login form)
+// Auth routes
 // -----------------------------
 const csrfProtection = csurf({ cookie: true });
 
@@ -88,9 +93,6 @@ app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/login'));
 });
 
-// -----------------------------
-// Public portal
-// -----------------------------
 app.get('/', (req, res) => {
   res.render('index', { __: res.__, tunnelURL: getTunnelURL() });
 });
@@ -115,20 +117,17 @@ app.post('/payment', async (req, res) => {
 });
 
 // -----------------------------
-// Admin dashboard (protected)
+// Admin dashboard
 // -----------------------------
-const adminDashboard = require('./modules/adminDashboard')(getTunnelURL);
+const adminDashboard = require(path.join(__dirname, 'modules', 'adminDashboard'));
 app.use('/admin', requireAuth, requireRole('ADMIN'), adminDashboard);
 
-// -----------------------------
-// Audit viewer page (protected)
-// -----------------------------
 app.get('/audit', requireAuth, requireRole('ADMIN'), (req, res) => {
   res.render('audit', { __: res.__ });
 });
 
 // -----------------------------
-// Voucher creation (AJAX)
+// Voucher creation
 // -----------------------------
 app.post('/admin/voucher/create', requireAuth, requireRole('ADMIN'), async (req, res) => {
   const { count, profile, batch } = req.body;
@@ -147,7 +146,7 @@ app.post('/admin/voucher/create', requireAuth, requireRole('ADMIN'), async (req,
 });
 
 // -----------------------------
-// Batch actions (AJAX)
+// Batch actions
 // -----------------------------
 app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
@@ -175,17 +174,17 @@ app.post('/admin/voucher/batch', requireAuth, requireRole('ADMIN'), async (req, 
 });
 
 // -----------------------------
-// CSV export routes
+// CSV export
 // -----------------------------
-app.get('/admin/export/vouchers', requireAuth, requireRole('ADMIN'), async (req, res) => {
+app.get('/admin/export/vouchers.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const users = await voucherManager.exportAll();
-    const header = 'username,password,profile,batch,status\n';
+    const header = 'Username,Password,Profile,Price,Batch,Status\n';
     const body = users
-      .map(u => `${u.name},${u.password},${u.profile},${u.comment},${u.status}`)
+      .map(u => `${u.name},${u.password},${u.profile},,${u.comment},${u.status}`)
       .join('\n');
     res.header('Content-Type', 'text/csv');
-    res.attachment('vouchers.csv');
+    res.attachment('vouchers_all.csv');
     res.send(header + body);
   } catch (err) {
     console.error('[EXPORT VOUCHERS ERROR]', err);
@@ -193,38 +192,17 @@ app.get('/admin/export/vouchers', requireAuth, requireRole('ADMIN'), async (req,
   }
 });
 
-app.get('/admin/export/audit_logs.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
+app.get('/admin/export/audit.csv', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const { action, username, from, to, profile } = req.query;
-    const logs = await db.getFilteredAuditLogs({ action, username, from, to, profile });
-    const header = 'Action,Username,Profile,Details,Timestamp\n';
-    const body = logs
-      .map(l => `${l.action},${l.username || ''},${l.profile || ''},${(l.details || '').toString().replace(/\n/g, ' ')},${l.timestamp}`)
-      .join('\n');
+    const logs = getFilteredAuditLogs({ action, username, from, to, profile });
+    const csv = exportLogsToCSV(logs);
     res.header('Content-Type', 'text/csv');
-    res.attachment('audit_logs.csv');
-    res.send(header + body);
+    res.attachment('audit.csv');
+    res.send(csv);
   } catch (err) {
     console.error('[EXPORT AUDIT ERROR]', err);
     res.status(500).send('Error exporting audit logs');
-  }
-});
-
-// -----------------------------
-// Status endpoint for smoke test
-// -----------------------------
-app.get('/admin/status', requireAuth, requireRole('ADMIN'), (req, res) => {
-  try {
-    res.json({
-      system_uptime: os.uptime(),
-      load_average: os.loadavg(),
-      memory_usage: { free: os.freemem(), total: os.totalmem() },
-      vouchers_csv: null,
-      audit_logs_csv: new Date().toISOString()
-    });
-  } catch (err) {
-    console.error('[STATUS ERROR]', err);
-    res.status(500).json({ error: 'Failed to load status' });
   }
 });
 
@@ -259,9 +237,9 @@ app.get('/admin/data/system', requireAuth, requireRole('ADMIN'), (req, res) => {
 });
 
 // -----------------------------
-// Voucher API routes (REST endpoints)
+// Voucher API routes
 // -----------------------------
-const vouchersRouter = require('./routes/vouchers');
+const vouchersRouter = require(path.join(__dirname, 'routes', 'vouchers'));
 app.use(vouchersRouter);
 
 // -----------------------------
