@@ -16,7 +16,8 @@ sleep 5
 tail -n 500 $LOGFILE > "${LOGFILE}.tmp" && mv "${LOGFILE}.tmp" $LOGFILE
 
 # Extract latest URL and save
-TUNNEL_URL=$(grep -m1 -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE)
+TUNNEL_URL=$(grep -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE | tail -n1)
+
 if [ -n "$TUNNEL_URL" ]; then
     echo "$TUNNEL_URL" > $URLFILE
     echo "$(date) - Tunnel started at $TUNNEL_URL" | tee -a $LOGFILE
