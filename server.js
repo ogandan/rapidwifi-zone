@@ -16,7 +16,7 @@ const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
 
 // Import hardened auth module and helpers
-const { router: authV2, requireAuth, requireRole } = require('./modules/auth/app-auth');
+const { router: authV2, requireAuth, requireRole } = require(path.join(__dirname, 'modules', 'auth', 'app-auth.js'));
 
 const voucherManager = require(path.join(__dirname, 'modules', 'voucherManager'));
 const paymentHandler = require(path.join(__dirname, 'modules', 'paymentHandler'));
@@ -78,7 +78,8 @@ function getTunnelURL() {
 // -----------------------------
 // SAFETY: Mount authV2 under a separate path
 // -----------------------------
-app.use('/authv2', authV2);
+// app.use('/authv2', authV2);
+app.use('/', authV2);
 
 // -----------------------------
 // Auth routes
