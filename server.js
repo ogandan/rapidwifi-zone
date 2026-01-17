@@ -6,26 +6,8 @@ const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
-const voucherManager = require('./modules/voucherManager');
-// Add at the top
 const fs = require('fs');
-
-// Replace the admin/vouchers route with render logic
-app.get('/admin', async (req, res) => {
-  try {
-    const vouchers = await voucherManager.listVouchers();
-    let tunnelUrl = '';
-    try {
-      tunnelUrl = fs.readFileSync(path.join(__dirname, 'data/tunnel_url.txt'), 'utf8').trim();
-    } catch (err) {
-      tunnelUrl = 'No tunnel URL available';
-    }
-    res.render('admin.ejs', { vouchers, tunnelUrl });
-  } catch (err) {
-    res.status(500).send('Error loading admin dashboard');
-  }
-});
-
+const voucherManager = require('./modules/voucherManager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,7 +21,7 @@ app.use(session({
   saveUninitialized: false
 }));
 
-// Static views
+// Static assets
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
@@ -65,7 +47,24 @@ app.post('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
-// Admin routes (basic)
+// Admin dashboard route
+app.get('/admin', async (req, res) => {
+  try {
+    const vouchers = await voucherManager.listVouchers();
+    let tunnelUrl = '';
+    try {
+      tunnelUrl = fs.readFileSync(path.join(__dirname, 'data/tunnel_url.txt'), 'utf8').trim();
+    } catch (err) {
+      tunnelUrl = 'No tunnel URL available';
+    }
+    res.render('admin.ejs', { vouchers, tunnelUrl });
+  } catch (err) {
+    console.error('Error loading admin dashboard:', err);
+    res.status(500).send('Error loading admin dashboard');
+  }
+});
+
+// Admin API routes
 app.get('/admin/vouchers', async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   res.json(vouchers);
@@ -77,5 +76,12 @@ app.post('/admin/vouchers/create', async (req, res) => {
   res.json(voucher);
 });
 
+app.post('/admin/vouchers/disable', async (req, res) => {
+  const { username } = req.body;
+  const result = await voucherManager.disableVoucher(username);
+  res.json(result);
+});
+
+// Start server
 app.listen(PORT, () => console.log(`RAPIDWIFI backend running on port ${PORT}`));
 

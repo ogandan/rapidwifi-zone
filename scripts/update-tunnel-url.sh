@@ -15,8 +15,8 @@ sleep 5
 # Rotate log: keep only last 500 lines
 tail -n 500 $LOGFILE > "${LOGFILE}.tmp" && mv "${LOGFILE}.tmp" $LOGFILE
 
-# Extract latest URL and save
-TUNNEL_URL=$(grep -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE | tail -n1)
+# Extract latest valid tunnel URL and save
+TUNNEL_URL=$(grep -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE | grep -v "api.trycloudflare.com" | tail -n1)
 
 if [ -n "$TUNNEL_URL" ]; then
     echo "$TUNNEL_URL" > $URLFILE
@@ -34,7 +34,7 @@ if ! curl -s --max-time 10 "$TUNNEL_URL" > /dev/null; then
     sleep 5
     # Rotate log again
     tail -n 500 $LOGFILE > "${LOGFILE}.tmp" && mv "${LOGFILE}.tmp" $LOGFILE
-    NEW_URL=$(grep -m1 -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE)
+    NEW_URL=$(grep -o "https://[a-z0-9.-]*\.trycloudflare\.com" $LOGFILE | grep -v "api.trycloudflare.com" | tail -n1)
     if [ -n "$NEW_URL" ]; then
         echo "$NEW_URL" > $URLFILE
         echo "$(date) - Tunnel restarted at $NEW_URL" | tee -a $LOGFILE
