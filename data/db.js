@@ -30,7 +30,7 @@ function getRecentVouchers(limit = 20) {
   });
 }
 
-// Create a new voucher
+// Create a new voucher with username + password
 function createVoucher(username, password, profile) {
   return new Promise((resolve, reject) => {
     const createdAt = new Date().toISOString();
