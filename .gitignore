@@ -9,3 +9,9 @@ backups/
 exports/
 ssl/
 rapidwifi-pre-overwrite-*.tar.gz
+exports/
+backups/
+ssl/
+cookies.txt
+process.env.*
+*.tar.gz
