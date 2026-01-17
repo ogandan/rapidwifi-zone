@@ -35,7 +35,6 @@ function exportCSV(res, vouchers, filename, action, user) {
   const parser = new Parser({ fields });
   const csv = parser.parse(vouchers);
 
-  // Log the download
   db.logDownload(action, filename, user).catch(err => console.error("Log error:", err));
 
   res.header('Content-Type', 'text/csv');
@@ -186,7 +185,16 @@ app.post('/admin/export-batch', async (req, res) => {
 // --------------------
 app.get('/admin/logs', async (req, res) => {
   try {
-    const logs = await db.getDownloadLogs(50);
+    const { action, user } = req.query;
+    let logs = await db.getDownloadLogs(200);
+
+    if (action) {
+      logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
+    }
+    if (user) {
+      logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
+    }
+
     res.render('logs', { logs });
   } catch (err) {
     console.error(err);
