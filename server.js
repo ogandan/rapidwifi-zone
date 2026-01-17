@@ -78,8 +78,7 @@ function getTunnelURL() {
 // -----------------------------
 // SAFETY: Mount authV2 under a separate path
 // -----------------------------
-// app.use('/authv2', authV2);
-app.use('/', authV2);
+ app.use('/authv2', authV2);
 
 // -----------------------------
 // Auth routes
