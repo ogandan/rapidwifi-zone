@@ -7,7 +7,27 @@
 <body class="bg-light">
   <div class="container py-4">
     <h2 class="mb-4">Download Logs</h2>
-    <table class="table table-bordered table-striped">
+
+    <!-- Export Logs Button -->
+    <div class="mb-3">
+      <a href="/admin/export-logs" class="btn btn-success">Export Logs as CSV</a>
+    </div>
+
+    <!-- Filter Form -->
+    <form method="GET" action="/admin/logs" class="row g-3 mb-4">
+      <div class="col-auto">
+        <input type="text" name="action" class="form-control" placeholder="Filter by Action">
+      </div>
+      <div class="col-auto">
+        <input type="text" name="user" class="form-control" placeholder="Filter by User">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Apply Filters</button>
+      </div>
+    </form>
+
+    <!-- Logs Table -->
+    <table class="table table-hover table-bordered align-middle">
       <thead class="table-dark">
         <tr>
           <th>Action</th>
@@ -19,10 +39,14 @@
       <tbody>
         <% logs.forEach(l => { %>
           <tr>
-            <td><%= l.action %></td>
+            <td>
+              <span class="badge bg-info text-dark"><%= l.action %></span>
+            </td>
             <td><%= l.filename %></td>
-            <td><%= l.user %></td>
-            <td><%= l.timestamp %></td>
+            <td>
+              <span class="badge bg-secondary"><%= l.user %></span>
+            </td>
+            <td><%= new Date(l.timestamp).toLocaleString() %></td>
           </tr>
         <% }) %>
       </tbody>
