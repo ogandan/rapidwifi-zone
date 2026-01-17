@@ -6,6 +6,16 @@ const fs = require('fs');
 const dbFile = path.join(__dirname, 'db.sqlite');
 const db = new sqlite3.Database(dbFile);
 
+// Utility: generate random string of given length
+function randomString(length) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 // --------------------
 // Voucher Functions
 // --------------------
@@ -30,11 +40,14 @@ function getRecentVouchers(limit = 20) {
   });
 }
 
-// Create a new voucher with username + password
-function createVoucher(username, password, profile) {
+// Create a new voucher with 4-char username + 5-char password
+function createVoucher(profile) {
   return new Promise((resolve, reject) => {
+    const username = randomString(4);
+    const password = randomString(5);
     const createdAt = new Date().toISOString();
     const status = 'active';
+
     db.run(
       "INSERT INTO vouchers (username, password, profile, created_at, status) VALUES (?, ?, ?, ?, ?)",
       [username, password, profile, createdAt, status],
