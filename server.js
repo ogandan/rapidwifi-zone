@@ -150,6 +150,23 @@ app.post('/admin/export-range', async (req, res) => {
   }
 });
 
+app.post('/admin/export-profile', async (req, res) => {
+  const { profile } = req.body;
+  try {
+    const vouchers = await db.getVouchersByProfile(profile);
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(vouchers);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`vouchers_${profile}.csv`);
+    return res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by profile');
+  }
+});
+
 // --------------------
 // Start Server
 // --------------------

@@ -95,6 +95,19 @@ function getVouchersByDateRange(startDate, endDate) {
   });
 }
 
+function getVouchersByProfile(profile) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      "SELECT * FROM vouchers WHERE profile = ? ORDER BY created_at DESC",
+      [profile],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
 // --------------------
 // Tunnel URL Functions
 // --------------------
@@ -131,6 +144,7 @@ module.exports = {
   deleteVoucher,
   getAllVouchers,
   getVouchersByDateRange,
+  getVouchersByProfile,
   getTunnelUrl,
   saveTunnelUrl
 };

@@ -42,6 +42,21 @@
       </div>
     </form>
 
+    <!-- Profile Export Form -->
+    <form action="/admin/export-profile" method="POST" class="row g-3 mb-4">
+      <div class="col-auto">
+        <label for="profile" class="form-label">Profile</label>
+        <select id="profile" name="profile" class="form-select" required>
+          <option value="">Select Profile</option>
+          <option value="basic">Basic</option>
+          <option value="premium">Premium</option>
+        </select>
+      </div>
+      <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-secondary">Export by Profile</button>
+      </div>
+    </form>
+
     <!-- Voucher Table -->
     <table class="table table-bordered table-striped">
       <thead class="table-dark">
