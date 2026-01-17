@@ -1,87 +1,79 @@
-// server.js - RAPIDWIFI-ZONE baseline backend
-process.on('uncaughtException', err => console.error('[FATAL ERROR]', err));
-process.on('unhandledRejection', err => console.error('[UNHANDLED PROMISE]', err));
-
 const express = require('express');
-const session = require('express-session');
-const bodyParser = require('body-parser');
 const path = require('path');
-const fs = require('fs');
-const voucherManager = require('./modules/voucherManager');
+const bodyParser = require('body-parser');
+const db = require('./data/db'); // assumes you have db.js with voucher functions
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'rapidwifi-secret',
-  resave: false,
-  saveUninitialized: false
-}));
 
-// Static assets
-app.use(express.static(path.join(__dirname, 'public')));
+// EJS view engine setup
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
-// Routes
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
+// Static assets (CSS, JS, images if needed)
+app.use('/styles', express.static(path.join(__dirname, 'styles')));
 
+// --------------------
+// Hotspot Login Routes
+// --------------------
+
+// Landing page: login form
+app.get('/', (req, res) => {
+  res.render('login.ejs');
+});
+
+// Voucher login handler
 app.post('/login', async (req, res) => {
-  const { username } = req.body;
-  const voucher = await voucherManager.validateVoucher(username);
-  if (voucher) {
-    req.session.user = voucher.username;
-    res.redirect('/status');
-  } else {
-    res.status(401).send('Invalid voucher');
+  const { username, password } = req.body;
+
+  try {
+    const voucher = await db.getVoucherByUsername(username);
+
+    if (!voucher) {
+      return res.status(401).json({ ok: false, error: 'Invalid username' });
+    }
+
+    if (voucher.password !== password) {
+      return res.status(401).json({ ok: false, error: 'Incorrect password' });
+    }
+
+    if (voucher.status !== 'active') {
+      return res.status(403).json({ ok: false, error: 'Voucher not active' });
+    }
+
+    // Successful login
+    return res.json({ ok: true, message: 'Login successful' });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
 
-app.get('/status', (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-  res.send(`Logged in as ${req.session.user}`);
-});
+// --------------------
+// Admin Dashboard Route
+// --------------------
 
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
-});
-
-// Admin dashboard route
 app.get('/admin', async (req, res) => {
   try {
-    const vouchers = await voucherManager.listVouchers();
-    let tunnelUrl = '';
-    try {
-      tunnelUrl = fs.readFileSync(path.join(__dirname, 'data/tunnel_url.txt'), 'utf8').trim();
-    } catch (err) {
-      tunnelUrl = 'No tunnel URL available';
-    }
+    const vouchers = await db.getRecentVouchers();
+    const tunnelUrl = await db.getTunnelUrl(); // reads from data/tunnel_url.txt
+
     res.render('admin.ejs', { vouchers, tunnelUrl });
   } catch (err) {
-    console.error('Error loading admin dashboard:', err);
+    console.error(err);
     res.status(500).send('Error loading admin dashboard');
   }
 });
 
-// Admin API routes
-app.get('/admin/vouchers', async (req, res) => {
-  const vouchers = await voucherManager.listVouchers();
-  res.json(vouchers);
-});
+// --------------------
+// Start Server
+// --------------------
 
-app.post('/admin/vouchers/create', async (req, res) => {
-  const { profile } = req.body;
-  const voucher = await voucherManager.createVoucher(profile);
-  res.json(voucher);
+app.listen(PORT, () => {
+  console.log(`RAPIDWIFI-ZONE server running on http://localhost:${PORT}`);
 });
-
-app.post('/admin/vouchers/disable', async (req, res) => {
-  const { username } = req.body;
-  const result = await voucherManager.disableVoucher(username);
-  res.json(result);
-});
-
-// Start server
-app.listen(PORT, () => console.log(`RAPIDWIFI backend running on port ${PORT}`));
 
