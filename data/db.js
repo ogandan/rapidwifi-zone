@@ -123,6 +123,34 @@ function getVouchersByBatch(batchTag) {
 }
 
 // --------------------
+// Tunnel URL Functions
+// --------------------
+
+function getTunnelUrl() {
+  try {
+    const urlFile = path.join(__dirname, 'tunnel_url.txt');
+    if (fs.existsSync(urlFile)) {
+      return fs.readFileSync(urlFile, 'utf8').trim();
+    }
+    return '';
+  } catch (err) {
+    console.error('Error reading tunnel_url.txt:', err);
+    return '';
+  }
+}
+
+function saveTunnelUrl(url) {
+  try {
+    const urlFile = path.join(__dirname, 'tunnel_url.txt');
+    fs.writeFileSync(urlFile, url, 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing tunnel_url.txt:', err);
+    return false;
+  }
+}
+
+// --------------------
 // Download Log Functions
 // --------------------
 
@@ -149,6 +177,9 @@ function getDownloadLogs(limit = 50) {
   });
 }
 
+// --------------------
+// Exports
+// --------------------
 module.exports = {
   getVoucherByUsername,
   getRecentVouchers,
@@ -159,9 +190,9 @@ module.exports = {
   getVouchersByDateRange,
   getVouchersByProfile,
   getVouchersByBatch,
-  logDownload,
-  getDownloadLogs,
   getTunnelUrl,
-  saveTunnelUrl
+  saveTunnelUrl,
+  logDownload,
+  getDownloadLogs
 };
 
