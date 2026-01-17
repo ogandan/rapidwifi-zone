@@ -1,81 +1,65 @@
 const express = require('express');
-const path = require('path');
-const bodyParser = require('body-parser');
-const fs = require('fs');
 const session = require('express-session');
-const db = require('./data/db'); // your SQLite helper module
+const bodyParser = require('body-parser');
+const path = require('path');
+const db = require('./data/db');
 
 const app = express();
 const PORT = 3000;
 
 // Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-
-// Session setup
 app.use(session({
-  secret: 'rapidwifi-secret-key', // change to env var in production
+  secret: 'rapidwifi-secret',
   resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 2 * 60 * 60 * 1000 } // 2 hours
+  saveUninitialized: true
 }));
 
-// EJS view engine setup
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // --------------------
-// Hotspot Login Routes
+// Routes
 // --------------------
 
-// Landing page: login form
+// Root login page
 app.get('/', (req, res) => {
-  if (req.session && req.session.voucher) {
-    // Already logged in → redirect to success
+  if (req.session.user) {
     return res.redirect('/success');
   }
-  res.render('login.ejs');
+  res.render('login');
 });
 
-// Voucher login handler
+// Handle login
 app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
   try {
     const voucher = await db.getVoucherByUsername(username);
-
     if (!voucher) {
-      return res.status(401).render('login_result.ejs', { ok: false, error: 'Invalid username' });
+      return res.render('login_result', { success: false, message: 'Invalid username' });
     }
-
     if (voucher.password !== password) {
-      return res.status(401).render('login_result.ejs', { ok: false, error: 'Incorrect password' });
+      return res.render('login_result', { success: false, message: 'Incorrect password' });
     }
-
     if (voucher.status !== 'active') {
-      return res.status(403).render('login_result.ejs', { ok: false, error: 'Voucher not active' });
+      return res.render('login_result', { success: false, message: 'Voucher not active' });
     }
 
-    // Successful login → store session
-    req.session.voucher = {
-      username: voucher.username,
-      profile: voucher.profile,
-      id: voucher.id
-    };
-
-    return res.redirect('/success');
+    // Success
+    req.session.user = voucher.username;
+    res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
   } catch (err) {
     console.error(err);
-    return res.status(500).render('login_result.ejs', { ok: false, error: 'Server error' });
+    res.render('login_result', { success: false, message: 'Server error' });
   }
 });
 
 // Success page
 app.get('/success', (req, res) => {
-  if (!req.session || !req.session.voucher) {
+  if (!req.session.user) {
     return res.redirect('/');
   }
-  res.render('login_result.ejs', { ok: true, message: 'Login successful! You are now connected.' });
+  res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
 });
 
 // Logout
@@ -86,25 +70,53 @@ app.get('/logout', (req, res) => {
 });
 
 // --------------------
-// Admin Dashboard Route
+// Admin Dashboard
 // --------------------
 
 app.get('/admin', async (req, res) => {
   try {
-    const vouchers = await db.getRecentVouchers();
-
-    // Read tunnel URL from file
-    let tunnelUrl = '';
-    try {
-      tunnelUrl = fs.readFileSync(path.join(__dirname, 'data', 'tunnel_url.txt'), 'utf8').trim();
-    } catch (err) {
-      console.warn('Tunnel URL file not found');
-    }
-
-    res.render('admin.ejs', { vouchers, tunnelUrl });
+    const vouchers = await db.getRecentVouchers(50);
+    const tunnelUrl = db.getTunnelUrl();
+    res.render('admin', { vouchers, tunnelUrl });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Error loading admin dashboard');
+    res.send('Error loading admin dashboard');
+  }
+});
+
+// Create voucher
+app.post('/admin/create', async (req, res) => {
+  const { profile } = req.body;
+  try {
+    await db.createVoucher(profile);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error creating voucher');
+  }
+});
+
+// Block voucher
+app.post('/admin/block/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.blockVoucher(id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error blocking voucher');
+  }
+});
+
+// Delete voucher
+app.post('/admin/delete/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await db.deleteVoucher(id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error deleting voucher');
   }
 });
 
@@ -113,6 +125,6 @@ app.get('/admin', async (req, res) => {
 // --------------------
 
 app.listen(PORT, () => {
-  console.log(`RAPIDWIFI-ZONE server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://192.168.88.2:${PORT}`);
 });
 

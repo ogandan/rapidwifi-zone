@@ -2,7 +2,6 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 
-// Path to SQLite database file
 const dbFile = path.join(__dirname, 'db.sqlite');
 const db = new sqlite3.Database(dbFile);
 
@@ -20,7 +19,6 @@ function randomString(length) {
 // Voucher Functions
 // --------------------
 
-// Find voucher by username
 function getVoucherByUsername(username) {
   return new Promise((resolve, reject) => {
     db.get("SELECT * FROM vouchers WHERE username = ?", [username], (err, row) => {
@@ -30,7 +28,6 @@ function getVoucherByUsername(username) {
   });
 }
 
-// Get recent vouchers (default limit 20)
 function getRecentVouchers(limit = 20) {
   return new Promise((resolve, reject) => {
     db.all("SELECT * FROM vouchers ORDER BY created_at DESC LIMIT ?", [limit], (err, rows) => {
@@ -40,7 +37,6 @@ function getRecentVouchers(limit = 20) {
   });
 }
 
-// Create a new voucher with 4-char username + 5-char password
 function createVoucher(profile) {
   return new Promise((resolve, reject) => {
     const username = randomString(4);
@@ -59,11 +55,28 @@ function createVoucher(profile) {
   });
 }
 
+function blockVoucher(id) {
+  return new Promise((resolve, reject) => {
+    db.run("UPDATE vouchers SET status = 'inactive' WHERE id = ?", [id], function (err) {
+      if (err) return reject(err);
+      resolve(true);
+    });
+  });
+}
+
+function deleteVoucher(id) {
+  return new Promise((resolve, reject) => {
+    db.run("DELETE FROM vouchers WHERE id = ?", [id], function (err) {
+      if (err) return reject(err);
+      resolve(true);
+    });
+  });
+}
+
 // --------------------
 // Tunnel URL Functions
 // --------------------
 
-// Read tunnel URL from file
 function getTunnelUrl() {
   try {
     const urlFile = path.join(__dirname, 'tunnel_url.txt');
@@ -77,7 +90,6 @@ function getTunnelUrl() {
   }
 }
 
-// Save tunnel URL to file
 function saveTunnelUrl(url) {
   try {
     const urlFile = path.join(__dirname, 'tunnel_url.txt');
@@ -89,14 +101,12 @@ function saveTunnelUrl(url) {
   }
 }
 
-// --------------------
-// Exported API
-// --------------------
-
 module.exports = {
   getVoucherByUsername,
   getRecentVouchers,
   createVoucher,
+  blockVoucher,
+  deleteVoucher,
   getTunnelUrl,
   saveTunnelUrl
 };
