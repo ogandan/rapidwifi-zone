@@ -123,31 +123,30 @@ function getVouchersByBatch(batchTag) {
 }
 
 // --------------------
-// Tunnel URL Functions
+// Download Log Functions
 // --------------------
 
-function getTunnelUrl() {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    if (fs.existsSync(urlFile)) {
-      return fs.readFileSync(urlFile, 'utf8').trim();
-    }
-    return '';
-  } catch (err) {
-    console.error('Error reading tunnel_url.txt:', err);
-    return '';
-  }
+function logDownload(action, filename, user) {
+  return new Promise((resolve, reject) => {
+    const timestamp = new Date().toISOString();
+    db.run(
+      "INSERT INTO download_logs (action, filename, user, timestamp) VALUES (?, ?, ?, ?)",
+      [action, filename, user || 'admin', timestamp],
+      function (err) {
+        if (err) return reject(err);
+        resolve(true);
+      }
+    );
+  });
 }
 
-function saveTunnelUrl(url) {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    fs.writeFileSync(urlFile, url, 'utf8');
-    return true;
-  } catch (err) {
-    console.error('Error writing tunnel_url.txt:', err);
-    return false;
-  }
+function getDownloadLogs(limit = 50) {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT * FROM download_logs ORDER BY timestamp DESC LIMIT ?", [limit], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
 }
 
 module.exports = {
@@ -160,6 +159,8 @@ module.exports = {
   getVouchersByDateRange,
   getVouchersByProfile,
   getVouchersByBatch,
+  logDownload,
+  getDownloadLogs,
   getTunnelUrl,
   saveTunnelUrl
 };
