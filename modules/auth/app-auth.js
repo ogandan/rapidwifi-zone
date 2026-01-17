@@ -102,6 +102,15 @@ router.get('/admin/csrf-token', requireAuth, csrfProtection, (req, res) => {
   res.json({ ok: true, csrfToken: req.csrfToken() });
 });
 
+// --- Admin UI route (NEW) ---
+router.get('/admin', requireAuth, requireRole('ADMIN'), csrfProtection, (req, res) => {
+  res.render('admin', {
+    user: req.session.user,
+    __: res.__,
+    csrfToken: req.csrfToken()
+  });
+});
+
 // --- Login route (form + JSON) ---
 router.post('/login', loginLimiter, csrfProtection, async (req, res) => {
   const { email, password } = req.body;
