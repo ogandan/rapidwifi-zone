@@ -1,44 +1,62 @@
+// server.js - RAPIDWIFI-ZONE baseline backend
+process.on('uncaughtException', err => console.error('[FATAL ERROR]', err));
+process.on('unhandledRejection', err => console.error('[UNHANDLED PROMISE]', err));
+
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
+const voucherManager = require('./modules/voucherManager');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- Sessions ---
+// Middleware
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 app.use(session({
   secret: process.env.SESSION_SECRET || 'rapidwifi-secret',
   resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false }
+  saveUninitialized: false
 }));
 
-// --- Middleware ---
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+// Static views
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+// Routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'login.html')));
 
-// --- Mount auth router ---
-const authV2 = require('./modules/auth/app-auth.js');
-app.use('/authv2', authV2);
-
-// --- Admin dashboard ---
-const adminDashboard = require('./modules/adminDashboard');
-app.use('/admin', (req, res, next) => {
-  if (req.session && req.session.user) return next();
-  res.redirect('/login');
-}, adminDashboard);
-
-// --- Login page ---
-app.get('/login', (req, res) => {
-  res.render('login', { error: null });
+app.post('/login', async (req, res) => {
+  const { username } = req.body;
+  const voucher = await voucherManager.validateVoucher(username);
+  if (voucher) {
+    req.session.user = voucher.username;
+    res.redirect('/status');
+  } else {
+    res.status(401).send('Invalid voucher');
+  }
 });
 
-app.listen(PORT, () => {
-  console.log(`RAPIDWIFI-ZONE running on port ${PORT}`);
+app.get('/status', (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  res.send(`Logged in as ${req.session.user}`);
 });
+
+app.post('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
+});
+
+// Admin routes (basic)
+app.get('/admin/vouchers', async (req, res) => {
+  const vouchers = await voucherManager.listVouchers();
+  res.json(vouchers);
+});
+
+app.post('/admin/vouchers/create', async (req, res) => {
+  const { profile } = req.body;
+  const voucher = await voucherManager.createVoucher(profile);
+  res.json(voucher);
+});
+
+app.listen(PORT, () => console.log(`RAPIDWIFI backend running on port ${PORT}`));
 
