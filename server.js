@@ -113,6 +113,10 @@ app.post('/admin/delete/:id', async (req, res) => {
 app.get('/admin/export', async (req, res) => {
   try {
     const vouchers = await db.getAllVouchers();
+
+    // ✅ FIX: log the export action
+    await db.logDownload('export-all', 'vouchers.csv', 'admin');
+
     return exportCSV(res, vouchers, 'vouchers.csv', [
       { label: 'Voucher ID', value: 'id' },
       { label: 'Voucher Code', value: 'username' },
