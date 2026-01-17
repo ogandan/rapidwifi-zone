@@ -10,7 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const bodyParser = require('body-parser');
 const i18n = require('i18n');
-const expressSession = require('express-session'); // ✅ renamed to avoid collision
+const session = require('express-session'); // ✅ correct import
 const os = require('os');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
@@ -40,14 +40,15 @@ app.use(i18n.init);
 // -----------------------------
 // Sessions
 // -----------------------------
-app.use(expressSession({
+app.use(session({
   secret: process.env.SESSION_SECRET || 'rapidwifi-secret',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: false,   // set to true if serving over HTTPS
     httpOnly: true,
-    sameSite: 'lax'
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 // 1 hour
   }
 }));
 
@@ -78,7 +79,7 @@ function getTunnelURL() {
 // -----------------------------
 // SAFETY: Mount authV2 under a separate path
 // -----------------------------
- app.use('/authv2', authV2);
+app.use('/authv2', authV2);
 
 // -----------------------------
 // Auth routes
