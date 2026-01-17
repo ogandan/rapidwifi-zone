@@ -1,380 +1,69 @@
-<%- include('partials/header') %>
-
-<!-- TEST MODE badge -->
-<% if (process.env.TEST_MODE === 'true') { %>
-  <div style="background:#f39c12;color:#fff;padding:5px;text-align:center;">
-    ⚠ TEST MODE ACTIVE — commands are simulated
-  </div>
-<% } %>
-
-<!-- CSRF token for AJAX -->
-<input type="hidden" id="csrfToken" value="<%= csrfToken %>">
-
-<section>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RAPIDWIFI-ZONE Admin Dashboard</title>
+  <link rel="stylesheet" href="/styles/bootstrap.min.css">
+  <style>
+    body { padding: 20px; }
+    .tunnel-url { margin-bottom: 20px; }
+    .voucher-table { margin-top: 20px; }
+    .status-active { color: green; font-weight: bold; }
+    .status-blocked { color: red; font-weight: bold; }
+    .status-disabled { color: gray; font-weight: bold; }
+  </style>
+</head>
+<body>
   <h1>Admin Dashboard</h1>
 
-  <!-- Voucher creation -->
-  <h2><%= __("create_vouchers") %></h2>
-  <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <label>Count:
-      <input type="number" name="count" value="5" min="1">
-    </label>
-    <label>Profile:
-      <select name="profile">
-        <option value="default">Default</option>
-        <option value="1h-100FCFA">1h-100FCFA</option>
-        <option value="3h-200FCFA">3h-200FCFA</option>
-        <option value="8h-500FCFA">8h-500FCFA</option>
-        <option value="24h-1000FCFA">24h-1000FCFA</option>
-      </select>
-    </label>
-    <label>Batch Tag:
-      <input type="text" name="batch" placeholder="batch-<%= Date.now() %>">
-    </label>
-    <button type="submit">Create</button>
-  </form>
-  <div id="create-result"></div>
-</section>
-
-<!-- Active vouchers with filters and batch management -->
-<section>
-  <h2><%= __("active_vouchers") %></h2>
-
-  <!-- Filters -->
-  <div class="filters" style="margin-bottom:10px;">
-    <label>Filter by status:
-      <select id="filterStatus">
-        <option value="all">All</option>
-        <option value="active">Active</option>
-        <option value="blocked">Blocked</option>
-      </select>
-    </label>
-    <label>Profile:
-      <select id="filterProfile">
-        <option value="all">All</option>
-        <option value="default">Default</option>
-        <option value="1h-100FCFA">1h-100FCFA</option>
-        <option value="3h-200FCFA">3h-200FCFA</option>
-        <option value="8h-500FCFA">8h-500FCFA</option>
-        <option value="24h-1000FCFA">24h-1000FCFA</option>
-      </select>
-    </label>
-    <label>Search:
-      <input type="text" id="searchInput" placeholder="Search vouchers…">
-    </label>
-    <button type="button" id="resetFilters">Reset</button>
-    <button type="button" id="selectBlocked">Select Blocked</button>
-    <button type="button" id="exportFiltered">Export Filtered CSV</button>
+  <!-- Tunnel URL -->
+  <div class="tunnel-url">
+    <h3>Current Tunnel URL</h3>
+    <pre><%= tunnelUrl %></pre>
   </div>
 
-  <!-- Batch actions -->
-  <form id="batch-voucher-form">
-    <div class="batch-actions" style="margin-bottom:10px;">
-      <select id="batchAction" required>
-        <option value="">-- Select Action --</option>
-        <option value="block">Block Selected</option>
-        <option value="delete">Delete Selected</option>
+  <!-- Voucher creation form -->
+  <div class="voucher-create">
+    <h3>Create Voucher</h3>
+    <form method="POST" action="/admin/vouchers/create">
+      <label for="profile">Profile:</label>
+      <select name="profile" id="profile" class="form-select" required>
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h - 100 FCFA</option>
+        <option value="3h-200FCFA">3h - 200 FCFA</option>
+        <option value="8h-500FCFA">8h - 500 FCFA</option>
+        <option value="24h-1000FCFA">24h - 1000 FCFA</option>
       </select>
-      <button type="submit">Apply</button>
-    </div>
+      <button type="submit" class="btn btn-primary mt-2">Create Voucher</button>
+    </form>
+  </div>
 
-    <table style="width:100%; border-collapse:collapse;">
+  <!-- Voucher list -->
+  <div class="voucher-table">
+    <h3>Recent Vouchers</h3>
+    <table class="table table-striped">
       <thead>
         <tr>
-          <th><input type="checkbox" id="select-all"></th>
+          <th>ID</th>
           <th>Username</th>
           <th>Profile</th>
+          <th>Created At</th>
           <th>Status</th>
-          <th>Distribute</th>
         </tr>
       </thead>
-      <tbody id="voucher-table-body">
-        <% vouchers.forEach(function(voucher){ %>
-          <tr data-status="<%= voucher.status %>"
-              data-username="<%= voucher.name.toLowerCase() %>"
-              data-profile="<%= voucher.profile.toLowerCase() %>">
-            <td><input type="checkbox" name="selected" value="<%= voucher.name %>"></td>
-            <td class="col-username"><%= voucher.name %></td>
-            <td class="col-profile"><%= voucher.profile %></td>
-            <td class="col-status">
-              <% if (voucher.status === 'blocked') { %>
-                <span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>
-              <% } else { %>
-                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
-              <% } %>
-            </td>
-            <td>
-              <button type="button" onclick="sendSMS('<%= voucher.name %>')">SMS</button>
-              <button type="button" onclick="sendWhatsApp('<%= voucher.name %>')">WhatsApp</button>
-              <button type="button" onclick="sendTelegram('<%= voucher.name %>')">Telegram</button>
-            </td>
+      <tbody>
+        <% vouchers.forEach(function(voucher) { %>
+          <tr>
+            <td><%= voucher.id %></td>
+            <td><%= voucher.username %></td>
+            <td><%= voucher.profile %></td>
+            <td><%= voucher.created_at %></td>
+            <td class="status-<%= voucher.status %>"><%= voucher.status %></td>
           </tr>
         <% }); %>
       </tbody>
     </table>
-  </form>
-</section>
-
-<!-- Exports -->
-<section>
-  <h2><%= __("exports") %></h2>
-  <form action="/admin/export/vouchers.csv" method="GET">
-    <button type="submit">Export All Vouchers</button>
-  </form>
-  <form action="/admin/export/audit_logs.csv" method="GET">
-    <button type="submit">Export Audit Logs</button>
-  </form>
-</section>
-
-<!-- Status -->
-<section>
-  <h2>Status</h2>
-  <div id="statusContent">Loading export status...</div>
-</section>
-
-<!-- Charts -->
-<section>
-  <h2>Charts</h2>
-  <canvas id="voucherChart"></canvas>
-  <canvas id="systemChart"></canvas>
-</section>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // Charts
-  async function loadVoucherChart() {
-    try {
-      const res = await fetch('/admin/data/vouchers');
-      const data = await res.json();
-      const ctx = document.getElementById('voucherChart').getContext('2d');
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: Object.keys(data),
-          datasets: [{
-            label: 'Vouchers by Profile',
-            data: Object.values(data),
-            backgroundColor: '#3498db'
-          }]
-        }
-      });
-    } catch (err) {
-      console.error('Voucher chart error:', err);
-    }
-  }
-
-  async function loadSystemChart() {
-    try {
-      const res = await fetch('/admin/data/system');
-      const data = await res.json();
-      const ctx = document.getElementById('systemChart').getContext('2d');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: ['Load1', 'Load5', 'Load15'],
-          datasets: [{
-            label: 'System Load',
-            data: data.load,
-            borderColor: '#e67e22',
-            fill: false
-          }]
-        }
-      });
-    } catch (err) {
-      console.error('System chart error:', err);
-    }
-  }
-
-  loadVoucherChart();
-  loadSystemChart();
-
-  // Filters
-  const filterStatus = document.getElementById('filterStatus');
-  const filterProfile = document.getElementById('filterProfile');
-  const searchInput = document.getElementById('searchInput');
-  const tableBody = document.getElementById('voucher-table-body');
-
-  function applyFilters() {
-    const statusVal = filterStatus.value;
-    const profileVal = filterProfile.value.toLowerCase();
-    const searchVal = searchInput.value.toLowerCase();
-
-    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
-      const rowStatus = row.getAttribute('data-status');
-      const rowProfile = row.getAttribute('data-profile');
-      const rowUsername = row.getAttribute('data-username');
-
-      const statusMatch = (statusVal === 'all') || (statusVal === rowStatus);
-      const profileMatch = (profileVal === 'all') || (profileVal === rowProfile);
-      const searchMatch = !searchVal || rowUsername.includes(searchVal);
-
-      row.style.display = (statusMatch && profileMatch && searchMatch) ? '' : 'none';
-    });
-  }
-
-  filterStatus.addEventListener('change', applyFilters);
-  filterProfile.addEventListener('change', applyFilters);
-  searchInput.addEventListener('input', applyFilters);
-
-  document.getElementById('resetFilters').addEventListener('click', () => {
-    filterStatus.value = 'all';
-    filterProfile.value = 'all';
-    searchInput.value = '';
-    applyFilters();
-  });
-
-  document.getElementById('selectBlocked').addEventListener('click', () => {
-    applyFilters();
-    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
-      const isBlocked = row.getAttribute('data-status') === 'blocked';
-      const checkbox = row.querySelector('input[name="selected"]');
-      if (checkbox) checkbox.checked = isBlocked && row.style.display !== 'none';
-    });
-  });
-
-  document.getElementById('exportFiltered').addEventListener('click', () => {
-    // Simple client-side export of currently visible rows
-    const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
-    const lines = ['Username,Profile,Status'];
-    rows.forEach(r => {
-      const username = r.querySelector('.col-username').innerText.trim();
-      const profile = r.querySelector('.col-profile').innerText.trim();
-      const status = r.querySelector('.col-status').innerText.trim();
-      lines.push(`${username},${profile},${status}`);
-    });
-    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vouchers_filtered_${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  });
-
-  // Select/Deselect all checkboxes
-  document.getElementById('select-all').addEventListener('change', function() {
-    const checkboxes = document.querySelectorAll('input[name="selected"]');
-    checkboxes.forEach(cb => cb.checked = this.checked);
-  });
-
-  // Batch block/delete with CSRF and hardening + optimistic UI update
-  document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const action = document.getElementById('batchAction').value;
-    const selected = Array.from(document.querySelectorAll('input[name="selected"]:checked'))
-                          .map(cb => cb.value);
-    const csrfToken = document.getElementById('csrfToken').value;
-
-    if (!action || selected.length === 0) {
-      alert('Please select an action and at least one voucher.');
-      return;
-    }
-
-    if (action === 'delete') {
-      const ok = confirm(`Delete ${selected.length} voucher(s)? This cannot be undone.`);
-      if (!ok) return;
-    }
-
-    try {
-      const response = await fetch(`/admin/batch/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'csrf-token': csrfToken // ✅ header name expected by csurf
-        },
-        body: JSON.stringify({ usernames: selected })
-      });
-
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.success) {
-        console.error('Batch action failed:', result);
-        alert(result.error || 'Batch action failed');
-        return;
-      }
-
-      // Optimistic UI: update rows immediately
-      selected.forEach(username => {
-        const row = Array.from(tableBody.querySelectorAll('tr')).find(r => {
-          return r.querySelector('.col-username')?.innerText.trim() === username;
-        });
-        if (!row) return;
-        if (action === 'delete') {
-          row.remove();
-        } else if (action === 'block') {
-          row.setAttribute('data-status', 'blocked');
-          const statusCell = row.querySelector('.col-status');
-          if (statusCell) statusCell.innerHTML = '<span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>';
-        }
-      });
-
-      alert(`${action} completed for ${selected.length} voucher(s)`);
-      // Full refresh to reflect backend state
-      location.reload();
-    } catch (err) {
-      console.error('Batch action error:', err);
-      alert('Error performing batch action');
-    }
-  });
-
-  // Load export status
-  async function loadStatus() {
-    try {
-      const res = await fetch('/admin/status');
-      if (!res.ok) {
-        document.getElementById('statusContent').innerText = 'Failed to load status';
-        return;
-      }
-      const status = await res.json();
-      document.getElementById('statusContent').innerHTML = `
-        <p>Vouchers CSV last updated: ${status.vouchers_csv || 'N/A'}</p>
-        <p>Audit Logs CSV last updated: ${status.audit_logs_csv || 'N/A'}</p>
-        <p>System uptime: ${status.system_uptime} seconds</p>
-      `;
-    } catch (err) {
-      console.error('Failed to load status:', err);
-      document.getElementById('statusContent').innerText = 'Error loading status';
-    }
-  }
-  loadStatus();
-
-  // Distribution stubs (include CSRF header)
-  function sendSMS(voucherId) {
-    const csrfToken = document.getElementById('csrfToken').value;
-    fetch('/admin/distribute/sms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
-      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('SMS result:', data))
-    .catch(err => console.error('SMS error:', err));
-  }
-
-  function sendWhatsApp(voucherId) {
-    const csrfToken = document.getElementById('csrfToken').value;
-    fetch('/admin/distribute/whatsapp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
-      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('WhatsApp result:', data))
-    .catch(err => console.error('WhatsApp error:', err));
-  }
-
-  function sendTelegram(voucherId) {
-    const csrfToken = document.getElementById('csrfToken').value;
-    fetch('/admin/distribute/telegram', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
-      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
-    })
-    .then(res => res.json())
-    .then(data => console.log('Telegram result:', data))
-    .catch(err => console.error('Telegram error:', err));
-  }
-</script>
-
-<%- include('partials/footer') %>
+  </div>
+</body>
+</html>
 

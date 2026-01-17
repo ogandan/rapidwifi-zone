@@ -7,6 +7,25 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const path = require('path');
 const voucherManager = require('./modules/voucherManager');
+// Add at the top
+const fs = require('fs');
+
+// Replace the admin/vouchers route with render logic
+app.get('/admin', async (req, res) => {
+  try {
+    const vouchers = await voucherManager.listVouchers();
+    let tunnelUrl = '';
+    try {
+      tunnelUrl = fs.readFileSync(path.join(__dirname, 'data/tunnel_url.txt'), 'utf8').trim();
+    } catch (err) {
+      tunnelUrl = 'No tunnel URL available';
+    }
+    res.render('admin.ejs', { vouchers, tunnelUrl });
+  } catch (err) {
+    res.status(500).send('Error loading admin dashboard');
+  }
+});
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
