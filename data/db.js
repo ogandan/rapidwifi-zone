@@ -37,19 +37,20 @@ function getRecentVouchers(limit = 20) {
   });
 }
 
-function createVoucher(profile) {
+function createVoucher(profile, batchTag) {
   return new Promise((resolve, reject) => {
     const username = randomString(4);
     const password = randomString(5);
     const createdAt = new Date().toISOString();
     const status = 'active';
+    const tag = batchTag || `batch_${new Date().toISOString().slice(0,10)}`;
 
     db.run(
-      "INSERT INTO vouchers (username, password, profile, created_at, status) VALUES (?, ?, ?, ?, ?)",
-      [username, password, profile, createdAt, status],
+      "INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, ?, ?, ?)",
+      [username, password, profile, createdAt, status, tag],
       function (err) {
         if (err) return reject(err);
-        resolve({ id: this.lastID, username, password, profile, created_at: createdAt, status });
+        resolve({ id: this.lastID, username, password, profile, created_at: createdAt, status, batch_tag: tag });
       }
     );
   });
@@ -108,6 +109,19 @@ function getVouchersByProfile(profile) {
   });
 }
 
+function getVouchersByBatch(batchTag) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      "SELECT * FROM vouchers WHERE batch_tag = ? ORDER BY created_at DESC",
+      [batchTag],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
 // --------------------
 // Tunnel URL Functions
 // --------------------
@@ -145,6 +159,7 @@ module.exports = {
   getAllVouchers,
   getVouchersByDateRange,
   getVouchersByProfile,
+  getVouchersByBatch,
   getTunnelUrl,
   saveTunnelUrl
 };

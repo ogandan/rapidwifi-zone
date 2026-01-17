@@ -81,9 +81,9 @@ app.get('/admin', async (req, res) => {
 });
 
 app.post('/admin/create', async (req, res) => {
-  const { profile } = req.body;
+  const { profile, batchTag } = req.body;
   try {
-    await db.createVoucher(profile);
+    await db.createVoucher(profile, batchTag);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -120,7 +120,7 @@ app.post('/admin/delete/:id', async (req, res) => {
 app.get('/admin/export', async (req, res) => {
   try {
     const vouchers = await db.getAllVouchers();
-    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at', 'batch_tag'];
     const parser = new Parser({ fields });
     const csv = parser.parse(vouchers);
 
@@ -137,7 +137,7 @@ app.post('/admin/export-range', async (req, res) => {
   const { startDate, endDate } = req.body;
   try {
     const vouchers = await db.getVouchersByDateRange(startDate, endDate);
-    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at', 'batch_tag'];
     const parser = new Parser({ fields });
     const csv = parser.parse(vouchers);
 
@@ -154,7 +154,7 @@ app.post('/admin/export-profile', async (req, res) => {
   const { profile } = req.body;
   try {
     const vouchers = await db.getVouchersByProfile(profile);
-    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at'];
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at', 'batch_tag'];
     const parser = new Parser({ fields });
     const csv = parser.parse(vouchers);
 
@@ -164,6 +164,23 @@ app.post('/admin/export-profile', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.send('Error exporting vouchers by profile');
+  }
+});
+
+app.post('/admin/export-batch', async (req, res) => {
+  const { batchTag } = req.body;
+  try {
+    const vouchers = await db.getVouchersByBatch(batchTag);
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'created_at', 'batch_tag'];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(vouchers);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment(`vouchers_${batchTag}.csv`);
+    return res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by batch');
   }
 });
 
