@@ -8,7 +8,6 @@ const { Parser } = require('json2csv');
 const app = express();
 const PORT = 3000;
 
-// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: 'rapidwifi-secret',
@@ -22,21 +21,9 @@ app.set('views', path.join(__dirname, 'views'));
 // --------------------
 // Export Helper
 // --------------------
-function exportCSV(res, vouchers, filename, action, user) {
-  const fields = [
-    { label: 'Voucher ID', value: 'id' },
-    { label: 'Voucher Code', value: 'username' },
-    { label: 'Password', value: 'password' },
-    { label: 'Profile', value: 'profile' },
-    { label: 'Status', value: 'status' },
-    { label: 'Issued On', value: 'created_at' },
-    { label: 'Batch Tag', value: 'batch_tag' }
-  ];
+function exportCSV(res, data, filename, fields) {
   const parser = new Parser({ fields });
-  const csv = parser.parse(vouchers);
-
-  db.logDownload(action, filename, user).catch(err => console.error("Log error:", err));
-
+  const csv = parser.parse(data);
   res.header('Content-Type', 'text/csv');
   res.attachment(filename);
   return res.send(csv);
@@ -46,9 +33,7 @@ function exportCSV(res, vouchers, filename, action, user) {
 // Login Routes
 // --------------------
 app.get('/', (req, res) => {
-  if (req.session.user) {
-    return res.redirect('/success');
-  }
+  if (req.session.user) return res.redirect('/success');
   res.render('login');
 });
 
@@ -56,15 +41,9 @@ app.post('/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const voucher = await db.getVoucherByUsername(username);
-    if (!voucher) {
-      return res.render('login_result', { success: false, message: 'Invalid username' });
-    }
-    if (voucher.password !== password) {
-      return res.render('login_result', { success: false, message: 'Incorrect password' });
-    }
-    if (voucher.status !== 'active') {
-      return res.render('login_result', { success: false, message: 'Voucher not active' });
-    }
+    if (!voucher) return res.render('login_result', { success: false, message: 'Invalid username' });
+    if (voucher.password !== password) return res.render('login_result', { success: false, message: 'Incorrect password' });
+    if (voucher.status !== 'active') return res.render('login_result', { success: false, message: 'Voucher not active' });
 
     req.session.user = voucher.username;
     res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
@@ -75,16 +54,12 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/success', (req, res) => {
-  if (!req.session.user) {
-    return res.redirect('/');
-  }
+  if (!req.session.user) return res.redirect('/');
   res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
 });
 
 app.get('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/');
-  });
+  req.session.destroy(() => res.redirect('/'));
 });
 
 // --------------------
@@ -113,9 +88,8 @@ app.post('/admin/create', async (req, res) => {
 });
 
 app.post('/admin/block/:id', async (req, res) => {
-  const { id } = req.params;
   try {
-    await db.blockVoucher(id);
+    await db.blockVoucher(req.params.id);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -124,9 +98,8 @@ app.post('/admin/block/:id', async (req, res) => {
 });
 
 app.post('/admin/delete/:id', async (req, res) => {
-  const { id } = req.params;
   try {
-    await db.deleteVoucher(id);
+    await db.deleteVoucher(req.params.id);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -140,43 +113,18 @@ app.post('/admin/delete/:id', async (req, res) => {
 app.get('/admin/export', async (req, res) => {
   try {
     const vouchers = await db.getAllVouchers();
-    return exportCSV(res, vouchers, 'vouchers.csv', 'export-all', 'admin');
+    return exportCSV(res, vouchers, 'vouchers.csv', [
+      { label: 'Voucher ID', value: 'id' },
+      { label: 'Voucher Code', value: 'username' },
+      { label: 'Password', value: 'password' },
+      { label: 'Profile', value: 'profile' },
+      { label: 'Status', value: 'status' },
+      { label: 'Issued On', value: 'created_at' },
+      { label: 'Batch Tag', value: 'batch_tag' }
+    ]);
   } catch (err) {
     console.error(err);
     res.send('Error exporting vouchers');
-  }
-});
-
-app.post('/admin/export-range', async (req, res) => {
-  const { startDate, endDate } = req.body;
-  try {
-    const vouchers = await db.getVouchersByDateRange(startDate, endDate);
-    return exportCSV(res, vouchers, `vouchers_${startDate}_to_${endDate}.csv`, 'export-range', 'admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting vouchers by date range');
-  }
-});
-
-app.post('/admin/export-profile', async (req, res) => {
-  const { profile } = req.body;
-  try {
-    const vouchers = await db.getVouchersByProfile(profile);
-    return exportCSV(res, vouchers, `vouchers_${profile}.csv`, 'export-profile', 'admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting vouchers by profile');
-  }
-});
-
-app.post('/admin/export-batch', async (req, res) => {
-  const { batchTag } = req.body;
-  try {
-    const vouchers = await db.getVouchersByBatch(batchTag);
-    return exportCSV(res, vouchers, `vouchers_${batchTag}.csv`, 'export-batch', 'admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting vouchers by batch');
   }
 });
 
@@ -185,17 +133,37 @@ app.post('/admin/export-batch', async (req, res) => {
 // --------------------
 app.get('/admin/logs', async (req, res) => {
   try {
-    const { action, user } = req.query;
-    let logs = await db.getDownloadLogs(200);
+    let { action, user, filename, startDate, endDate, sort, order, page } = req.query;
+    let logs = await db.getDownloadLogs(500);
 
-    if (action) {
-      logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
-    }
-    if (user) {
-      logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
+    // Filtering
+    if (action) logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
+    if (user) logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
+    if (filename) logs = logs.filter(l => l.filename.toLowerCase().includes(filename.toLowerCase()));
+    if (startDate && endDate) {
+      logs = logs.filter(l => new Date(l.timestamp) >= new Date(startDate) && new Date(l.timestamp) <= new Date(endDate));
     }
 
-    res.render('logs', { logs });
+    // Sorting
+    if (sort) {
+      logs.sort((a, b) => {
+        let valA = a[sort], valB = b[sort];
+        if (sort === 'timestamp') {
+          valA = new Date(valA); valB = new Date(valB);
+        }
+        if (valA < valB) return order === 'desc' ? 1 : -1;
+        if (valA > valB) return order === 'desc' ? -1 : 1;
+        return 0;
+      });
+    }
+
+    // Pagination
+    const pageSize = 50;
+    const currentPage = parseInt(page) || 1;
+    const totalPages = Math.ceil(logs.length / pageSize);
+    const paginatedLogs = logs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+    res.render('logs', { logs: paginatedLogs, totalPages, currentPage, query: req.query });
   } catch (err) {
     console.error(err);
     res.send('Error loading logs');
@@ -204,22 +172,36 @@ app.get('/admin/logs', async (req, res) => {
 
 app.get('/admin/export-logs', async (req, res) => {
   try {
-    const logs = await db.getDownloadLogs(200);
+    let { action, user, filename, startDate, endDate } = req.query;
+    let logs = await db.getDownloadLogs(500);
+
+    if (action) logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
+    if (user) logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
+    if (filename) logs = logs.filter(l => l.filename.toLowerCase().includes(filename.toLowerCase()));
+    if (startDate && endDate) {
+      logs = logs.filter(l => new Date(l.timestamp) >= new Date(startDate) && new Date(l.timestamp) <= new Date(endDate));
+    }
+
     const fields = [
       { label: 'Action', value: 'action' },
       { label: 'Filename', value: 'filename' },
       { label: 'User', value: 'user' },
       { label: 'Timestamp', value: 'timestamp' }
     ];
-    const parser = new Parser({ fields });
-    const csv = parser.parse(logs);
-
-    res.header('Content-Type', 'text/csv');
-    res.attachment('download_logs.csv');
-    return res.send(csv);
+    return exportCSV(res, logs, 'download_logs.csv', fields);
   } catch (err) {
     console.error(err);
     res.send('Error exporting logs');
+  }
+});
+
+app.get('/admin/export-logs-json', async (req, res) => {
+  try {
+    let logs = await db.getDownloadLogs(500);
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting logs as JSON');
   }
 });
 
