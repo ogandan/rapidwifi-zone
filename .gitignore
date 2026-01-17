@@ -1,4 +1,11 @@
 node_modules/
 .env
-data/
 *.log
+cookies.txt
+data/*.sqlite
+data/*.db
+data/*.csv
+backups/
+exports/
+ssl/
+rapidwifi-pre-overwrite-*.tar.gz
