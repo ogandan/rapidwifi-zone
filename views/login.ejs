@@ -1,32 +1,18 @@
-<%- include('partials/header') %>
+<h2>Admin Login</h2>
 
-<section>
-  <h2>Admin Login</h2>
+<% if (error) { %>
+  <p style="color:red;"><%= error %></p>
+<% } %>
 
-  <% if (error) { %>
-    <p style="color:red;"><%= error %></p>
-  <% } %>
-
-  <form action="/authv2/login" method="POST">
-    <div>
-      <label for="email">Email:</label>
-      <input type="text" id="email" name="email" required>
-    </div>
-
-    <div>
-      <label for="password">Password:</label>
-      <input type="password" id="password" name="password" required>
-    </div>
-
-    <% if (csrfToken) { %>
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <% } %>
-
-    <div>
-      <button type="submit">Login</button>
-    </div>
-  </form>
-</section>
-
-<%- include('partials/footer') %>
+<form action="/authv2/login" method="POST">
+  <div>
+    <label>Email:</label>
+    <input type="text" name="email" required>
+  </div>
+  <div>
+    <label>Password:</label>
+    <input type="password" name="password" required>
+  </div>
+  <button type="submit">Login</button>
+</form>
 
