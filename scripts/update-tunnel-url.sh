@@ -39,19 +39,8 @@ fi
 
 # Ping the tunnel URL
 if ! curl -s --max-time 10 "$TUNNEL_URL" > /dev/null; then
-    echo "$(date) - Tunnel unreachable ($TUNNEL_URL), restarting cloudflared" | tee -a $LOGFILE
-    pkill -f "cloudflared tunnel" 2>/dev/null
-    nohup $SERVICE_CMD 2>&1 | tee -a $LOGFILE &
-    sleep 10
-    # Rotate log again
-    tail -n 500 $LOGFILE > "${LOGFILE}.tmp" && mv "${LOGFILE}.tmp" $LOGFILE
-    NEW_URL=$(grep -Eo "https://[A-Za-z0-9.-]+\.trycloudflare\.com" $LOGFILE | grep -v "api.trycloudflare.com" | tail -n1)
-    if [ -n "$NEW_URL" ]; then
-        echo "$NEW_URL" > $URLFILE
-        echo "$(date) - Tunnel restarted at $NEW_URL" | tee -a $LOGFILE
-    else
-        echo "$(date) - Restart failed, no URL found" | tee -a $LOGFILE
-    fi
+    echo "$(date) - Tunnel unreachable ($TUNNEL_URL), will retry later" | tee -a $LOGFILE
+    # Do not restart immediately — let systemd handle persistence
 else
     echo "$(date) - Tunnel healthy at $TUNNEL_URL" | tee -a $LOGFILE
 fi
