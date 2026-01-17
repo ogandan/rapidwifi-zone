@@ -5,7 +5,7 @@ const path = require('path');
 const db = require('./data/db');
 const { Parser } = require('json2csv');
 
-const app = express();   // ✅ declare app immediately
+const app = express();
 const PORT = 3000;
 
 // Middleware
@@ -136,7 +136,7 @@ app.post('/admin/delete/:id', async (req, res) => {
 });
 
 // --------------------
-// Export Vouchers
+// Voucher Export Routes
 // --------------------
 app.get('/admin/export', async (req, res) => {
   try {
@@ -182,7 +182,7 @@ app.post('/admin/export-batch', async (req, res) => {
 });
 
 // --------------------
-// Admin Logs Page
+// Logs Page & Export
 // --------------------
 app.get('/admin/logs', async (req, res) => {
   try {
@@ -191,6 +191,27 @@ app.get('/admin/logs', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.send('Error loading logs');
+  }
+});
+
+app.get('/admin/export-logs', async (req, res) => {
+  try {
+    const logs = await db.getDownloadLogs(200);
+    const fields = [
+      { label: 'Action', value: 'action' },
+      { label: 'Filename', value: 'filename' },
+      { label: 'User', value: 'user' },
+      { label: 'Timestamp', value: 'timestamp' }
+    ];
+    const parser = new Parser({ fields });
+    const csv = parser.parse(logs);
+
+    res.header('Content-Type', 'text/csv');
+    res.attachment('download_logs.csv');
+    return res.send(csv);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting logs');
   }
 });
 
