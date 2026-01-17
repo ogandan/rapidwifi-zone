@@ -7,27 +7,6 @@
   </div>
 <% } %>
 
-<!-- Toast feedback -->
-<% if (toast) { %>
-  <div id="toast" style="background:#27ae60;color:#fff;padding:8px;margin:10px 0;border-radius:4px;text-align:center;position:relative;opacity:1;transition:opacity 1s ease;">
-    <span><%= toast %></span>
-    <button onclick="document.getElementById('toast').style.display='none'"
-            style="position:absolute;right:10px;top:5px;background:none;border:none;color:#fff;font-weight:bold;cursor:pointer;">
-      ×
-    </button>
-  </div>
-  <script>
-    // Auto fade-out after 5 seconds
-    setTimeout(() => {
-      const toast = document.getElementById('toast');
-      if (toast) {
-        toast.style.opacity = '0';
-        setTimeout(() => { toast.style.display = 'none'; }, 1000);
-      }
-    }, 5000);
-  </script>
-<% } %>
-
 <!-- CSRF token for AJAX -->
 <input type="hidden" id="csrfToken" value="<%= csrfToken %>">
 
@@ -36,7 +15,7 @@
 
   <!-- Voucher creation -->
   <h2><%= __("create_vouchers") %></h2>
-  <form id="create-voucher-form" action="/admin/create-voucher" method="POST">
+  <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <label>Count:
       <input type="number" name="count" value="5" min="1">
@@ -163,7 +142,238 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  // (all your existing JS from part 2 remains unchanged)
+  // Charts
+  async function loadVoucherChart() {
+    try {
+      const res = await fetch('/admin/data/vouchers');
+      const data = await res.json();
+      const ctx = document.getElementById('voucherChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Vouchers by Profile',
+            data: Object.values(data),
+            backgroundColor: '#3498db'
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('Voucher chart error:', err);
+    }
+  }
+
+  async function loadSystemChart() {
+    try {
+      const res = await fetch('/admin/data/system');
+      const data = await res.json();
+      const ctx = document.getElementById('systemChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Load1', 'Load5', 'Load15'],
+          datasets: [{
+            label: 'System Load',
+            data: data.load,
+            borderColor: '#e67e22',
+            fill: false
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('System chart error:', err);
+    }
+  }
+
+  loadVoucherChart();
+  loadSystemChart();
+
+  // Filters
+  const filterStatus = document.getElementById('filterStatus');
+  const filterProfile = document.getElementById('filterProfile');
+  const searchInput = document.getElementById('searchInput');
+  const tableBody = document.getElementById('voucher-table-body');
+
+  function applyFilters() {
+    const statusVal = filterStatus.value;
+    const profileVal = filterProfile.value.toLowerCase();
+    const searchVal = searchInput.value.toLowerCase();
+
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const rowProfile = row.getAttribute('data-profile');
+      const rowUsername = row.getAttribute('data-username');
+
+      const statusMatch = (statusVal === 'all') || (statusVal === rowStatus);
+      const profileMatch = (profileVal === 'all') || (profileVal === rowProfile);
+      const searchMatch = !searchVal || rowUsername.includes(searchVal);
+
+      row.style.display = (statusMatch && profileMatch && searchMatch) ? '' : 'none';
+    });
+  }
+
+  filterStatus.addEventListener('change', applyFilters);
+  filterProfile.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    filterStatus.value = 'all';
+    filterProfile.value = 'all';
+    searchInput.value = '';
+    applyFilters();
+  });
+
+  document.getElementById('selectBlocked').addEventListener('click', () => {
+    applyFilters();
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const isBlocked = row.getAttribute('data-status') === 'blocked';
+      const checkbox = row.querySelector('input[name="selected"]');
+      if (checkbox) checkbox.checked = isBlocked && row.style.display !== 'none';
+    });
+  });
+
+  document.getElementById('exportFiltered').addEventListener('click', () => {
+    // Simple client-side export of currently visible rows
+    const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+    const lines = ['Username,Profile,Status'];
+    rows.forEach(r => {
+      const username = r.querySelector('.col-username').innerText.trim();
+      const profile = r.querySelector('.col-profile').innerText.trim();
+      const status = r.querySelector('.col-status').innerText.trim();
+      lines.push(`${username},${profile},${status}`);
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vouchers_filtered_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Select/Deselect all checkboxes
+  document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="selected"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+  });
+
+  // Batch block/delete with CSRF and hardening + optimistic UI update
+  document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const action = document.getElementById('batchAction').value;
+    const selected = Array.from(document.querySelectorAll('input[name="selected"]:checked'))
+                          .map(cb => cb.value);
+    const csrfToken = document.getElementById('csrfToken').value;
+
+    if (!action || selected.length === 0) {
+      alert('Please select an action and at least one voucher.');
+      return;
+    }
+
+    if (action === 'delete') {
+      const ok = confirm(`Delete ${selected.length} voucher(s)? This cannot be undone.`);
+      if (!ok) return;
+    }
+
+    try {
+      const response = await fetch(`/admin/batch/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'csrf-token': csrfToken // ✅ header name expected by csurf
+        },
+        body: JSON.stringify({ usernames: selected })
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        console.error('Batch action failed:', result);
+        alert(result.error || 'Batch action failed');
+        return;
+      }
+
+      // Optimistic UI: update rows immediately
+      selected.forEach(username => {
+        const row = Array.from(tableBody.querySelectorAll('tr')).find(r => {
+          return r.querySelector('.col-username')?.innerText.trim() === username;
+        });
+        if (!row) return;
+        if (action === 'delete') {
+          row.remove();
+        } else if (action === 'block') {
+          row.setAttribute('data-status', 'blocked');
+          const statusCell = row.querySelector('.col-status');
+          if (statusCell) statusCell.innerHTML = '<span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>';
+        }
+      });
+
+      alert(`${action} completed for ${selected.length} voucher(s)`);
+      // Full refresh to reflect backend state
+      location.reload();
+    } catch (err) {
+      console.error('Batch action error:', err);
+      alert('Error performing batch action');
+    }
+  });
+
+  // Load export status
+  async function loadStatus() {
+    try {
+      const res = await fetch('/admin/status');
+      if (!res.ok) {
+        document.getElementById('statusContent').innerText = 'Failed to load status';
+        return;
+      }
+      const status = await res.json();
+      document.getElementById('statusContent').innerHTML = `
+        <p>Vouchers CSV last updated: ${status.vouchers_csv || 'N/A'}</p>
+        <p>Audit Logs CSV last updated: ${status.audit_logs_csv || 'N/A'}</p>
+        <p>System uptime: ${status.system_uptime} seconds</p>
+      `;
+    } catch (err) {
+      console.error('Failed to load status:', err);
+      document.getElementById('statusContent').innerText = 'Error loading status';
+    }
+  }
+  loadStatus();
+
+  // Distribution stubs (include CSRF header)
+  function sendSMS(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('SMS result:', data))
+    .catch(err => console.error('SMS error:', err));
+  }
+
+  function sendWhatsApp(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('WhatsApp result:', data))
+    .catch(err => console.error('WhatsApp error:', err));
+  }
+
+  function sendTelegram(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('Telegram result:', data))
+    .catch(err => console.error('Telegram error:', err));
+  }
 </script>
 
 <%- include('partials/footer') %>

@@ -1,1 +1,1 @@
-https://jaguar-visual-film-corresponding.trycloudflare.com
+https://api.trycloudflare.com
