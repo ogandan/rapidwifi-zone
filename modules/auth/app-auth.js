@@ -42,7 +42,8 @@ router.use(helmet({
       "default-src": ["'self'"],
       "script-src": ["'self'"],
       "style-src": ["'self'"],
-      "img-src": ["'self'"]
+      "img-src": ["'self'"],
+      "font-src": ["'self'", "https://fonts.gstatic.com"] // ✅ allow fonts
     }
   },
   hsts: true,
@@ -102,7 +103,7 @@ router.get('/admin/csrf-token', requireAuth, csrfProtection, (req, res) => {
   res.json({ ok: true, csrfToken: req.csrfToken() });
 });
 
-// --- Admin UI route (NEW) ---
+// --- Admin UI route ---
 router.get('/admin', requireAuth, requireRole('ADMIN'), csrfProtection, (req, res) => {
   res.render('admin', {
     user: req.session.user,
@@ -119,26 +120,24 @@ router.post('/login', loginLimiter, csrfProtection, async (req, res) => {
   const ok = await verifyAdminCredentials(email, password);
   if (!ok) {
     logAuth('login.fail', { email, ip });
-
-    if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
-      return res.render('login', {
-        error: 'Invalid credentials',
-        __: res.__,
-        csrfToken: req.csrfToken()
-      });
-    }
-
-    return res.status(401).json({ ok: false, error: 'invalid_credentials' });
+    return res.render('login', {
+      error: 'Invalid credentials',
+      __: res.__,
+      csrfToken: req.csrfToken()
+    });
   }
 
   req.session.user = { id: 'admin', email: ADMIN_USER, role: 'ADMIN' };
   logAuth('login.success', { email: ADMIN_USER, ip });
 
-  if (req.headers['content-type']?.includes('application/x-www-form-urlencoded')) {
+  // ✅ Explicit separation: browser vs API
+  if (req.xhr || req.headers.accept?.includes('application/json')) {
+    // API client
+    return res.json({ ok: true, user: { email: ADMIN_USER, role: 'ADMIN' } });
+  } else {
+    // Browser form
     return res.redirect('/admin');
   }
-
-  return res.json({ ok: true, user: { email: ADMIN_USER, role: 'ADMIN' } });
 });
 
 // --- Logout ---
