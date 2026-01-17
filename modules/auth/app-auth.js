@@ -155,6 +155,11 @@ router.get('/admin/dashboard', requireRole('ADMIN'), (req, res) => {
   res.json({ ok: true, message: 'authv2 dashboard reachable', user: req.session.user });
 });
 
+// --- Debug route to verify session ---
+router.get('/debug/session', (req, res) => {
+  res.json({ session: req.session });
+});
+
 // Password reset stubs
 router.post('/reset/request', resetLimiter, (req, res) => {
   res.json({ ok: true });
