@@ -5,16 +5,22 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const db = require('./data/db');
 const { Parser } = require('json2csv');
+const csrf = require('csurf');
 
 const app = express();
 const PORT = 3000;
 
+// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: 'rapidwifi-secret',
   resave: false,
   saveUninitialized: true
 }));
+
+// CSRF protection
+const csrfProtection = csrf();
+app.use(csrfProtection);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -33,12 +39,12 @@ function exportCSV(res, data, filename, fields) {
 // --------------------
 // Login Routes
 // --------------------
-app.get('/', (req, res) => {
+app.get('/', csrfProtection, (req, res) => {
   if (req.session.user) return res.redirect('/success');
-  res.render('login');
+  res.render('login', { csrfToken: req.csrfToken() });
 });
 
-app.post('/login', async (req, res) => {
+app.post('/login', csrfProtection, async (req, res) => {
   const { username, password } = req.body;
   try {
     const voucher = await db.getVoucherByUsername(username);
@@ -62,22 +68,23 @@ app.get('/success', (req, res) => {
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
+// ===== server.js Part 2 =====
 
 // --------------------
 // Admin Dashboard
 // --------------------
-app.get('/admin', async (req, res) => {
+app.get('/admin', csrfProtection, async (req, res) => {
   try {
     const vouchers = await db.getRecentVouchers(50);
     const tunnelUrl = db.getTunnelUrl();
-    res.render('admin', { vouchers, tunnelUrl });
+    res.render('admin', { vouchers, tunnelUrl, csrfToken: req.csrfToken() });
   } catch (err) {
     console.error(err);
     res.send('Error loading admin dashboard');
   }
 });
 
-app.post('/admin/create', async (req, res) => {
+app.post('/admin/create', csrfProtection, async (req, res) => {
   const { profile, batchTag } = req.body;
   try {
     await db.createVoucher(profile, batchTag);
@@ -88,7 +95,7 @@ app.post('/admin/create', async (req, res) => {
   }
 });
 
-app.post('/admin/block/:id', async (req, res) => {
+app.post('/admin/block/:id', csrfProtection, async (req, res) => {
   try {
     await db.blockVoucher(req.params.id);
     res.redirect('/admin');
@@ -98,7 +105,7 @@ app.post('/admin/block/:id', async (req, res) => {
   }
 });
 
-app.post('/admin/delete/:id', async (req, res) => {
+app.post('/admin/delete/:id', csrfProtection, async (req, res) => {
   try {
     await db.deleteVoucher(req.params.id);
     res.redirect('/admin');
@@ -107,7 +114,6 @@ app.post('/admin/delete/:id', async (req, res) => {
     res.send('Error deleting voucher');
   }
 });
-// ===== server.js Part 2 =====
 
 // --------------------
 // Voucher Export Routes
@@ -131,12 +137,8 @@ app.get('/admin/export', async (req, res) => {
   }
 });
 
-// (other export routes unchanged: export-range, export-profile, export-batch)
-
-// --------------------
 // Bulk Action Route
-// --------------------
-app.post('/admin/bulk-action', async (req, res) => {
+app.post('/admin/bulk-action', csrfProtection, async (req, res) => {
   const { action, voucherIds } = req.body;
   const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
   try {
@@ -219,12 +221,12 @@ app.get('/admin/export-logs-json', async (req, res) => {
 // --------------------
 // Analytics Page Route
 // --------------------
-app.get('/analytics', (req, res) => {
-  res.render('analytics');
+app.get('/analytics', csrfProtection, (req, res) => {
+  res.render('analytics', { csrfToken: req.csrfToken() });
 });
 // ===== server.js Part 3 =====
 
-// Stats Endpoint (existing summary stats)
+// Stats Endpoint (summary stats)
 app.get('/admin/stats', async (req, res) => {
   try {
     const total = await db.countAllVouchers();
@@ -245,7 +247,7 @@ app.get('/admin/stats', async (req, res) => {
   }
 });
 
-// NEW: Daily voucher creation
+// Daily voucher creation
 app.get('/admin/stats-daily', async (req, res) => {
   try {
     const daily = await db.voucherCreationDaily();
@@ -256,7 +258,7 @@ app.get('/admin/stats-daily', async (req, res) => {
   }
 });
 
-// NEW: Weekly voucher creation
+// Weekly voucher creation
 app.get('/admin/stats-weekly', async (req, res) => {
   try {
     const weekly = await db.voucherCreationWeekly();
@@ -267,7 +269,7 @@ app.get('/admin/stats-weekly', async (req, res) => {
   }
 });
 
-// NEW: Profile performance (creation vs exports)
+// Profile performance (creation vs exports)
 app.get('/admin/stats-profile-performance', async (req, res) => {
   try {
     const perf = await db.profilePerformance();
@@ -278,7 +280,7 @@ app.get('/admin/stats-profile-performance', async (req, res) => {
   }
 });
 
-// NEW: Export behavior insights
+// Export behavior insights
 app.get('/admin/stats-export-behavior', async (req, res) => {
   try {
     const insights = await db.exportBehaviorInsights();
