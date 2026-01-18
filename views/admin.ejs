@@ -1,3 +1,4 @@
+<!-- ===== admin.ejs Part 1 ===== -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -28,52 +29,51 @@
     <!-- Export Buttons -->
     <div class="mb-4">
       <a href="/admin/export" class="btn btn-info">Export All Vouchers (CSV)</a>
-      <a href="/admin/logs" class="btn btn-outline-dark ms-2">Download Logs</a>
+      <a href="/admin/logs" class="btn btn-outline-dark ms-2">View Logs</a>
     </div>
 
     <!-- Date Range Export Form -->
-    <form action="/admin/export-range" method="POST" class="row g-3 mb-4">
+    <form action="/admin/export-range" method="GET" class="row g-3 mb-4">
       <div class="col-auto">
-        <label for="startDate" class="form-label">Start Date</label>
-        <input type="date" id="startDate" name="startDate" class="form-control" required>
+        <label class="form-label">Start Date</label>
+        <input type="date" name="startDate" class="form-control" required>
       </div>
       <div class="col-auto">
-        <label for="endDate" class="form-label">End Date</label>
-        <input type="date" id="endDate" name="endDate" class="form-control" required>
+        <label class="form-label">End Date</label>
+        <input type="date" name="endDate" class="form-control" required>
       </div>
       <div class="col-auto align-self-end">
         <button type="submit" class="btn btn-primary">Export by Date Range</button>
       </div>
     </form>
+<!-- ===== admin.ejs Part 2 ===== -->
 
     <!-- Profile Export Form -->
-    <form action="/admin/export-profile" method="POST" class="row g-3 mb-4">
+    <form action="/admin/export-profile" method="GET" class="row g-3 mb-4">
       <div class="col-auto">
-        <label for="profile" class="form-label">Profile</label>
-        <select id="profile" name="profile" class="form-select" required>
+        <select name="profile" class="form-select" required>
           <option value="">Select Profile</option>
           <option value="basic">Basic</option>
           <option value="premium">Premium</option>
         </select>
       </div>
       <div class="col-auto align-self-end">
-        <button type="submit" class="btn btn-secondary">Export by Profile</button>
+        <button type="submit" class="btn btn-warning">Export by Profile</button>
       </div>
     </form>
 
     <!-- Batch Export Form -->
-    <form action="/admin/export-batch" method="POST" class="row g-3 mb-4">
+    <form action="/admin/export-batch" method="GET" class="row g-3 mb-4">
       <div class="col-auto">
-        <label for="batchTag" class="form-label">Batch Tag</label>
-        <input type="text" id="batchTag" name="batchTag" class="form-control" required>
+        <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag" required>
       </div>
       <div class="col-auto align-self-end">
-        <button type="submit" class="btn btn-dark">Export by Batch</button>
+        <button type="submit" class="btn btn-danger">Export by Batch</button>
       </div>
     </form>
 
     <!-- Voucher Table -->
-    <table class="table table-bordered table-striped">
+    <table class="table table-hover table-bordered align-middle">
       <thead class="table-dark">
         <tr>
           <th>ID</th>
@@ -81,7 +81,6 @@
           <th>Password</th>
           <th>Profile</th>
           <th>Status</th>
-          <th>Created At</th>
           <th>Batch Tag</th>
           <th>Actions</th>
         </tr>
@@ -94,25 +93,19 @@
             <td><%= v.password %></td>
             <td><%= v.profile %></td>
             <td><%= v.status %></td>
-            <td><%= v.created_at %></td>
             <td><%= v.batch_tag %></td>
             <td>
-              <form action="/admin/block/<%= v.id %>" method="POST" class="d-inline">
-                <button type="submit" class="btn btn-warning btn-sm">Block</button>
+              <form action="/admin/block/<%= v.id %>" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-secondary">Block</button>
               </form>
-              <form action="/admin/delete/<%= v.id %>" method="POST" class="d-inline ms-1">
-                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              <form action="/admin/delete/<%= v.id %>" method="POST" style="display:inline;">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
               </form>
             </td>
           </tr>
         <% }) %>
       </tbody>
     </table>
-
-    <!-- Tunnel URL -->
-    <div class="mt-4">
-      <strong>Tunnel URL:</strong> <%= tunnelUrl %>
-    </div>
   </div>
 </body>
 </html>

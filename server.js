@@ -1,3 +1,4 @@
+// ===== server.js Part 1 =====
 const express = require('express');
 const session = require('express-session');
 const bodyParser = require('body-parser');
@@ -106,6 +107,7 @@ app.post('/admin/delete/:id', async (req, res) => {
     res.send('Error deleting voucher');
   }
 });
+// ===== server.js Part 2 =====
 
 // --------------------
 // Voucher Export Routes
@@ -113,10 +115,7 @@ app.post('/admin/delete/:id', async (req, res) => {
 app.get('/admin/export', async (req, res) => {
   try {
     const vouchers = await db.getAllVouchers();
-
-    // ✅ FIX: log the export action
     await db.logDownload('export-all', 'vouchers.csv', 'admin');
-
     return exportCSV(res, vouchers, 'vouchers.csv', [
       { label: 'Voucher ID', value: 'id' },
       { label: 'Voucher Code', value: 'username' },
@@ -132,6 +131,66 @@ app.get('/admin/export', async (req, res) => {
   }
 });
 
+app.get('/admin/export-range', async (req, res) => {
+  const { startDate, endDate } = req.query;
+  try {
+    const vouchers = await db.getVouchersByDateRange(startDate, endDate);
+    await db.logDownload('export-range', `vouchers_${startDate}_to_${endDate}.csv`, 'admin');
+    return exportCSV(res, vouchers, `vouchers_${startDate}_to_${endDate}.csv`, [
+      { label: 'Voucher ID', value: 'id' },
+      { label: 'Voucher Code', value: 'username' },
+      { label: 'Password', value: 'password' },
+      { label: 'Profile', value: 'profile' },
+      { label: 'Status', value: 'status' },
+      { label: 'Issued On', value: 'created_at' },
+      { label: 'Batch Tag', value: 'batch_tag' }
+    ]);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by date range');
+  }
+});
+
+app.get('/admin/export-profile', async (req, res) => {
+  const { profile } = req.query;
+  try {
+    const vouchers = await db.getVouchersByProfile(profile);
+    await db.logDownload('export-profile', `vouchers_${profile}.csv`, 'admin');
+    return exportCSV(res, vouchers, `vouchers_${profile}.csv`, [
+      { label: 'Voucher ID', value: 'id' },
+      { label: 'Voucher Code', value: 'username' },
+      { label: 'Password', value: 'password' },
+      { label: 'Profile', value: 'profile' },
+      { label: 'Status', value: 'status' },
+      { label: 'Issued On', value: 'created_at' },
+      { label: 'Batch Tag', value: 'batch_tag' }
+    ]);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by profile');
+  }
+});
+
+app.get('/admin/export-batch', async (req, res) => {
+  const { batchTag } = req.query;
+  try {
+    const vouchers = await db.getVouchersByBatch(batchTag);
+    await db.logDownload('export-batch', `vouchers_${batchTag}.csv`, 'admin');
+    return exportCSV(res, vouchers, `vouchers_${batchTag}.csv`, [
+      { label: 'Voucher ID', value: 'id' },
+      { label: 'Voucher Code', value: 'username' },
+      { label: 'Password', value: 'password' },
+      { label: 'Profile', value: 'profile' },
+      { label: 'Status', value: 'status' },
+      { label: 'Issued On', value: 'created_at' },
+      { label: 'Batch Tag', value: 'batch_tag' }
+    ]);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting vouchers by batch');
+  }
+});
+
 // --------------------
 // Logs Page & Export
 // --------------------
@@ -140,7 +199,6 @@ app.get('/admin/logs', async (req, res) => {
     let { action, user, filename, startDate, endDate, sort, order, page } = req.query;
     let logs = await db.getDownloadLogs(500);
 
-    // Filtering
     if (action) logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
     if (user) logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
     if (filename) logs = logs.filter(l => l.filename.toLowerCase().includes(filename.toLowerCase()));
@@ -148,7 +206,6 @@ app.get('/admin/logs', async (req, res) => {
       logs = logs.filter(l => new Date(l.timestamp) >= new Date(startDate) && new Date(l.timestamp) <= new Date(endDate));
     }
 
-    // Sorting
     if (sort) {
       logs.sort((a, b) => {
         let valA = a[sort], valB = b[sort];
@@ -161,7 +218,6 @@ app.get('/admin/logs', async (req, res) => {
       });
     }
 
-    // Pagination
     const pageSize = 50;
     const currentPage = parseInt(page) || 1;
     const totalPages = Math.ceil(logs.length / pageSize);
