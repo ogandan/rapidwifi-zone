@@ -301,13 +301,15 @@ app.get('/admin/stats', async (req, res) => {
     const exportsByProfile = await db.countExportsByProfile();
     const creation = await db.voucherCreationOverTime();
 
+    console.log("=== STATS DEBUG ===");
+    console.log({ total, active, inactive, exportsToday, profiles, exportsByProfile, creation });
+
     res.json({ total, active, inactive, exportsToday, profiles, exportsByProfile, creation });
   } catch (err) {
     console.error(err);
     res.json({ total: 0, active: 0, inactive: 0, exportsToday: 0, profiles: {}, exportsByProfile: {}, creation: { labels: [], values: [] } });
   }
 });
-
 // --------------------
 // Start Server
 // --------------------
