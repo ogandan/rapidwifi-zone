@@ -192,6 +192,24 @@ app.get('/admin/export-batch', async (req, res) => {
 });
 
 // --------------------
+// Bulk Action Route
+// --------------------
+app.post('/admin/bulk-action', async (req, res) => {
+  const { action, voucherIds } = req.body;
+  const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
+  try {
+    for (const id of ids) {
+      if (action === 'block') await db.blockVoucher(id);
+      if (action === 'delete') await db.deleteVoucher(id);
+    }
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error applying bulk action');
+  }
+});
+
+// --------------------
 // Logs Page & Export
 // --------------------
 app.get('/admin/logs', async (req, res) => {
