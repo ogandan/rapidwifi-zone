@@ -283,6 +283,26 @@ app.get('/admin/export-logs-json', async (req, res) => {
   }
 });
 
+// ===== server.js Part 3 =====
+
+// Stats Endpoint
+app.get('/admin/stats', async (req, res) => {
+  try {
+    const total = await db.countAllVouchers();
+    const active = await db.countActiveVouchers();
+    const inactive = await db.countInactiveVouchers();
+    const exportsToday = await db.countExportsToday();
+    const profiles = await db.countVouchersByProfile();
+    const exportsByProfile = await db.countExportsByProfile();
+    const creation = await db.voucherCreationOverTime();
+
+    res.json({ total, active, inactive, exportsToday, profiles, exportsByProfile, creation });
+  } catch (err) {
+    console.error(err);
+    res.json({ total: 0, active: 0, inactive: 0, exportsToday: 0, profiles: {}, exportsByProfile: {}, creation: { labels: [], values: [] } });
+  }
+});
+
 // --------------------
 // Start Server
 // --------------------
