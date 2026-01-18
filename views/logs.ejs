@@ -1,80 +1,97 @@
+<!-- ===== logs.ejs Part 1 ===== -->
 <!DOCTYPE html>
 <html>
 <head>
   <title>Download Logs</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <style>
+    .badge-export-all { background-color: #343a40; }
+    .badge-export-range { background-color: #198754; }
+    .badge-export-profile { background-color: #0d6efd; }
+    .badge-export-batch { background-color: #fd7e14; }
+    .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 1055; }
+  </style>
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <h2 class="mb-4">Download Logs</h2>
 
+    <!-- Summary Counters -->
+    <div class="row mb-3">
+      <div class="col">
+        <div class="alert alert-info">Total Logs: <%= query.totalLogs || logs.length %></div>
+      </div>
+      <div class="col">
+        <div class="alert alert-success">Exports Today: <%= logs.filter(l => new Date(l.timestamp).toDateString() === new Date().toDateString()).length %></div>
+      </div>
+    </div>
+
     <!-- Export Buttons -->
     <div class="mb-3">
-      <a href="/admin/export-logs?<%= new URLSearchParams(query).toString() %>" class="btn btn-success">
+      <a href="/admin/export-logs?<%= new URLSearchParams(query).toString() %>" class="btn btn-success" onclick="showToast('CSV export started')">
         Export Filtered Logs (CSV)
       </a>
-      <a href="/admin/export-logs-json?<%= new URLSearchParams(query).toString() %>" class="btn btn-secondary ms-2">
+      <a href="/admin/export-logs-json?<%= new URLSearchParams(query).toString() %>" class="btn btn-secondary ms-2" onclick="showToast('JSON export started')">
         Export Filtered Logs (JSON)
       </a>
     </div>
 
     <!-- Filter Form -->
-    <form method="GET" action="/admin/logs" class="row g-3 mb-4">
+    <form method="GET" action="/admin/logs" class="row g-2 mb-4">
       <div class="col-auto">
-        <input type="text" name="action" value="<%= query.action || '' %>" class="form-control" placeholder="Filter by Action">
+        <input type="text" name="action" value="<%= query.action || '' %>" class="form-control" placeholder="🔧 Action">
       </div>
       <div class="col-auto">
-        <input type="text" name="user" value="<%= query.user || '' %>" class="form-control" placeholder="Filter by User">
+        <input type="text" name="user" value="<%= query.user || '' %>" class="form-control" placeholder="👤 User">
       </div>
       <div class="col-auto">
-        <input type="text" name="filename" value="<%= query.filename || '' %>" class="form-control" placeholder="Filter by Filename">
+        <input type="text" name="filename" value="<%= query.filename || '' %>" class="form-control" placeholder="📄 Filename">
       </div>
       <div class="col-auto">
-        <label class="form-label">Start Date</label>
         <input type="date" name="startDate" value="<%= query.startDate || '' %>" class="form-control">
       </div>
       <div class="col-auto">
-        <label class="form-label">End Date</label>
         <input type="date" name="endDate" value="<%= query.endDate || '' %>" class="form-control">
       </div>
-      <div class="col-auto align-self-end">
+      <div class="col-auto">
         <button type="submit" class="btn btn-primary">Apply Filters</button>
       </div>
     </form>
+<!-- ===== logs.ejs Part 2 ===== -->
 
     <!-- Logs Table -->
-    <table class="table table-hover table-bordered align-middle">
+    <table class="table table-hover table-bordered align-middle table-responsive">
       <thead class="table-dark">
         <tr>
-          <th>
-            <a href="?<%= new URLSearchParams({ ...query, sort: 'action', order: query.order === 'asc' ? 'desc' : 'asc' }).toString() %>" class="text-white text-decoration-none">
-              Action
-            </a>
-          </th>
-          <th>
-            <a href="?<%= new URLSearchParams({ ...query, sort: 'filename', order: query.order === 'asc' ? 'desc' : 'asc' }).toString() %>" class="text-white text-decoration-none">
-              Filename
-            </a>
-          </th>
-          <th>
-            <a href="?<%= new URLSearchParams({ ...query, sort: 'user', order: query.order === 'asc' ? 'desc' : 'asc' }).toString() %>" class="text-white text-decoration-none">
-              User
-            </a>
-          </th>
-          <th>
-            <a href="?<%= new URLSearchParams({ ...query, sort: 'timestamp', order: query.order === 'asc' ? 'desc' : 'asc' }).toString() %>" class="text-white text-decoration-none">
-              Timestamp
-            </a>
-          </th>
+          <th>Action</th>
+          <th>Filename</th>
+          <th>User</th>
+          <th>Timestamp</th>
         </tr>
       </thead>
       <tbody>
         <% logs.forEach(l => { %>
           <tr>
-            <td><%= l.action %></td>
+            <td>
+              <% if (l.action === 'export-all') { %>
+                <span class="badge badge-export-all">Export All</span>
+              <% } else if (l.action === 'export-range') { %>
+                <span class="badge badge-export-range">Export Range</span>
+              <% } else if (l.action === 'export-profile') { %>
+                <span class="badge badge-export-profile">Export Profile</span>
+              <% } else if (l.action === 'export-batch') { %>
+                <span class="badge badge-export-batch">Export Batch</span>
+              <% } else { %>
+                <span class="badge bg-secondary"><%= l.action %></span>
+              <% } %>
+            </td>
             <td><%= l.filename %></td>
             <td><%= l.user %></td>
-            <td><%= new Date(l.timestamp).toLocaleString() %></td>
+            <td>
+              <%= new Date(l.timestamp).toLocaleString() %>
+              (<%= Math.floor((Date.now() - new Date(l.timestamp)) / 60000) %> min ago)
+            </td>
           </tr>
         <% }) %>
       </tbody>
@@ -101,6 +118,24 @@
       </ul>
     </nav>
   </div>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container">
+    <div id="liveToast" class="toast align-items-center text-bg-primary border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body" id="toastMessage">Export started</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showToast(message) {
+      document.getElementById('toastMessage').innerText = message;
+      const toast = new bootstrap.Toast(document.getElementById('liveToast'));
+      toast.show();
+    }
+  </script>
 </body>
 </html>
 
