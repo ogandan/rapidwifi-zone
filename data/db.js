@@ -1,3 +1,4 @@
+// ===== db.js Part 1 =====
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
@@ -121,6 +122,21 @@ function getVouchersByBatch(batchTag) {
     );
   });
 }
+// ===== db.js Part 2 =====
+
+// --------------------
+// Operator Functions
+// --------------------
+
+function getOperators() {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT id, username, role FROM users WHERE role = 'operator'", [], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
 // --------------------
 // Analytics Functions
 // --------------------
@@ -202,7 +218,6 @@ function voucherCreationOverTime() {
   });
 }
 
-// NEW: Daily voucher creation (full history)
 function voucherCreationDaily() {
   return new Promise((resolve, reject) => {
     db.all(
@@ -219,7 +234,6 @@ function voucherCreationDaily() {
   });
 }
 
-// NEW: Weekly voucher creation
 function voucherCreationWeekly() {
   return new Promise((resolve, reject) => {
     db.all(
@@ -236,7 +250,6 @@ function voucherCreationWeekly() {
   });
 }
 
-// NEW: Profile performance (creation vs exports)
 function profilePerformance() {
   return new Promise((resolve, reject) => {
     db.all(
@@ -259,7 +272,6 @@ function profilePerformance() {
   });
 }
 
-// NEW: Export behavior insights
 function exportBehaviorInsights() {
   return new Promise((resolve, reject) => {
     db.all(
@@ -278,6 +290,7 @@ function exportBehaviorInsights() {
     );
   });
 }
+// ===== db.js Part 3 =====
 
 // --------------------
 // Tunnel URL Functions
@@ -333,6 +346,7 @@ function getDownloadLogs(limit = 50) {
     });
   });
 }
+
 // --------------------
 // Exports
 // --------------------
@@ -357,10 +371,10 @@ module.exports = {
   countVouchersByProfile,
   countExportsByProfile,
   voucherCreationOverTime,
-  // NEW FUNCTIONS
   voucherCreationDaily,
   voucherCreationWeekly,
   profilePerformance,
-  exportBehaviorInsights
+  exportBehaviorInsights,
+  getOperators // ✅ newly added
 };
 
