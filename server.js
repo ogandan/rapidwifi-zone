@@ -283,6 +283,11 @@ app.get('/admin/export-logs-json', async (req, res) => {
   }
 });
 
+// Analytics Page Route
+app.get('/analytics', (req, res) => {
+  res.render('analytics');
+});
+
 // ===== server.js Part 3 =====
 
 // Stats Endpoint
