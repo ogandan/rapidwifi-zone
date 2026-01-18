@@ -1,5 +1,5 @@
 // ===== server.js Part 1 =====
-// File: server.js — Express server with sessions, CSRF, role-based access, vouchers, and user management
+// Express server with sessions, CSRF, role-based access, vouchers, and user management
 
 const express = require('express');
 const session = require('express-session');
@@ -106,7 +106,7 @@ app.get('/admin', requireLogin, requireAdmin, async (req, res) => {
 
     res.render('admin', {
       vouchers,
-      operators,
+      operators,              // <-- now passed to EJS
       tunnelUrl: null,
       csrfToken: req.csrfToken(),
       session: req.session
