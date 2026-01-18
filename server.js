@@ -59,7 +59,7 @@ function requireOperator(req, res, next) {
   next();
 }
 // ===== server.js Part 2 =====
-// Authentication and dashboards
+// Authentication, dashboards, and operator management
 
 // --------------------
 // Login Routes
@@ -90,12 +90,27 @@ app.get('/logout', (req, res) => {
 // --------------------
 app.get('/admin', requireLogin, requireAdmin, async (req, res) => {
   try {
+    // Get vouchers
     const vouchers = await new Promise((resolve, reject) => {
       db.all("SELECT * FROM vouchers ORDER BY created_at DESC LIMIT 50", [], (err, rows) => {
         if (err) reject(err); else resolve(rows);
       });
     });
-    res.render('admin', { vouchers, tunnelUrl: null, csrfToken: req.csrfToken(), session: req.session });
+
+    // Get operators
+    const operators = await new Promise((resolve, reject) => {
+      db.all("SELECT id, username, role FROM users WHERE role='operator'", [], (err, rows) => {
+        if (err) reject(err); else resolve(rows);
+      });
+    });
+
+    res.render('admin', {
+      vouchers,
+      operators,
+      tunnelUrl: null,
+      csrfToken: req.csrfToken(),
+      session: req.session
+    });
   } catch (err) {
     console.error(err);
     res.send('Error loading admin dashboard');
@@ -103,8 +118,18 @@ app.get('/admin', requireLogin, requireAdmin, async (req, res) => {
 });
 
 // Operator Dashboard
-app.get('/operator', requireLogin, requireOperator, (req, res) => {
-  res.render('operator', { csrfToken: req.csrfToken(), session: req.session });
+app.get('/operator', requireLogin, requireOperator, async (req, res) => {
+  try {
+    const vouchers = await new Promise((resolve, reject) => {
+      db.all("SELECT * FROM vouchers ORDER BY created_at DESC LIMIT 50", [], (err, rows) => {
+        if (err) reject(err); else resolve(rows);
+      });
+    });
+    res.render('operator', { vouchers, csrfToken: req.csrfToken(), session: req.session });
+  } catch (err) {
+    console.error(err);
+    res.send('Error loading operator dashboard');
+  }
 });
 
 // --------------------
@@ -178,9 +203,8 @@ app.get('/analytics', requireLogin, requireAdmin, (req, res) => {
   res.render('analytics');
 });
 
-// Stats endpoints (daily, weekly, etc. — unchanged from your current file)
+// Stats endpoints (simplified example)
 app.get('/admin/stats', requireLogin, requireAdmin, async (req, res) => {
-  // Example: count vouchers
   db.get("SELECT COUNT(*) as total FROM vouchers", [], (err, row) => {
     if (err) return res.json({ total: 0 });
     res.json({ total: row.total });
