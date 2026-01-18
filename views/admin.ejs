@@ -5,17 +5,13 @@
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <style>
-    .form-section { margin-bottom: 2rem; }
-    .table-responsive { overflow-x: auto; }
-  </style>
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <h2 class="mb-4">Admin Dashboard</h2>
 
     <!-- Create Voucher -->
-    <div class="form-section">
+    <div class="mb-4">
       <form action="/admin/create" method="POST" class="row g-3">
         <div class="col-auto">
           <select name="profile" class="form-select" required>
@@ -33,48 +29,28 @@
       </form>
     </div>
 
-    <!-- Export Controls -->
-    <div class="form-section">
-      <div class="row g-3">
-        <div class="col-auto">
-          <a href="/admin/export" class="btn btn-info">Export All Vouchers</a>
-          <a href="/admin/logs" class="btn btn-outline-dark ms-2">View Logs</a>
-        </div>
+    <!-- Toolbar with Dropdown Menu -->
+    <div class="btn-toolbar mb-4" role="toolbar">
+      <div class="btn-group me-2">
+        <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          Export Options
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/admin/export">Export All Vouchers</a></li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportDateModal">Export by Date</a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportProfileModal">Export by Profile</a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportBatchModal">Export by Batch</a>
+          </li>
+        </ul>
       </div>
-
-      <form action="/admin/export-range" method="GET" class="row g-3 mt-3">
-        <div class="col-auto">
-          <input type="date" name="startDate" class="form-control" required>
-        </div>
-        <div class="col-auto">
-          <input type="date" name="endDate" class="form-control" required>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">Export by Date</button>
-        </div>
-      </form>
-
-      <form action="/admin/export-profile" method="GET" class="row g-3 mt-3">
-        <div class="col-auto">
-          <select name="profile" class="form-select" required>
-            <option value="">Select Profile</option>
-            <option value="basic">Basic</option>
-            <option value="premium">Premium</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-warning">Export by Profile</button>
-        </div>
-      </form>
-
-      <form action="/admin/export-batch" method="GET" class="row g-3 mt-3">
-        <div class="col-auto">
-          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag" required>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-danger">Export by Batch</button>
-        </div>
-      </form>
+      <div class="btn-group">
+        <a href="/admin/logs" class="btn btn-outline-dark">View Logs</a>
+      </div>
     </div>
 <!-- ===== admin.ejs Part 2 ===== -->
 
@@ -123,6 +99,53 @@
         </table>
       </div>
     </form>
+  </div>
+
+  <!-- Modals -->
+  <div class="modal fade" id="exportDateModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-range" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Date</h5></div>
+        <div class="modal-body">
+          <input type="date" name="startDate" class="form-control mb-2" required>
+          <input type="date" name="endDate" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Export</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exportProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-profile" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Profile</h5></div>
+        <div class="modal-body">
+          <select name="profile" class="form-select" required>
+            <option value="basic">Basic</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning">Export</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exportBatchModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-batch" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Batch</h5></div>
+        <div class="modal-body">
+          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Export</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
