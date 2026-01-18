@@ -107,7 +107,6 @@ app.post('/admin/delete/:id', async (req, res) => {
     res.send('Error deleting voucher');
   }
 });
-
 // ===== server.js Part 2 =====
 
 // --------------------
@@ -223,7 +222,6 @@ app.get('/admin/export-logs-json', async (req, res) => {
 app.get('/analytics', (req, res) => {
   res.render('analytics');
 });
-
 // ===== server.js Part 3 =====
 
 // Stats Endpoint (existing summary stats)
@@ -292,11 +290,5 @@ app.get('/admin/stats-export-behavior', async (req, res) => {
 // --------------------
 app.listen(PORT, () => {
   console.log(`Server running on http://192.168.88.2:${PORT}`);
-  console.log("=== Git Workflow Reminder ===");
-  console.log("After verifying analytics endpoints, commit and tag:");
-  console.log("git add .");
-  console.log("git commit -m \"Phase-6d: Extended analytics (daily/weekly trends, profile performance, export insights)\"");
-  console.log("git tag phase-6d-analytics-extended");
-  console.log("git push origin main --tags");
 });
 

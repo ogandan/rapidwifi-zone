@@ -5,63 +5,48 @@
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <h2 class="mb-4">Admin Dashboard</h2>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Total Vouchers</h5>
-            <h3 id="totalVouchers">0</h3>
-          </div>
+    <!-- Create Voucher -->
+    <div class="mb-4">
+      <form action="/admin/create" method="POST" class="row g-3">
+        <div class="col-auto">
+          <select name="profile" class="form-select" required>
+            <option value="">Select Profile</option>
+            <option value="basic">Basic</option>
+            <option value="premium">Premium</option>
+          </select>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Active</h5>
-            <h3 id="activeVouchers">0</h3>
-          </div>
+        <div class="col-auto">
+          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag (optional)">
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Inactive</h5>
-            <h3 id="inactiveVouchers">0</h3>
-          </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-success">Create Voucher</button>
         </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Exports Today</h5>
-            <h3 id="exportsToday">0</h3>
-          </div>
-        </div>
-      </div>
+      </form>
     </div>
 
-    <!-- Charts Section -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="voucherCreationChart"></canvas>
+    <!-- Toolbar with Dropdown Menu -->
+    <div class="btn-toolbar mb-4" role="toolbar">
+      <div class="btn-group me-2">
+        <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          Export Options
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/admin/export">Export All Vouchers</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportDateModal">Export by Date</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportProfileModal">Export by Profile</a></li>
+          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportBatchModal">Export by Batch</a></li>
+        </ul>
       </div>
-      <div class="col-md-6">
-        <canvas id="profileDistributionChart"></canvas>
+      <div class="btn-group me-2">
+        <a href="/admin/logs" class="btn btn-outline-dark">View Logs</a>
       </div>
-    </div>
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="statusPieChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="exportsByProfileChart"></canvas>
+      <div class="btn-group">
+        <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
       </div>
     </div>
 <!-- ===== admin.ejs Part 2 ===== -->
@@ -113,41 +98,58 @@
     </form>
   </div>
 
+  <!-- Modals for Export -->
+  <div class="modal fade" id="exportDateModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-range" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Date</h5></div>
+        <div class="modal-body">
+          <input type="date" name="startDate" class="form-control mb-2" required>
+          <input type="date" name="endDate" class="form-control" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Export</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exportProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-profile" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Profile</h5></div>
+        <div class="modal-body">
+          <select name="profile" class="form-select" required>
+            <option value="basic">Basic</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning">Export</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="exportBatchModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form action="/admin/export-batch" method="GET" class="modal-content">
+        <div class="modal-header"><h5 class="modal-title">Export by Batch</h5></div>
+        <div class="modal-body">
+          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag" required>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-danger">Export</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     function toggleAll(source) {
       const checkboxes = document.querySelectorAll('input[name="voucherIds"]');
       checkboxes.forEach(cb => cb.checked = source.checked);
     }
-
-    // Fetch stats and render charts
-    fetch('/admin/stats')
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('totalVouchers').innerText = data.total;
-        document.getElementById('activeVouchers').innerText = data.active;
-        document.getElementById('inactiveVouchers').innerText = data.inactive;
-        document.getElementById('exportsToday').innerText = data.exportsToday;
-
-        new Chart(document.getElementById('voucherCreationChart'), {
-          type: 'line',
-          data: { labels: data.creation.labels, datasets: [{ label: 'Voucher Creation', data: data.creation.values, borderColor: '#0d6efd' }] }
-        });
-
-        new Chart(document.getElementById('profileDistributionChart'), {
-          type: 'bar',
-          data: { labels: Object.keys(data.profiles), datasets: [{ label: 'Profiles', data: Object.values(data.profiles), backgroundColor: '#198754' }] }
-        });
-
-        new Chart(document.getElementById('statusPieChart'), {
-          type: 'pie',
-          data: { labels: ['Active', 'Inactive'], datasets: [{ data: [data.active, data.inactive], backgroundColor: ['#0d6efd', '#dc3545'] }] }
-        });
-
-        new Chart(document.getElementById('exportsByProfileChart'), {
-          type: 'bar',
-          data: { labels: Object.keys(data.exportsByProfile), datasets: [{ label: 'Exports', data: Object.values(data.exportsByProfile), backgroundColor: '#fd7e14' }] }
-        });
-      });
   </script>
 </body>
 </html>
