@@ -123,6 +123,87 @@ function getVouchersByBatch(batchTag) {
 }
 
 // --------------------
+// Analytics Functions
+// --------------------
+
+function countAllVouchers() {
+  return new Promise((resolve, reject) => {
+    db.get("SELECT COUNT(*) AS total FROM vouchers", [], (err, row) => {
+      if (err) return reject(err);
+      resolve(row.total);
+    });
+  });
+}
+
+function countActiveVouchers() {
+  return new Promise((resolve, reject) => {
+    db.get("SELECT COUNT(*) AS active FROM vouchers WHERE status = 'active'", [], (err, row) => {
+      if (err) return reject(err);
+      resolve(row.active);
+    });
+  });
+}
+
+function countInactiveVouchers() {
+  return new Promise((resolve, reject) => {
+    db.get("SELECT COUNT(*) AS inactive FROM vouchers WHERE status = 'inactive'", [], (err, row) => {
+      if (err) return reject(err);
+      resolve(row.inactive);
+    });
+  });
+}
+
+function countExportsToday() {
+  return new Promise((resolve, reject) => {
+    db.get("SELECT COUNT(*) AS count FROM download_logs WHERE DATE(timestamp) = DATE('now')", [], (err, row) => {
+      if (err) return reject(err);
+      resolve(row.count);
+    });
+  });
+}
+
+function countVouchersByProfile() {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile", [], (err, rows) => {
+      if (err) return reject(err);
+      const result = {};
+      rows.forEach(r => result[r.profile] = r.count);
+      resolve(result);
+    });
+  });
+}
+
+function countExportsByProfile() {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT profile, COUNT(*) AS count FROM download_logs GROUP BY profile", [], (err, rows) => {
+      if (err) return reject(err);
+      const result = {};
+      rows.forEach(r => result[r.profile] = r.count);
+      resolve(result);
+    });
+  });
+}
+
+function voucherCreationOverTime() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM vouchers
+       WHERE created_at >= DATE('now', '-6 days')
+       GROUP BY day
+       ORDER BY day ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        const labels = rows.map(r => r.day);
+        const values = rows.map(r => r.count);
+        resolve({ labels, values });
+      }
+    );
+  });
+}
+
+// --------------------
 // Tunnel URL Functions
 // --------------------
 
@@ -154,12 +235,12 @@ function saveTunnelUrl(url) {
 // Download Log Functions
 // --------------------
 
-function logDownload(action, filename, user) {
+function logDownload(action, filename, user, profile) {
   return new Promise((resolve, reject) => {
     const timestamp = new Date().toISOString();
     db.run(
-      "INSERT INTO download_logs (action, filename, user, timestamp) VALUES (?, ?, ?, ?)",
-      [action, filename, user || 'admin', timestamp],
+      "INSERT INTO download_logs (action, filename, user, profile, timestamp) VALUES (?, ?, ?, ?, ?)",
+      [action, filename, user || 'admin', profile || 'unknown', timestamp],
       function (err) {
         if (err) return reject(err);
         resolve(true);
@@ -193,6 +274,13 @@ module.exports = {
   getTunnelUrl,
   saveTunnelUrl,
   logDownload,
-  getDownloadLogs
+  getDownloadLogs,
+  countAllVouchers,
+  countActiveVouchers,
+  countInactiveVouchers,
+  countExportsToday,
+  countVouchersByProfile,
+  countExportsByProfile,
+  voucherCreationOverTime
 };
 
