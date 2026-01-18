@@ -4,151 +4,92 @@
 <head>
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-4">
     <h2 class="mb-4">Admin Dashboard</h2>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Total Vouchers</h5>
-            <h3 id="totalVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Active</h5>
-            <h3 id="activeVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Inactive</h5>
-            <h3 id="inactiveVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Exports Today</h5>
-            <h3 id="exportsToday">0</h3>
-          </div>
-        </div>
-      </div>
+    <!-- Show tunnel URL -->
+    <div class="alert alert-info">
+      Tunnel URL: <strong><%= tunnelUrl %></strong>
     </div>
 
-    <!-- Charts Section -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="voucherCreationChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="profileDistributionChart"></canvas>
-      </div>
-    </div>
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="statusPieChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="exportsByProfileChart"></canvas>
-      </div>
-    </div>
-<!-- ===== admin.ejs Part 2 ===== -->
-
-    <!-- Bulk Action Form -->
-    <form action="/admin/bulk-action" method="POST">
-      <div class="row g-3 mb-3">
-        <div class="col-auto">
-          <select name="action" class="form-select" required>
-            <option value="">Choose Action</option>
-            <option value="block">Block Selected</option>
-            <option value="delete">Delete Selected</option>
-          </select>
+    <!-- Voucher Creation Form (Admins only) -->
+    <% if (session.role === 'admin') { %>
+    <form action="/admin/create" method="POST" class="mb-4">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row">
+        <div class="col-md-4">
+          <input type="text" name="profile" class="form-control" placeholder="Profile" required>
         </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-outline-primary">Apply</button>
+        <div class="col-md-4">
+          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag (optional)">
         </div>
-      </div>
-
-      <!-- Voucher Table -->
-      <div class="table-responsive">
-        <table class="table table-hover table-bordered align-middle">
-          <thead class="table-dark">
-            <tr>
-              <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
-              <th>ID</th>
-              <th>Username</th>
-              <th>Password</th>
-              <th>Profile</th>
-              <th>Status</th>
-              <th>Batch Tag</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% vouchers.forEach(v => { %>
-              <tr>
-                <td><input type="checkbox" name="voucherIds" value="<%= v.id %>"></td>
-                <td><%= v.id %></td>
-                <td><%= v.username %></td>
-                <td><%= v.password %></td>
-                <td><%= v.profile %></td>
-                <td><%= v.status %></td>
-                <td><%= v.batch_tag %></td>
-              </tr>
-            <% }) %>
-          </tbody>
-        </table>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary w-100">Create Voucher</button>
+        </div>
       </div>
     </form>
-  </div>
+    <% } %>
+<!-- ===== admin.ejs Part 2 ===== -->
 
-  <script>
-    function toggleAll(source) {
-      const checkboxes = document.querySelectorAll('input[name="voucherIds"]');
-      checkboxes.forEach(cb => cb.checked = source.checked);
-    }
+    <!-- Voucher List -->
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Username</th>
+          <th>Password</th>
+          <th>Profile</th>
+          <th>Status</th>
+          <th>Created At</th>
+          <th>Batch Tag</th>
+          <% if (session.role === 'admin') { %><th>Actions</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% vouchers.forEach(v => { %>
+        <tr>
+          <td><%= v.id %></td>
+          <td><%= v.username %></td>
+          <td><%= v.password %></td>
+          <td><%= v.profile %></td>
+          <td><%= v.status %></td>
+          <td><%= v.created_at %></td>
+          <td><%= v.batch_tag %></td>
+          <% if (session.role === 'admin') { %>
+          <td>
+            <form action="/admin/block/<%= v.id %>" method="POST" style="display:inline;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-warning btn-sm">Block</button>
+            </form>
+            <form action="/admin/delete/<%= v.id %>" method="POST" style="display:inline;">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+          </td>
+          <% } %>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+<!-- ===== admin.ejs Part 3 ===== -->
 
-    // Fetch stats and render charts
-    fetch('/admin/stats')
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById('totalVouchers').innerText = data.total;
-        document.getElementById('activeVouchers').innerText = data.active;
-        document.getElementById('inactiveVouchers').innerText = data.inactive;
-        document.getElementById('exportsToday').innerText = data.exportsToday;
+    <!-- Export Buttons (Admins only) -->
+    <% if (session.role === 'admin') { %>
+    <div class="mb-4">
+      <form action="/admin/export" method="GET" style="display:inline;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-success">Export All Vouchers</button>
+      </form>
+      <form action="/admin/export-logs" method="GET" style="display:inline;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-info">Export Logs</button>
+      </form>
+    </div>
+    <% } %>
 
-        new Chart(document.getElementById('voucherCreationChart'), {
-          type: 'line',
-          data: { labels: data.creation.labels, datasets: [{ label: 'Voucher Creation', data: data.creation.values, borderColor: '#0d6efd' }] }
-        });
-
-        new Chart(document.getElementById('profileDistributionChart'), {
-          type: 'bar',
-          data: { labels: Object.keys(data.profiles), datasets: [{ label: 'Profiles', data: Object.values(data.profiles), backgroundColor: '#198754' }] }
-        });
-
-        new Chart(document.getElementById('statusPieChart'), {
-          type: 'pie',
-          data: { labels: ['Active', 'Inactive'], datasets: [{ data: [data.active, data.inactive], backgroundColor: ['#0d6efd', '#dc3545'] }] }
-        });
-
-        new Chart(document.getElementById('exportsByProfileChart'), {
-          type: 'bar',
-          data: { labels: Object.keys(data.exportsByProfile), datasets: [{ label: 'Exports', data: Object.values(data.exportsByProfile), backgroundColor: '#fd7e14' }] }
-        });
-      });
-  </script>
+  </div> <!-- container -->
 </body>
 </html>
 
