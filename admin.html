@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login</title>
+  <link rel="stylesheet" href="/styles/style.css">
+</head>
+<body>
+  <header>
+    <h1>RAPIDWIFI-ZONE</h1>
+    <nav>
+      <a href="/">Portal</a> |
+      <a href="/admin">Dashboard</a> |
+      <a href="/audit">View Audit Logs</a> |
+      <a href="/logout">Logout</a>
+    </nav>
+    <hr>
+  </header>
+
+
+
+<!-- TEST MODE badge -->
+
+
+<!-- CSRF token for AJAX -->
+<input type="hidden" id="csrfToken" value="LZPSIrqO-PeVUlTaX9ZS-VcSehdjfQQH2TRQ">
+
+<section>
+  <h1>Admin Dashboard</h1>
+
+  <!-- Voucher creation -->
+  <h2>create_vouchers</h2>
+  <form id="create-voucher-form" action="/admin/voucher/create" method="POST">
+    <input type="hidden" name="_csrf" value="LZPSIrqO-PeVUlTaX9ZS-VcSehdjfQQH2TRQ">
+    <label>Count:
+      <input type="number" name="count" value="5" min="1">
+    </label>
+    <label>Profile:
+      <select name="profile">
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h-100FCFA</option>
+        <option value="3h-200FCFA">3h-200FCFA</option>
+        <option value="8h-500FCFA">8h-500FCFA</option>
+        <option value="24h-1000FCFA">24h-1000FCFA</option>
+      </select>
+    </label>
+    <label>Batch Tag:
+      <input type="text" name="batch" placeholder="batch-1768462319198">
+    </label>
+    <button type="submit">Create</button>
+  </form>
+  <div id="create-result"></div>
+</section>
+
+<!-- Active vouchers with filters and batch management -->
+<section>
+  <h2>Active Vouchers</h2>
+
+  <!-- Filters -->
+  <div class="filters" style="margin-bottom:10px;">
+    <label>Filter by status:
+      <select id="filterStatus">
+        <option value="all">All</option>
+        <option value="active">Active</option>
+        <option value="blocked">Blocked</option>
+      </select>
+    </label>
+    <label>Profile:
+      <select id="filterProfile">
+        <option value="all">All</option>
+        <option value="default">Default</option>
+        <option value="1h-100FCFA">1h-100FCFA</option>
+        <option value="3h-200FCFA">3h-200FCFA</option>
+        <option value="8h-500FCFA">8h-500FCFA</option>
+        <option value="24h-1000FCFA">24h-1000FCFA</option>
+      </select>
+    </label>
+    <label>Search:
+      <input type="text" id="searchInput" placeholder="Search vouchers…">
+    </label>
+    <button type="button" id="resetFilters">Reset</button>
+    <button type="button" id="selectBlocked">Select Blocked</button>
+    <button type="button" id="exportFiltered">Export Filtered CSV</button>
+  </div>
+
+  <!-- Batch actions -->
+  <form id="batch-voucher-form">
+    <div class="batch-actions" style="margin-bottom:10px;">
+      <select id="batchAction" required>
+        <option value="">-- Select Action --</option>
+        <option value="block">Block Selected</option>
+        <option value="delete">Delete Selected</option>
+      </select>
+      <button type="submit">Apply</button>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all"></th>
+          <th>Username</th>
+          <th>Profile</th>
+          <th>Status</th>
+          <th>Distribute</th>
+        </tr>
+      </thead>
+      <tbody id="voucher-table-body">
+        
+          <tr data-status="active"
+              data-username="default-trial"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="default-trial"></td>
+            <td class="col-username">default-trial</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('default-trial')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('default-trial')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('default-trial')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr1768154751169_1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR1768154751169_1"></td>
+            <td class="col-username">VCHR1768154751169_1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR1768154751169_1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR1768154751169_1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR1768154751169_1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr1768154752559_2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR1768154752559_2"></td>
+            <td class="col-username">VCHR1768154752559_2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR1768154752559_2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR1768154752559_2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR1768154752559_2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr1768154754060_3"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR1768154754060_3"></td>
+            <td class="col-username">VCHR1768154754060_3</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR1768154754060_3')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR1768154754060_3')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR1768154754060_3')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr1768154755592_4"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR1768154755592_4"></td>
+            <td class="col-username">VCHR1768154755592_4</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR1768154755592_4')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR1768154755592_4')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR1768154755592_4')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768155125508-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768155125508-001"></td>
+            <td class="col-username">VCHR-batch-1768155125508-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768155125508-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768155125508-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768155125508-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768155125508-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768155125508-002"></td>
+            <td class="col-username">VCHR-batch-1768155125508-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768155125508-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768155125508-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768155125508-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768155125508-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768155125508-003"></td>
+            <td class="col-username">VCHR-batch-1768155125508-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768155125508-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768155125508-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768155125508-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768155125508-004"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768155125508-004"></td>
+            <td class="col-username">VCHR-batch-1768155125508-004</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768155125508-004')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768155125508-004')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768155125508-004')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768155125508-005"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768155125508-005"></td>
+            <td class="col-username">VCHR-batch-1768155125508-005</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768155125508-005')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768155125508-005')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768155125508-005')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768156192169-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768156192169-001"></td>
+            <td class="col-username">VCHR-batch-1768156192169-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768156192169-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768156192169-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768156192169-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768156192169-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768156192169-002"></td>
+            <td class="col-username">VCHR-batch-1768156192169-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768156192169-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768156192169-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768156192169-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768156192169-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768156192169-003"></td>
+            <td class="col-username">VCHR-batch-1768156192169-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768156192169-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768156192169-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768156192169-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768156192169-004"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768156192169-004"></td>
+            <td class="col-username">VCHR-batch-1768156192169-004</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768156192169-004')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768156192169-004')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768156192169-004')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768156192169-005"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768156192169-005"></td>
+            <td class="col-username">VCHR-batch-1768156192169-005</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768156192169-005')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768156192169-005')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768156192169-005')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-evening-batch-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-evening-batch-001"></td>
+            <td class="col-username">VCHR-evening-batch-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-evening-batch-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-evening-batch-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-evening-batch-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-evening-batch-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-evening-batch-002"></td>
+            <td class="col-username">VCHR-evening-batch-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-evening-batch-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-evening-batch-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-evening-batch-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-evening-batch-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-evening-batch-003"></td>
+            <td class="col-username">VCHR-evening-batch-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-evening-batch-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-evening-batch-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-evening-batch-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157589126-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157589126-001"></td>
+            <td class="col-username">VCHR-batch-1768157589126-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157589126-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157589126-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157589126-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157589126-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157589126-002"></td>
+            <td class="col-username">VCHR-batch-1768157589126-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157589126-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157589126-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157589126-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157589126-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157589126-003"></td>
+            <td class="col-username">VCHR-batch-1768157589126-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157589126-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157589126-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157589126-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157974813-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157974813-001"></td>
+            <td class="col-username">VCHR-batch-1768157974813-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157974813-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157974813-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157974813-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157974813-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157974813-002"></td>
+            <td class="col-username">VCHR-batch-1768157974813-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157974813-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157974813-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157974813-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768157974813-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768157974813-003"></td>
+            <td class="col-username">VCHR-batch-1768157974813-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768157974813-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768157974813-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768157974813-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768160315918-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768160315918-001"></td>
+            <td class="col-username">VCHR-batch-1768160315918-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768160315918-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768160315918-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768160315918-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768160315918-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768160315918-002"></td>
+            <td class="col-username">VCHR-batch-1768160315918-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768160315918-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768160315918-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768160315918-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768160315918-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768160315918-003"></td>
+            <td class="col-username">VCHR-batch-1768160315918-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768160315918-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768160315918-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768160315918-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768162553002-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768162553002-001"></td>
+            <td class="col-username">VCHR-batch-1768162553002-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768162553002-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768162553002-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768162553002-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768162553002-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768162553002-002"></td>
+            <td class="col-username">VCHR-batch-1768162553002-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768162553002-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768162553002-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768162553002-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768162553002-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768162553002-003"></td>
+            <td class="col-username">VCHR-batch-1768162553002-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768162553002-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768162553002-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768162553002-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-001"></td>
+            <td class="col-username">VCHR-batch-1768164462658-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-002"></td>
+            <td class="col-username">VCHR-batch-1768164462658-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-003"></td>
+            <td class="col-username">VCHR-batch-1768164462658-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-004"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-004"></td>
+            <td class="col-username">VCHR-batch-1768164462658-004</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-004')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-004')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-004')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-005"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-005"></td>
+            <td class="col-username">VCHR-batch-1768164462658-005</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-005')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-005')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-005')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-006"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-006"></td>
+            <td class="col-username">VCHR-batch-1768164462658-006</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-006')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-006')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-006')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-007"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-007"></td>
+            <td class="col-username">VCHR-batch-1768164462658-007</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-007')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-007')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-007')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-008"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-008"></td>
+            <td class="col-username">VCHR-batch-1768164462658-008</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-008')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-008')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-008')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-009"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-009"></td>
+            <td class="col-username">VCHR-batch-1768164462658-009</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-009')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-009')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-009')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164462658-010"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164462658-010"></td>
+            <td class="col-username">VCHR-batch-1768164462658-010</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164462658-010')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164462658-010')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164462658-010')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164763170-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164763170-001"></td>
+            <td class="col-username">VCHR-batch-1768164763170-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164763170-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164763170-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164763170-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164763170-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164763170-002"></td>
+            <td class="col-username">VCHR-batch-1768164763170-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164763170-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164763170-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164763170-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768164763170-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768164763170-003"></td>
+            <td class="col-username">VCHR-batch-1768164763170-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768164763170-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768164763170-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768164763170-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768165258183-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768165258183-001"></td>
+            <td class="col-username">VCHR-batch-1768165258183-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768165258183-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768165258183-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768165258183-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768165258183-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768165258183-002"></td>
+            <td class="col-username">VCHR-batch-1768165258183-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768165258183-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768165258183-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768165258183-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768165258183-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768165258183-003"></td>
+            <td class="col-username">VCHR-batch-1768165258183-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768165258183-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768165258183-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768165258183-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768167091112-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768167091112-001"></td>
+            <td class="col-username">VCHR-batch-1768167091112-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768167091112-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768167091112-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768167091112-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768167091112-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768167091112-002"></td>
+            <td class="col-username">VCHR-batch-1768167091112-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768167091112-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768167091112-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768167091112-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-1768167091112-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-1768167091112-003"></td>
+            <td class="col-username">VCHR-batch-1768167091112-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-1768167091112-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-1768167091112-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-1768167091112-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-test-001"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-test-001"></td>
+            <td class="col-username">VCHR-batch-test-001</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-test-001')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-test-001')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-test-001')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-test-002"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-test-002"></td>
+            <td class="col-username">VCHR-batch-test-002</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-test-002')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-test-002')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-test-002')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="vchr-batch-test-003"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="VCHR-batch-test-003"></td>
+            <td class="col-username">VCHR-batch-test-003</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('VCHR-batch-test-003')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('VCHR-batch-test-003')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('VCHR-batch-test-003')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch-589404-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch-589404-0"></td>
+            <td class="col-username">testBatch-589404-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch-589404-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch-589404-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch-589404-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch-684119-2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch-684119-2"></td>
+            <td class="col-username">testBatch-684119-2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch-684119-2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch-684119-2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch-684119-2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-3f53-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-3f53-0"></td>
+            <td class="col-username">testBatch1-3f53-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-3f53-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-3f53-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-3f53-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-13aa-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-13aa-1"></td>
+            <td class="col-username">testBatch1-13aa-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-13aa-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-13aa-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-13aa-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-c21f-2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-c21f-2"></td>
+            <td class="col-username">testBatch1-c21f-2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-c21f-2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-c21f-2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-c21f-2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-81f3-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-81f3-0"></td>
+            <td class="col-username">testBatch1-81f3-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-81f3-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-81f3-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-81f3-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-5ad1-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-5ad1-1"></td>
+            <td class="col-username">testBatch1-5ad1-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-5ad1-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-5ad1-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-5ad1-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="testbatch1-9cef-2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="testBatch1-9cef-2"></td>
+            <td class="col-username">testBatch1-9cef-2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('testBatch1-9cef-2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('testBatch1-9cef-2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('testBatch1-9cef-2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="mytestbatch-c526-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="mytestbatch-c526-0"></td>
+            <td class="col-username">mytestbatch-c526-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('mytestbatch-c526-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('mytestbatch-c526-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('mytestbatch-c526-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="mytestbatch-5a4e-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="mytestbatch-5a4e-1"></td>
+            <td class="col-username">mytestbatch-5a4e-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('mytestbatch-5a4e-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('mytestbatch-5a4e-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('mytestbatch-5a4e-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="mytestbatch-0b66-2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="mytestbatch-0b66-2"></td>
+            <td class="col-username">mytestbatch-0b66-2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('mytestbatch-0b66-2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('mytestbatch-0b66-2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('mytestbatch-0b66-2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="mytestbatch-bb9a-3"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="mytestbatch-bb9a-3"></td>
+            <td class="col-username">mytestbatch-bb9a-3</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('mytestbatch-bb9a-3')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('mytestbatch-bb9a-3')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('mytestbatch-bb9a-3')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="mytestbatch-bfc1-4"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="mytestbatch-bfc1-4"></td>
+            <td class="col-username">mytestbatch-bfc1-4</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('mytestbatch-bfc1-4')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('mytestbatch-bfc1-4')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('mytestbatch-bfc1-4')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114152311-66be-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114152311-66be-0"></td>
+            <td class="col-username">batch-20260114152311-66be-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114152311-66be-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114152311-66be-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114152311-66be-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114152311-6fa5-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114152311-6fa5-1"></td>
+            <td class="col-username">batch-20260114152311-6fa5-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114152311-6fa5-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114152311-6fa5-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114152311-6fa5-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114152311-74d4-2"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114152311-74d4-2"></td>
+            <td class="col-username">batch-20260114152311-74d4-2</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114152311-74d4-2')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114152311-74d4-2')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114152311-74d4-2')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114152311-fb69-3"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114152311-fb69-3"></td>
+            <td class="col-username">batch-20260114152311-fb69-3</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114152311-fb69-3')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114152311-fb69-3')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114152311-fb69-3')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114152311-9fb0-4"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114152311-9fb0-4"></td>
+            <td class="col-username">batch-20260114152311-9fb0-4</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114152311-9fb0-4')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114152311-9fb0-4')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114152311-9fb0-4')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-ed8d-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-ed8d-0"></td>
+            <td class="col-username">selftest-ed8d-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-ed8d-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-ed8d-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-ed8d-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-891a-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-891a-1"></td>
+            <td class="col-username">selftest-891a-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-891a-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-891a-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-891a-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114154405-10ee-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114154405-10ee-0"></td>
+            <td class="col-username">batch-20260114154405-10ee-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114154405-10ee-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114154405-10ee-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114154405-10ee-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114154405-f222-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114154405-f222-1"></td>
+            <td class="col-username">batch-20260114154405-f222-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114154405-f222-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114154405-f222-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114154405-f222-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-5c75-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-5c75-0"></td>
+            <td class="col-username">selftest-5c75-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-5c75-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-5c75-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-5c75-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-e067-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-e067-1"></td>
+            <td class="col-username">selftest-e067-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-e067-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-e067-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-e067-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114160428-2a50-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114160428-2a50-0"></td>
+            <td class="col-username">batch-20260114160428-2a50-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114160428-2a50-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114160428-2a50-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114160428-2a50-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114160428-9cab-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114160428-9cab-1"></td>
+            <td class="col-username">batch-20260114160428-9cab-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114160428-9cab-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114160428-9cab-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114160428-9cab-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-663a-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-663a-0"></td>
+            <td class="col-username">selftest-663a-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-663a-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-663a-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-663a-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="selftest-112a-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="selftest-112a-1"></td>
+            <td class="col-username">selftest-112a-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('selftest-112a-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('selftest-112a-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('selftest-112a-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114161322-0c1d-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114161322-0c1d-0"></td>
+            <td class="col-username">batch-20260114161322-0c1d-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114161322-0c1d-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114161322-0c1d-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114161322-0c1d-0')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114161322-7079-1"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114161322-7079-1"></td>
+            <td class="col-username">batch-20260114161322-7079-1</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114161322-7079-1')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114161322-7079-1')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114161322-7079-1')">Telegram</button>
+            </td>
+          </tr>
+        
+          <tr data-status="active"
+              data-username="batch-20260114161337-04c9-0"
+              data-profile="default">
+            <td><input type="checkbox" name="selected" value="batch-20260114161337-04c9-0"></td>
+            <td class="col-username">batch-20260114161337-04c9-0</td>
+            <td class="col-profile">default</td>
+            <td class="col-status">
+              
+                <span style="background:#2ecc71;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Active</span>
+              
+            </td>
+            <td>
+              <button type="button" onclick="sendSMS('batch-20260114161337-04c9-0')">SMS</button>
+              <button type="button" onclick="sendWhatsApp('batch-20260114161337-04c9-0')">WhatsApp</button>
+              <button type="button" onclick="sendTelegram('batch-20260114161337-04c9-0')">Telegram</button>
+            </td>
+          </tr>
+        
+      </tbody>
+    </table>
+  </form>
+</section>
+
+<!-- Exports -->
+<section>
+  <h2>exports</h2>
+  <form action="/admin/export/vouchers.csv" method="GET">
+    <button type="submit">Export All Vouchers</button>
+  </form>
+  <form action="/admin/export/audit_logs.csv" method="GET">
+    <button type="submit">Export Audit Logs</button>
+  </form>
+</section>
+
+<!-- Status -->
+<section>
+  <h2>Status</h2>
+  <div id="statusContent">Loading export status...</div>
+</section>
+
+<!-- Charts -->
+<section>
+  <h2>Charts</h2>
+  <canvas id="voucherChart"></canvas>
+  <canvas id="systemChart"></canvas>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Charts
+  async function loadVoucherChart() {
+    try {
+      const res = await fetch('/admin/data/vouchers');
+      const data = await res.json();
+      const ctx = document.getElementById('voucherChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data),
+          datasets: [{
+            label: 'Vouchers by Profile',
+            data: Object.values(data),
+            backgroundColor: '#3498db'
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('Voucher chart error:', err);
+    }
+  }
+
+  async function loadSystemChart() {
+    try {
+      const res = await fetch('/admin/data/system');
+      const data = await res.json();
+      const ctx = document.getElementById('systemChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Load1', 'Load5', 'Load15'],
+          datasets: [{
+            label: 'System Load',
+            data: data.load,
+            borderColor: '#e67e22',
+            fill: false
+          }]
+        }
+      });
+    } catch (err) {
+      console.error('System chart error:', err);
+    }
+  }
+
+  loadVoucherChart();
+  loadSystemChart();
+
+  // Filters
+  const filterStatus = document.getElementById('filterStatus');
+  const filterProfile = document.getElementById('filterProfile');
+  const searchInput = document.getElementById('searchInput');
+  const tableBody = document.getElementById('voucher-table-body');
+
+  function applyFilters() {
+    const statusVal = filterStatus.value;
+    const profileVal = filterProfile.value.toLowerCase();
+    const searchVal = searchInput.value.toLowerCase();
+
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const rowStatus = row.getAttribute('data-status');
+      const rowProfile = row.getAttribute('data-profile');
+      const rowUsername = row.getAttribute('data-username');
+
+      const statusMatch = (statusVal === 'all') || (statusVal === rowStatus);
+      const profileMatch = (profileVal === 'all') || (profileVal === rowProfile);
+      const searchMatch = !searchVal || rowUsername.includes(searchVal);
+
+      row.style.display = (statusMatch && profileMatch && searchMatch) ? '' : 'none';
+    });
+  }
+
+  filterStatus.addEventListener('change', applyFilters);
+  filterProfile.addEventListener('change', applyFilters);
+  searchInput.addEventListener('input', applyFilters);
+
+  document.getElementById('resetFilters').addEventListener('click', () => {
+    filterStatus.value = 'all';
+    filterProfile.value = 'all';
+    searchInput.value = '';
+    applyFilters();
+  });
+
+  document.getElementById('selectBlocked').addEventListener('click', () => {
+    applyFilters();
+    Array.from(tableBody.querySelectorAll('tr')).forEach(row => {
+      const isBlocked = row.getAttribute('data-status') === 'blocked';
+      const checkbox = row.querySelector('input[name="selected"]');
+      if (checkbox) checkbox.checked = isBlocked && row.style.display !== 'none';
+    });
+  });
+
+  document.getElementById('exportFiltered').addEventListener('click', () => {
+    // Simple client-side export of currently visible rows
+    const rows = Array.from(tableBody.querySelectorAll('tr')).filter(r => r.style.display !== 'none');
+    const lines = ['Username,Profile,Status'];
+    rows.forEach(r => {
+      const username = r.querySelector('.col-username').innerText.trim();
+      const profile = r.querySelector('.col-profile').innerText.trim();
+      const status = r.querySelector('.col-status').innerText.trim();
+      lines.push(`${username},${profile},${status}`);
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vouchers_filtered_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Select/Deselect all checkboxes
+  document.getElementById('select-all').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="selected"]');
+    checkboxes.forEach(cb => cb.checked = this.checked);
+  });
+
+  // Batch block/delete with CSRF and hardening + optimistic UI update
+  document.getElementById('batch-voucher-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const action = document.getElementById('batchAction').value;
+    const selected = Array.from(document.querySelectorAll('input[name="selected"]:checked'))
+                          .map(cb => cb.value);
+    const csrfToken = document.getElementById('csrfToken').value;
+
+    if (!action || selected.length === 0) {
+      alert('Please select an action and at least one voucher.');
+      return;
+    }
+
+    if (action === 'delete') {
+      const ok = confirm(`Delete ${selected.length} voucher(s)? This cannot be undone.`);
+      if (!ok) return;
+    }
+
+    try {
+      const response = await fetch(`/admin/batch/${action}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'csrf-token': csrfToken // ✅ header name expected by csurf
+        },
+        body: JSON.stringify({ usernames: selected })
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.success) {
+        console.error('Batch action failed:', result);
+        alert(result.error || 'Batch action failed');
+        return;
+      }
+
+      // Optimistic UI: update rows immediately
+      selected.forEach(username => {
+        const row = Array.from(tableBody.querySelectorAll('tr')).find(r => {
+          return r.querySelector('.col-username')?.innerText.trim() === username;
+        });
+        if (!row) return;
+        if (action === 'delete') {
+          row.remove();
+        } else if (action === 'block') {
+          row.setAttribute('data-status', 'blocked');
+          const statusCell = row.querySelector('.col-status');
+          if (statusCell) statusCell.innerHTML = '<span style="background:#e74c3c;color:#fff;padding:2px 6px;border-radius:4px;font-size:12px;">Blocked</span>';
+        }
+      });
+
+      alert(`${action} completed for ${selected.length} voucher(s)`);
+      // Full refresh to reflect backend state
+      location.reload();
+    } catch (err) {
+      console.error('Batch action error:', err);
+      alert('Error performing batch action');
+    }
+  });
+
+  // Load export status
+  async function loadStatus() {
+    try {
+      const res = await fetch('/admin/status');
+      if (!res.ok) {
+        document.getElementById('statusContent').innerText = 'Failed to load status';
+        return;
+      }
+      const status = await res.json();
+      document.getElementById('statusContent').innerHTML = `
+        <p>Vouchers CSV last updated: ${status.vouchers_csv || 'N/A'}</p>
+        <p>Audit Logs CSV last updated: ${status.audit_logs_csv || 'N/A'}</p>
+        <p>System uptime: ${status.system_uptime} seconds</p>
+      `;
+    } catch (err) {
+      console.error('Failed to load status:', err);
+      document.getElementById('statusContent').innerText = 'Error loading status';
+    }
+  }
+  loadStatus();
+
+  // Distribution stubs (include CSRF header)
+  function sendSMS(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/sms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ number: '+229XXXXXXXX', voucher: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('SMS result:', data))
+    .catch(err => console.error('SMS error:', err));
+  }
+
+  function sendWhatsApp(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/whatsapp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ userId: 'whatsapp-user-id', message: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('WhatsApp result:', data))
+    .catch(err => console.error('WhatsApp error:', err));
+  }
+
+  function sendTelegram(voucherId) {
+    const csrfToken = document.getElementById('csrfToken').value;
+    fetch('/admin/distribute/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+      body: JSON.stringify({ userId: 'telegram-user-id', command: voucherId })
+    })
+    .then(res => res.json())
+    .then(data => console.log('Telegram result:', data))
+    .catch(err => console.error('Telegram error:', err));
+  }
+</script>
+
+  <footer>
+    <hr>
+    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
+  </footer>
+
+  <!-- ✅ Chart.js library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- ✅ Inline script block for charts -->
+  <script>
+  (function(){
+    // Voucher distribution chart
+    if (document.getElementById('voucherChart')) {
+      fetch('/admin/data/vouchers', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+          const labels = Object.keys(data);
+          const values = Object.values(data);
+          const ctx = document.getElementById('voucherChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{
+                label: 'Voucher Count',
+                data: values,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+          });
+        })
+        .catch(err => console.error('Voucher chart error:', err));
+    }
+
+    // System load chart
+    if (document.getElementById('systemChart')) {
+      fetch('/admin/data/system', { credentials: 'same-origin' })
+        .then(res => res.json())
+        .then(data => {
+          const ctx = document.getElementById('systemChart').getContext('2d');
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: ['1 min', '5 min', '15 min'],
+              datasets: [{
+                label: 'Load Average',
+                data: data.load,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                borderWidth: 2,
+                tension: 0.3,
+                fill: true,
+                pointRadius: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              scales: { y: { beginAtZero: true } },
+              plugins: {
+                tooltip: { mode: 'index', intersect: false },
+                legend: { display: true }
+              }
+            }
+          });
+        })
+        .catch(err => console.error('System chart error:', err));
+    }
+  })();
+  </script>
+
+</body>
+</html>
+
+
+
