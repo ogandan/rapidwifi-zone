@@ -121,7 +121,6 @@ function getVouchersByBatch(batchTag) {
     );
   });
 }
-
 // --------------------
 // Analytics Functions
 // --------------------
@@ -203,6 +202,83 @@ function voucherCreationOverTime() {
   });
 }
 
+// NEW: Daily voucher creation (full history)
+function voucherCreationDaily() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM vouchers
+       GROUP BY day
+       ORDER BY day ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// NEW: Weekly voucher creation
+function voucherCreationWeekly() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT strftime('%Y-%W', created_at) AS week, COUNT(*) AS count
+       FROM vouchers
+       GROUP BY week
+       ORDER BY week ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// NEW: Profile performance (creation vs exports)
+function profilePerformance() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT v.profile,
+              COUNT(v.id) AS vouchers,
+              COALESCE(e.exports, 0) AS exports
+       FROM vouchers v
+       LEFT JOIN (
+         SELECT profile, COUNT(*) AS exports
+         FROM download_logs
+         GROUP BY profile
+       ) e ON v.profile = e.profile
+       GROUP BY v.profile`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// NEW: Export behavior insights
+function exportBehaviorInsights() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT user AS admin_user,
+              profile,
+              DATE(timestamp) AS day,
+              COUNT(*) AS exports
+       FROM download_logs
+       GROUP BY admin_user, profile, day
+       ORDER BY day DESC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
 // --------------------
 // Tunnel URL Functions
 // --------------------
@@ -257,7 +333,6 @@ function getDownloadLogs(limit = 50) {
     });
   });
 }
-
 // --------------------
 // Exports
 // --------------------
@@ -281,6 +356,11 @@ module.exports = {
   countExportsToday,
   countVouchersByProfile,
   countExportsByProfile,
-  voucherCreationOverTime
+  voucherCreationOverTime,
+  // NEW FUNCTIONS
+  voucherCreationDaily,
+  voucherCreationWeekly,
+  profilePerformance,
+  exportBehaviorInsights
 };
 
