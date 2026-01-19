@@ -11,7 +11,6 @@ const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 3000;
 
-// Middleware
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
   secret: 'rapidwifi-secret',
@@ -19,7 +18,6 @@ app.use(session({
   saveUninitialized: true
 }));
 
-// CSRF protection
 const csrfProtection = csrf();
 app.use(csrfProtection);
 
@@ -58,8 +56,7 @@ app.post('/login', csrfProtection, async (req, res) => {
     if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
 
     req.session.user = voucher.username;
-    // ✅ Redirect to /admin for fresh CSRF token
-    res.redirect('/admin');
+    res.redirect('/admin'); // ✅ redirect ensures fresh CSRF token
   } catch (err) {
     console.error(err);
     res.render('login_result', { ok: false, message: 'Server error' });
@@ -69,7 +66,6 @@ app.post('/login', csrfProtection, async (req, res) => {
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
-
 // ===== server.js Part 2 =====
 
 // --------------------
@@ -174,7 +170,6 @@ app.post('/admin/bulk-action', requireLogin, csrfProtection, async (req, res) =>
     res.send('Error applying bulk action');
   }
 });
-
 // ===== server.js Part 3 =====
 
 // Logs Page & Export
