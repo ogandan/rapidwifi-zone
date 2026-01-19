@@ -19,7 +19,6 @@ app.use(session({
 }));
 
 const csrfProtection = csrf();
-app.use(csrfProtection);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -42,7 +41,7 @@ function requireLogin(req, res, next) {
 // --------------------
 // Login Routes
 // --------------------
-app.get('/', (req, res) => {
+app.get('/', csrfProtection, (req, res) => {
   if (req.session.user) return res.redirect('/admin');
   res.render('login', { csrfToken: req.csrfToken() });
 });
@@ -56,7 +55,7 @@ app.post('/login', csrfProtection, async (req, res) => {
     if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
 
     req.session.user = voucher.username;
-    res.redirect('/admin'); // ✅ redirect ensures fresh CSRF token
+    res.redirect('/admin');
   } catch (err) {
     console.error(err);
     res.render('login_result', { ok: false, message: 'Server error' });
@@ -71,7 +70,7 @@ app.get('/logout', (req, res) => {
 // --------------------
 // Admin Dashboard
 // --------------------
-app.get('/admin', requireLogin, async (req, res) => {
+app.get('/admin', requireLogin, csrfProtection, async (req, res) => {
   try {
     const vouchers = await db.getRecentVouchers(50);
     const operators = await db.getOperators();
@@ -200,7 +199,7 @@ app.get('/admin/export-logs', requireLogin, async (req, res) => {
 });
 
 // Analytics Page
-app.get('/analytics', requireLogin, (req, res) => {
+app.get('/analytics', requireLogin, csrfProtection, async (req, res) => {
   res.render('analytics', { csrfToken: req.csrfToken() });
 });
 
