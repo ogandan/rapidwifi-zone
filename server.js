@@ -6,6 +6,7 @@ const path = require('path');
 const db = require('./data/db');
 const { Parser } = require('json2csv');
 const csrf = require('csurf');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const PORT = 3000;
@@ -25,9 +26,6 @@ app.use(csrfProtection);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-// --------------------
-// Export Helper
-// --------------------
 function exportCSV(res, data, filename, fields) {
   const parser = new Parser({ fields });
   const csv = parser.parse(data);
@@ -36,11 +34,18 @@ function exportCSV(res, data, filename, fields) {
   return res.send(csv);
 }
 
+function requireLogin(req, res, next) {
+  if (!req.session.user) {
+    return res.redirect('/');
+  }
+  next();
+}
+
 // --------------------
 // Login Routes
 // --------------------
-app.get('/', csrfProtection, (req, res) => {
-  if (req.session.user) return res.redirect('/success');
+app.get('/', (req, res) => {
+  if (req.session.user) return res.redirect('/admin');
   res.render('login', { csrfToken: req.csrfToken() });
 });
 
@@ -48,49 +53,82 @@ app.post('/login', csrfProtection, async (req, res) => {
   const { username, password } = req.body;
   try {
     const voucher = await db.getVoucherByUsername(username);
-    if (!voucher) return res.render('login_result', { success: false, message: 'Invalid username' });
-    if (voucher.password !== password) return res.render('login_result', { success: false, message: 'Incorrect password' });
-    if (voucher.status !== 'active') return res.render('login_result', { success: false, message: 'Voucher not active' });
+    if (!voucher) return res.render('login_result', { ok: false, message: 'Invalid username' });
+    if (voucher.password !== password) return res.render('login_result', { ok: false, message: 'Incorrect password' });
+    if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
 
     req.session.user = voucher.username;
-    res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
+    // ✅ Redirect to /admin for fresh CSRF token
+    res.redirect('/admin');
   } catch (err) {
     console.error(err);
-    res.render('login_result', { success: false, message: 'Server error' });
+    res.render('login_result', { ok: false, message: 'Server error' });
   }
-});
-
-app.get('/success', (req, res) => {
-  if (!req.session.user) return res.redirect('/');
-  res.render('login_result', { success: true, message: 'Login successful! You are now connected.' });
 });
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
+
 // ===== server.js Part 2 =====
 
 // --------------------
 // Admin Dashboard
 // --------------------
-app.get('/admin', csrfProtection, async (req, res) => {
+app.get('/admin', requireLogin, async (req, res) => {
   try {
     const vouchers = await db.getRecentVouchers(50);
-    const operators = await db.getOperators(); // ✅ Patch: fetch operators
+    const operators = await db.getOperators();
     const tunnelUrl = db.getTunnelUrl();
     res.render('admin', {
       vouchers,
-      operators, // ✅ Pass to EJS
+      operators,
       tunnelUrl,
       csrfToken: req.csrfToken()
     });
   } catch (err) {
     console.error(err);
-    res.send('Error loading admin dashboard');
+    res.render('login_result', { ok: false, message: 'Error loading admin dashboard' });
   }
 });
 
-app.post('/admin/create', csrfProtection, async (req, res) => {
+// Operator Management
+app.post('/admin/create-operator', requireLogin, csrfProtection, async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    const hash = await bcrypt.hash(password, 12);
+    await new Promise((resolve, reject) => {
+      db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'operator')",
+        [username, hash],
+        function (err) {
+          if (err) return reject(err);
+          resolve(true);
+        });
+    });
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error creating operator');
+  }
+});
+
+app.post('/admin/delete-operator/:id', requireLogin, csrfProtection, async (req, res) => {
+  try {
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM users WHERE id = ?", [req.params.id], function (err) {
+        if (err) return reject(err);
+        resolve(true);
+      });
+    });
+    res.redirect('/admin');
+  } catch (err) {
+    console.error(err);
+    res.send('Error deleting operator');
+  }
+});
+
+// Voucher Management
+app.post('/admin/create', requireLogin, csrfProtection, async (req, res) => {
   const { profile, batchTag } = req.body;
   try {
     await db.createVoucher(profile, batchTag);
@@ -101,7 +139,7 @@ app.post('/admin/create', csrfProtection, async (req, res) => {
   }
 });
 
-app.post('/admin/block/:id', csrfProtection, async (req, res) => {
+app.post('/admin/block/:id', requireLogin, csrfProtection, async (req, res) => {
   try {
     await db.blockVoucher(req.params.id);
     res.redirect('/admin');
@@ -111,7 +149,7 @@ app.post('/admin/block/:id', csrfProtection, async (req, res) => {
   }
 });
 
-app.post('/admin/delete/:id', csrfProtection, async (req, res) => {
+app.post('/admin/delete/:id', requireLogin, csrfProtection, async (req, res) => {
   try {
     await db.deleteVoucher(req.params.id);
     res.redirect('/admin');
@@ -121,30 +159,8 @@ app.post('/admin/delete/:id', csrfProtection, async (req, res) => {
   }
 });
 
-// --------------------
-// Voucher Export Routes
-// --------------------
-app.get('/admin/export', async (req, res) => {
-  try {
-    const vouchers = await db.getAllVouchers();
-    await db.logDownload('export-all', 'vouchers.csv', 'admin');
-    return exportCSV(res, vouchers, 'vouchers.csv', [
-      { label: 'Voucher ID', value: 'id' },
-      { label: 'Voucher Code', value: 'username' },
-      { label: 'Password', value: 'password' },
-      { label: 'Profile', value: 'profile' },
-      { label: 'Status', value: 'status' },
-      { label: 'Issued On', value: 'created_at' },
-      { label: 'Batch Tag', value: 'batch_tag' }
-    ]);
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting vouchers');
-  }
-});
-
 // Bulk Action Route
-app.post('/admin/bulk-action', csrfProtection, async (req, res) => {
+app.post('/admin/bulk-action', requireLogin, csrfProtection, async (req, res) => {
   const { action, voucherIds } = req.body;
   const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
   try {
@@ -159,46 +175,20 @@ app.post('/admin/bulk-action', csrfProtection, async (req, res) => {
   }
 });
 
-// --------------------
+// ===== server.js Part 3 =====
+
 // Logs Page & Export
-// --------------------
-app.get('/admin/logs', async (req, res) => {
+app.get('/admin/logs', requireLogin, async (req, res) => {
   try {
-    let { action, user, filename, startDate, endDate, sort, order, page } = req.query;
     let logs = await db.getDownloadLogs(500);
-
-    if (action) logs = logs.filter(l => l.action.toLowerCase().includes(action.toLowerCase()));
-    if (user) logs = logs.filter(l => l.user.toLowerCase().includes(user.toLowerCase()));
-    if (filename) logs = logs.filter(l => l.filename.toLowerCase().includes(filename.toLowerCase()));
-    if (startDate && endDate) {
-      logs = logs.filter(l => new Date(l.timestamp) >= new Date(startDate) && new Date(l.timestamp) <= new Date(endDate));
-    }
-
-    if (sort) {
-      logs.sort((a, b) => {
-        let valA = a[sort], valB = b[sort];
-        if (sort === 'timestamp') {
-          valA = new Date(valA); valB = new Date(valB);
-        }
-        if (valA < valB) return order === 'desc' ? 1 : -1;
-        if (valA > valB) return order === 'desc' ? -1 : 1;
-        return 0;
-      });
-    }
-
-    const pageSize = 50;
-    const currentPage = parseInt(page) || 1;
-    const totalPages = Math.ceil(logs.length / pageSize);
-    const paginatedLogs = logs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-    res.render('logs', { logs: paginatedLogs, totalPages, currentPage, query: req.query });
+    res.render('logs', { logs, totalPages: 1, currentPage: 1, query: {} });
   } catch (err) {
     console.error(err);
     res.send('Error loading logs');
   }
 });
 
-app.get('/admin/export-logs', async (req, res) => {
+app.get('/admin/export-logs', requireLogin, async (req, res) => {
   try {
     let logs = await db.getDownloadLogs(500);
     const fields = [
@@ -214,26 +204,13 @@ app.get('/admin/export-logs', async (req, res) => {
   }
 });
 
-app.get('/admin/export-logs-json', async (req, res) => {
-  try {
-    let logs = await db.getDownloadLogs(500);
-    res.json(logs);
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting logs as JSON');
-  }
-});
-
-// --------------------
-// Analytics Page Route
-// --------------------
-app.get('/analytics', csrfProtection, (req, res) => {
+// Analytics Page
+app.get('/analytics', requireLogin, (req, res) => {
   res.render('analytics', { csrfToken: req.csrfToken() });
 });
-// ===== server.js Part 3 =====
 
-// Stats Endpoint (summary stats)
-app.get('/admin/stats', async (req, res) => {
+// Stats Endpoints
+app.get('/admin/stats', requireLogin, async (req, res) => {
   try {
     const total = await db.countAllVouchers();
     const active = await db.countActiveVouchers();
@@ -246,60 +223,11 @@ app.get('/admin/stats', async (req, res) => {
     res.json({ total, active, inactive, exportsToday, profiles, exportsByProfile, creation });
   } catch (err) {
     console.error(err);
-    res.json({
-      total: 0, active: 0, inactive: 0, exportsToday: 0,
-      profiles: {}, exportsByProfile: {}, creation: { labels: [], values: [] }
-    });
+    res.json({ error: err.message });
   }
 });
 
-// Daily voucher creation
-app.get('/admin/stats-daily', async (req, res) => {
-  try {
-    const daily = await db.voucherCreationDaily();
-    res.json(daily);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Weekly voucher creation
-app.get('/admin/stats-weekly', async (req, res) => {
-  try {
-    const weekly = await db.voucherCreationWeekly();
-    res.json(weekly);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Profile performance (creation vs exports)
-app.get('/admin/stats-profile-performance', async (req, res) => {
-  try {
-    const perf = await db.profilePerformance();
-    res.json(perf);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Export behavior insights
-app.get('/admin/stats-export-behavior', async (req, res) => {
-  try {
-    const insights = await db.exportBehaviorInsights();
-    res.json(insights);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// --------------------
 // Start Server
-// --------------------
 app.listen(PORT, () => {
   console.log(`Server running on http://192.168.88.2:${PORT}`);
 });
