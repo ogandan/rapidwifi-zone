@@ -37,10 +37,9 @@
           Export Options
         </button>
         <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="/admin/export">Export All Vouchers</a></li>
-          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportDateModal">Export by Date</a></li>
-          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportProfileModal">Export by Profile</a></li>
-          <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#exportBatchModal">Export by Batch</a></li>
+          <li><a class="dropdown-item" href="/admin/export-all">Export All Vouchers (CSV)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-logs-csv">Export Filtered Logs (CSV)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-logs-json">Export Filtered Logs (JSON)</a></li>
         </ul>
       </div>
       <div class="btn-group me-2">
@@ -50,7 +49,6 @@
         <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
       </div>
     </div>
-<!-- ===== admin.ejs Part 2 ===== -->
 
     <!-- Operator Management -->
     <div class="mb-4">
@@ -86,7 +84,10 @@
               <td>
                 <form action="/admin/delete-operator/<%= op.id %>" method="POST" style="display:inline;">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                  <button type="submit" class="btn btn-danger btn-sm"
+                    <% if (op.hasActions) { %> disabled title="Cannot delete operator with actions" <% } %>>
+                    Delete
+                  </button>
                 </form>
               </td>
             </tr>
@@ -140,53 +141,6 @@
         </table>
       </div>
     </form>
-  </div>
-
-  <!-- Modals for Export -->
-  <div class="modal fade" id="exportDateModal" tabindex="-1">
-    <div class="modal-dialog">
-      <form action="/admin/export-range" method="GET" class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Export by Date</h5></div>
-        <div class="modal-body">
-          <input type="date" name="startDate" class="form-control mb-2" required>
-          <input type="date" name="endDate" class="form-control" required>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Export</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal fade" id="exportProfileModal" tabindex="-1">
-    <div class="modal-dialog">
-      <form action="/admin/export-profile" method="GET" class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Export by Profile</h5></div>
-        <div class="modal-body">
-          <select name="profile" class="form-select" required>
-            <option value="basic">Basic</option>
-            <option value="premium">Premium</option>
-          </select>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-warning">Export</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="modal fade" id="exportBatchModal" tabindex="-1">
-    <div class="modal-dialog">
-      <form action="/admin/export-batch" method="GET" class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">Export by Batch</h5></div>
-        <div class="modal-body">
-          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag" required>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-danger">Export</button>
-        </div>
-      </form>
-    </div>
   </div>
 
   <script>

@@ -38,24 +38,42 @@ function requireLogin(req, res, next) {
   next();
 }
 
+function requireAdmin(req, res, next) {
+  if (!req.session.user || req.session.role === 'voucher') {
+    return res.redirect('/');
+  }
+  next();
+}
+
 // --------------------
 // Login Routes
 // --------------------
 app.get('/', csrfProtection, (req, res) => {
-  if (req.session.user) return res.redirect('/admin');
   res.render('login', { csrfToken: req.csrfToken() });
 });
 
 app.post('/login', csrfProtection, async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, type } = req.body;
   try {
-    const voucher = await db.getVoucherByUsername(username);
-    if (!voucher) return res.render('login_result', { ok: false, message: 'Invalid username' });
-    if (voucher.password !== password) return res.render('login_result', { ok: false, message: 'Incorrect password' });
-    if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
+    if (type === 'voucher') {
+      const voucher = await db.getVoucherByUsername(username);
+      if (!voucher) return res.render('login_result', { ok: false, message: 'Invalid voucher' });
+      if (voucher.password !== password) return res.render('login_result', { ok: false, message: 'Incorrect voucher password' });
+      if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
 
-    req.session.user = voucher.username;
-    res.redirect('/admin');
+      req.session.user = voucher.username;
+      req.session.role = 'voucher';
+      return res.render('login_result', { ok: true, message: 'Voucher accepted. Internet access granted.' });
+    } else {
+      const operator = await db.getOperatorByUsername(username);
+      if (!operator) return res.render('login_result', { ok: false, message: 'Invalid admin/operator' });
+      const match = await bcrypt.compare(password, operator.password_hash);
+      if (!match) return res.render('login_result', { ok: false, message: 'Incorrect password' });
+
+      req.session.user = operator.username;
+      req.session.role = operator.role;
+      return res.redirect('/admin');
+    }
   } catch (err) {
     console.error(err);
     res.render('login_result', { ok: false, message: 'Server error' });
@@ -70,7 +88,7 @@ app.get('/logout', (req, res) => {
 // --------------------
 // Admin Dashboard
 // --------------------
-app.get('/admin', requireLogin, csrfProtection, async (req, res) => {
+app.get('/admin', requireAdmin, csrfProtection, async (req, res) => {
   try {
     const vouchers = await db.getRecentVouchers(50);
     const operators = await db.getOperators();
@@ -88,18 +106,11 @@ app.get('/admin', requireLogin, csrfProtection, async (req, res) => {
 });
 
 // Operator Management
-app.post('/admin/create-operator', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/create-operator', requireAdmin, csrfProtection, async (req, res) => {
   const { username, password } = req.body;
   try {
     const hash = await bcrypt.hash(password, 12);
-    await new Promise((resolve, reject) => {
-      db.run("INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'operator')",
-        [username, hash],
-        function (err) {
-          if (err) return reject(err);
-          resolve(true);
-        });
-    });
+    await db.createOperator(username, hash);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -107,14 +118,13 @@ app.post('/admin/create-operator', requireLogin, csrfProtection, async (req, res
   }
 });
 
-app.post('/admin/delete-operator/:id', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/delete-operator/:id', requireAdmin, csrfProtection, async (req, res) => {
   try {
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM users WHERE id = ?", [req.params.id], function (err) {
-        if (err) return reject(err);
-        resolve(true);
-      });
-    });
+    const hasActions = await db.operatorHasActions(req.params.id);
+    if (hasActions) {
+      return res.send('Cannot delete operator with existing actions (audit integrity)');
+    }
+    await db.deleteOperator(req.params.id);
     res.redirect('/admin');
   } catch (err) {
     console.error(err);
@@ -123,7 +133,7 @@ app.post('/admin/delete-operator/:id', requireLogin, csrfProtection, async (req,
 });
 
 // Voucher Management
-app.post('/admin/create', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/create', requireAdmin, csrfProtection, async (req, res) => {
   const { profile, batchTag } = req.body;
   try {
     await db.createVoucher(profile, batchTag);
@@ -134,7 +144,7 @@ app.post('/admin/create', requireLogin, csrfProtection, async (req, res) => {
   }
 });
 
-app.post('/admin/block/:id', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/block/:id', requireAdmin, csrfProtection, async (req, res) => {
   try {
     await db.blockVoucher(req.params.id);
     res.redirect('/admin');
@@ -144,7 +154,7 @@ app.post('/admin/block/:id', requireLogin, csrfProtection, async (req, res) => {
   }
 });
 
-app.post('/admin/delete/:id', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/delete/:id', requireAdmin, csrfProtection, async (req, res) => {
   try {
     await db.deleteVoucher(req.params.id);
     res.redirect('/admin');
@@ -155,7 +165,7 @@ app.post('/admin/delete/:id', requireLogin, csrfProtection, async (req, res) => 
 });
 
 // Bulk Action Route
-app.post('/admin/bulk-action', requireLogin, csrfProtection, async (req, res) => {
+app.post('/admin/bulk-action', requireAdmin, csrfProtection, async (req, res) => {
   const { action, voucherIds } = req.body;
   const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
   try {
@@ -172,7 +182,7 @@ app.post('/admin/bulk-action', requireLogin, csrfProtection, async (req, res) =>
 // ===== server.js Part 3 =====
 
 // Logs Page & Export
-app.get('/admin/logs', requireLogin, async (req, res) => {
+app.get('/admin/logs', requireAdmin, async (req, res) => {
   try {
     let logs = await db.getDownloadLogs(500);
     res.render('logs', { logs, totalPages: 1, currentPage: 1, query: {} });
@@ -182,39 +192,68 @@ app.get('/admin/logs', requireLogin, async (req, res) => {
   }
 });
 
-app.get('/admin/export-logs', requireLogin, async (req, res) => {
+// Export all vouchers
+app.get('/admin/export-all', requireAdmin, async (req, res) => {
   try {
-    let logs = await db.getDownloadLogs(500);
-    const fields = [
-      { label: 'Action', value: 'action' },
-      { label: 'Filename', value: 'filename' },
-      { label: 'User', value: 'user' },
-      { label: 'Timestamp', value: 'timestamp' }
-    ];
-    return exportCSV(res, logs, 'download_logs.csv', fields);
+    let vouchers = await db.getAllVouchers();
+    const fields = ['id', 'username', 'password', 'profile', 'status', 'batch_tag'];
+    return exportCSV(res, vouchers, 'all_vouchers.csv', fields);
   } catch (err) {
     console.error(err);
-    res.send('Error exporting logs');
+    res.send('Error exporting vouchers');
+  }
+});
+
+// Export filtered logs (CSV)
+app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
+  try {
+    let logs = await db.getFilteredLogs(req.query);
+    const fields = ['action', 'filename', 'user', 'timestamp'];
+    return exportCSV(res, logs, 'filtered_logs.csv', fields);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting logs CSV');
+  }
+});
+
+// Export filtered logs (JSON)
+app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
+  try {
+    let logs = await db.getFilteredLogs(req.query);
+    res.json(logs);
+  } catch (err) {
+    console.error(err);
+    res.send('Error exporting logs JSON');
   }
 });
 
 // Analytics Page
-app.get('/analytics', requireLogin, csrfProtection, async (req, res) => {
+app.get('/analytics', requireAdmin, csrfProtection, async (req, res) => {
   res.render('analytics', { csrfToken: req.csrfToken() });
 });
 
 // Stats Endpoints
-app.get('/admin/stats', requireLogin, async (req, res) => {
+app.get('/admin/stats', requireAdmin, async (req, res) => {
   try {
     const total = await db.countAllVouchers();
     const active = await db.countActiveVouchers();
     const inactive = await db.countInactiveVouchers();
-    const exportsToday = await db.countExportsToday();
     const profiles = await db.countVouchersByProfile();
+    const creation7days = await db.voucherCreationLast7Days();
+    const trends = await db.voucherCreationTrends();
     const exportsByProfile = await db.countExportsByProfile();
-    const creation = await db.voucherCreationOverTime();
+    const exportsOverTime = await db.countExportsOverTime();
 
-    res.json({ total, active, inactive, exportsToday, profiles, exportsByProfile, creation });
+    res.json({
+      total,
+      active,
+      inactive,
+      profiles,
+      creation7days,
+      trends,
+      exportsByProfile,
+      exportsOverTime
+    });
   } catch (err) {
     console.error(err);
     res.json({ error: err.message });

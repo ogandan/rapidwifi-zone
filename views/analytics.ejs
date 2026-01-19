@@ -1,230 +1,122 @@
-<!-- ===== analytics.ejs Part 1 ===== -->
+<!-- File: views/analytics.ejs -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Analytics</title>
+  <title>Analytics Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-light">
-  <div class="container py-4">
-    <h2 class="mb-4">Analytics</h2>
+<body class="container py-4">
+  <h2 class="mb-4">Analytics Dashboard</h2>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Total Vouchers</h5>
-            <h3 id="totalVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Active</h5>
-            <h3 id="activeVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Inactive</h5>
-            <h3 id="inactiveVouchers">0</h3>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="card text-center">
-          <div class="card-body">
-            <h5>Exports Today</h5>
-            <h3 id="exportsToday">0</h3>
-          </div>
-        </div>
-      </div>
+  <!-- Charts Row 1 -->
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <canvas id="statusChart"></canvas>
     </div>
-<!-- ===== analytics.ejs Part 2 ===== -->
-
-    <!-- Charts Section -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="voucherCreationChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="profileDistributionChart"></canvas>
-      </div>
-    </div>
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="statusPieChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="exportsByProfileChart"></canvas>
-      </div>
-    </div>
-
-    <!-- NEW Extended Analytics -->
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="voucherDailyChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="voucherWeeklyChart"></canvas>
-      </div>
-    </div>
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="profilePerformanceChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="exportBehaviorChart"></canvas>
-      </div>
+    <div class="col-md-6 mb-4">
+      <canvas id="profileChart"></canvas>
     </div>
   </div>
-<!-- ===== analytics.ejs Part 3 ===== -->
+
+  <!-- Charts Row 2 -->
+  <div class="row">
+    <div class="col-md-6 mb-4">
+      <canvas id="creationChart"></canvas>
+    </div>
+    <div class="col-md-6 mb-4">
+      <canvas id="trendsChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Charts Row 3 -->
+  <div class="row">
+    <div class="col-md-12 mb-4">
+      <canvas id="exportsChart"></canvas>
+    </div>
+  </div>
+
   <script>
-    // Fetch stats and render charts
     fetch('/admin/stats')
       .then(res => res.json())
       .then(data => {
-        // Update cards
-        document.getElementById('totalVouchers').innerText = data.total;
-        document.getElementById('activeVouchers').innerText = data.active;
-        document.getElementById('inactiveVouchers').innerText = data.inactive;
-        document.getElementById('exportsToday').innerText = data.exportsToday;
-
-        // Voucher creation over time (line chart)
-        new Chart(document.getElementById('voucherCreationChart'), {
-          type: 'line',
-          data: {
-            labels: data.creation.labels,
-            datasets: [{
-              label: 'Voucher Creation (last 7 days)',
-              data: data.creation.values,
-              borderColor: '#0d6efd',
-              fill: false
-            }]
-          }
-        });
-
-        // Profile distribution (bar chart)
-        new Chart(document.getElementById('profileDistributionChart'), {
-          type: 'bar',
-          data: {
-            labels: Object.keys(data.profiles),
-            datasets: [{
-              label: 'Profiles',
-              data: Object.values(data.profiles),
-              backgroundColor: '#198754'
-            }]
-          }
-        });
-
-        // Status distribution (pie chart)
-        new Chart(document.getElementById('statusPieChart'), {
-          type: 'pie',
+        // Status chart (active vs inactive)
+        new Chart(document.getElementById('statusChart'), {
+          type: 'doughnut',
           data: {
             labels: ['Active', 'Inactive'],
             datasets: [{
               data: [data.active, data.inactive],
-              backgroundColor: ['#0d6efd', '#dc3545']
+              backgroundColor: ['#28a745', '#dc3545']
             }]
-          }
+          },
+          options: { plugins: { title: { display: true, text: 'Voucher Status' } } }
         });
 
-        // Exports by profile (bar chart)
-        new Chart(document.getElementById('exportsByProfileChart'), {
+        // Profile distribution chart
+        new Chart(document.getElementById('profileChart'), {
+          type: 'bar',
+          data: {
+            labels: Object.keys(data.profiles),
+            datasets: [{
+              label: 'Vouchers by Profile',
+              data: Object.values(data.profiles),
+              backgroundColor: '#007bff'
+            }]
+          },
+          options: { plugins: { title: { display: true, text: 'Profile Distribution' } } }
+        });
+
+        // Voucher counts last 7 days
+        new Chart(document.getElementById('creationChart'), {
+          type: 'line',
+          data: {
+            labels: data.creation7days.labels,
+            datasets: [{
+              label: 'Vouchers Created (Last 7 Days)',
+              data: data.creation7days.values,
+              borderColor: '#17a2b8',
+              fill: false
+            }]
+          },
+          options: { plugins: { title: { display: true, text: 'Voucher Counts (Last 7 Days)' } } }
+        });
+
+        // Trends chart (longer time series)
+        new Chart(document.getElementById('trendsChart'), {
+          type: 'line',
+          data: {
+            labels: data.trends.labels,
+            datasets: [{
+              label: 'Voucher Creation Trends',
+              data: data.trends.values,
+              borderColor: '#6f42c1',
+              fill: false
+            }]
+          },
+          options: { plugins: { title: { display: true, text: 'Voucher Creation Trends' } } }
+        });
+
+        // Exports chart
+        new Chart(document.getElementById('exportsChart'), {
           type: 'bar',
           data: {
             labels: Object.keys(data.exportsByProfile),
             datasets: [{
-              label: 'Exports',
+              label: 'Exports by Profile',
               data: Object.values(data.exportsByProfile),
-              backgroundColor: '#fd7e14'
-            }]
-          }
-        });
-      });
-
-    // NEW: Daily vouchers
-    fetch('/admin/stats-daily')
-      .then(res => res.json())
-      .then(rows => {
-        new Chart(document.getElementById('voucherDailyChart'), {
-          type: 'line',
-          data: {
-            labels: rows.map(r => r.day),
-            datasets: [{
-              label: 'Daily Vouchers',
-              data: rows.map(r => r.count),
-              borderColor: '#6610f2',
-              fill: false
-            }]
-          }
-        });
-      });
-
-    // NEW: Weekly vouchers
-    fetch('/admin/stats-weekly')
-      .then(res => res.json())
-      .then(rows => {
-        new Chart(document.getElementById('voucherWeeklyChart'), {
-          type: 'bar',
-          data: {
-            labels: rows.map(r => r.week),
-            datasets: [{
-              label: 'Weekly Vouchers',
-              data: rows.map(r => r.count),
+              backgroundColor: '#ffc107'
+            },
+            {
+              label: 'Exports Over Time',
+              data: data.exportsOverTime.values,
               backgroundColor: '#20c997'
             }]
-          }
+          },
+          options: { plugins: { title: { display: true, text: 'Exports (CSV/JSON)' } } }
         });
-      });
-
-    // NEW: Profile performance
-    fetch('/admin/stats-profile-performance')
-      .then(res => res.json())
-      .then(rows => {
-        new Chart(document.getElementById('profilePerformanceChart'), {
-          type: 'bar',
-          data: {
-            labels: rows.map(r => r.profile),
-            datasets: [
-              {
-                label: 'Vouchers',
-                data: rows.map(r => r.vouchers),
-                backgroundColor: '#0d6efd'
-              },
-              {
-                label: 'Exports',
-                data: rows.map(r => r.exports),
-                backgroundColor: '#fd7e14'
-              }
-            ]
-          }
-        });
-      });
-
-    // NEW: Export behavior insights
-    fetch('/admin/stats-export-behavior')
-      .then(res => res.json())
-      .then(rows => {
-        new Chart(document.getElementById('exportBehaviorChart'), {
-          type: 'line',
-          data: {
-            labels: rows.map(r => r.day),
-            datasets: [{
-              label: 'Exports',
-              data: rows.map(r => r.exports),
-              borderColor: '#dc3545',
-              fill: false
-            }]
-          }
-        });
-      });
+      })
+      .catch(err => console.error('Error loading stats:', err));
   </script>
 </body>
 </html>
