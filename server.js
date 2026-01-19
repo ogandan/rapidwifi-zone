@@ -76,8 +76,14 @@ app.get('/logout', (req, res) => {
 app.get('/admin', csrfProtection, async (req, res) => {
   try {
     const vouchers = await db.getRecentVouchers(50);
+    const operators = await db.getOperators(); // ✅ Patch: fetch operators
     const tunnelUrl = db.getTunnelUrl();
-    res.render('admin', { vouchers, tunnelUrl, csrfToken: req.csrfToken() });
+    res.render('admin', {
+      vouchers,
+      operators, // ✅ Pass to EJS
+      tunnelUrl,
+      csrfToken: req.csrfToken()
+    });
   } catch (err) {
     console.error(err);
     res.send('Error loading admin dashboard');
