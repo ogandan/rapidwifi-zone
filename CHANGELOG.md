@@ -4,6 +4,16 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2300] - 20 Jan 2026 23:00 WAT
+### Added
+- Responsive analytics dashboard layout:
+  - Grid-based container for charts.
+  - Card styling with shadows and rounded corners.
+  - Chart.js configured for fluid resizing (`responsive: true`, `maintainAspectRatio: false`).
+- Ensured charts stack neatly on mobile with reduced height.
+
+---
+
 ## [20012026-2245] - 20 Jan 2026 22:45 WAT
 ### Added
 - New `styles.css` for polished, responsive UI across all dashboards (admin, operator, analytics, logs).

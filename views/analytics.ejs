@@ -1,122 +1,146 @@
-<!-- File: views/analytics.ejs -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Analytics Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <title>Analytics Dashboard - RAPIDWIFI-ZONE</title>
+  <link rel="stylesheet" href="/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="container py-4">
-  <h2 class="mb-4">Analytics Dashboard</h2>
+<body>
+  <header>
+    <h1>Analytics Dashboard</h1>
+    <nav>
+      <a href="/admin">Admin Dashboard</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
 
-  <!-- Charts Row 1 -->
-  <div class="row">
-    <div class="col-md-6 mb-4">
-      <canvas id="statusChart"></canvas>
-    </div>
-    <div class="col-md-6 mb-4">
-      <canvas id="profileChart"></canvas>
-    </div>
-  </div>
+  <main>
+    <h2>System Analytics</h2>
+    <div class="analytics-container">
+      <!-- Voucher Creation (Last 7 Days) -->
+      <div class="chart-card">
+        <h3>Voucher Creation (Last 7 Days)</h3>
+        <div class="chart-wrapper">
+          <canvas id="creation7daysChart"></canvas>
+        </div>
+      </div>
 
-  <!-- Charts Row 2 -->
-  <div class="row">
-    <div class="col-md-6 mb-4">
-      <canvas id="creationChart"></canvas>
-    </div>
-    <div class="col-md-6 mb-4">
-      <canvas id="trendsChart"></canvas>
-    </div>
-  </div>
+      <!-- Voucher Trends (Weekly) -->
+      <div class="chart-card">
+        <h3>Voucher Trends (Weekly)</h3>
+        <div class="chart-wrapper">
+          <canvas id="trendsChart"></canvas>
+        </div>
+      </div>
 
-  <!-- Charts Row 3 -->
-  <div class="row">
-    <div class="col-md-12 mb-4">
-      <canvas id="exportsChart"></canvas>
+      <!-- Exports Over Time -->
+      <div class="chart-card">
+        <h3>Exports Over Time</h3>
+        <div class="chart-wrapper">
+          <canvas id="exportsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Active vs Inactive Vouchers -->
+      <div class="chart-card">
+        <h3>Active vs Inactive Vouchers</h3>
+        <div class="chart-wrapper">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Exports by Profile -->
+      <div class="chart-card">
+        <h3>Exports by Profile</h3>
+        <div class="chart-wrapper">
+          <canvas id="exportsProfileChart"></canvas>
+        </div>
+      </div>
     </div>
-  </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
+  </footer>
 
   <script>
+    // Fetch analytics data from server
     fetch('/admin/stats')
       .then(res => res.json())
       .then(data => {
-        // Status chart (active vs inactive)
+        // Voucher Creation (Last 7 Days)
+        new Chart(document.getElementById('creation7daysChart'), {
+          type: 'line',
+          data: {
+            labels: data.creation7days.labels,
+            datasets: [{
+              label: 'Vouchers Created',
+              data: data.creation7days.values,
+              borderColor: '#0077cc',
+              backgroundColor: 'rgba(0,119,204,0.2)',
+              fill: true
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Voucher Trends (Weekly)
+        new Chart(document.getElementById('trendsChart'), {
+          type: 'bar',
+          data: {
+            labels: data.trends.labels,
+            datasets: [{
+              label: 'Weekly Vouchers',
+              data: data.trends.values,
+              backgroundColor: '#00aa77'
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Exports Over Time
+        new Chart(document.getElementById('exportsChart'), {
+          type: 'line',
+          data: {
+            labels: data.exportsOverTime.labels,
+            datasets: [{
+              label: 'Exports',
+              data: data.exportsOverTime.values,
+              borderColor: '#ff9900',
+              backgroundColor: 'rgba(255,153,0,0.2)',
+              fill: true
+            }]
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        // Active vs Inactive Vouchers
         new Chart(document.getElementById('statusChart'), {
           type: 'doughnut',
           data: {
             labels: ['Active', 'Inactive'],
             datasets: [{
               data: [data.active, data.inactive],
-              backgroundColor: ['#28a745', '#dc3545']
+              backgroundColor: ['#0077cc', '#cccccc']
             }]
           },
-          options: { plugins: { title: { display: true, text: 'Voucher Status' } } }
+          options: { responsive: true, maintainAspectRatio: false }
         });
 
-        // Profile distribution chart
-        new Chart(document.getElementById('profileChart'), {
+        // Exports by Profile
+        new Chart(document.getElementById('exportsProfileChart'), {
           type: 'bar',
           data: {
-            labels: Object.keys(data.profiles),
+            labels: data.exportsByProfile.map(p => p.profile),
             datasets: [{
-              label: 'Vouchers by Profile',
-              data: Object.values(data.profiles),
-              backgroundColor: '#007bff'
+              label: 'Exports',
+              data: data.exportsByProfile.map(p => p.count),
+              backgroundColor: '#004aad'
             }]
           },
-          options: { plugins: { title: { display: true, text: 'Profile Distribution' } } }
+          options: { responsive: true, maintainAspectRatio: false }
         });
-
-        // Voucher counts last 7 days
-        new Chart(document.getElementById('creationChart'), {
-          type: 'line',
-          data: {
-            labels: data.creation7days.labels,
-            datasets: [{
-              label: 'Vouchers Created (Last 7 Days)',
-              data: data.creation7days.values,
-              borderColor: '#17a2b8',
-              fill: false
-            }]
-          },
-          options: { plugins: { title: { display: true, text: 'Voucher Counts (Last 7 Days)' } } }
-        });
-
-        // Trends chart (longer time series)
-        new Chart(document.getElementById('trendsChart'), {
-          type: 'line',
-          data: {
-            labels: data.trends.labels,
-            datasets: [{
-              label: 'Voucher Creation Trends',
-              data: data.trends.values,
-              borderColor: '#6f42c1',
-              fill: false
-            }]
-          },
-          options: { plugins: { title: { display: true, text: 'Voucher Creation Trends' } } }
-        });
-
-        // Exports chart
-        new Chart(document.getElementById('exportsChart'), {
-          type: 'bar',
-          data: {
-            labels: Object.keys(data.exportsByProfile),
-            datasets: [{
-              label: 'Exports by Profile',
-              data: Object.values(data.exportsByProfile),
-              backgroundColor: '#ffc107'
-            },
-            {
-              label: 'Exports Over Time',
-              data: data.exportsOverTime.values,
-              backgroundColor: '#20c997'
-            }]
-          },
-          options: { plugins: { title: { display: true, text: 'Exports (CSV/JSON)' } } }
-        });
-      })
-      .catch(err => console.error('Error loading stats:', err));
+      });
   </script>
 </body>
 </html>
