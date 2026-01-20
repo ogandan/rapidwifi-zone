@@ -4,6 +4,15 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2125] - 20 Jan 2026 21:25 WAT
+### Added
+- Migration script to create missing `operators` table.
+- Rebuilt `payments` and `delivery_logs` tables with foreign keys to `vouchers`.
+- Ensured data copied from old tables before dropping them.
+- Enabled foreign key enforcement (`PRAGMA foreign_keys = ON`).
+
+---
+
 ## [20012026-1645] - 20 Jan 2026 16:45 WAT
 ### Changed
 - Completed full corrected `db.js` (Parts 1 + 2).
