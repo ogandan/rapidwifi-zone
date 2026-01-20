@@ -1,267 +1,169 @@
-// ===== server.js Part 1 =====
+// server.js - RAPIDWIFI-ZONE main entry point
 const express = require('express');
 const session = require('express-session');
-const bodyParser = require('body-parser');
-const path = require('path');
-const db = require('./data/db');
-const { Parser } = require('json2csv');
 const csrf = require('csurf');
-const bcrypt = require('bcrypt');
+const bodyParser = require('body-parser');
+const db = require('./data/db');
+const voucherManager = require('./modules/voucherManager');
 
 const app = express();
-const PORT = 3000;
-
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-  secret: 'rapidwifi-secret',
-  resave: false,
-  saveUninitialized: true
-}));
-
-const csrfProtection = csrf();
-
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use(session({ secret: 'rapidwifi-secret', resave: false, saveUninitialized: true }));
+app.use(csrf());
 
-function exportCSV(res, data, filename, fields) {
-  const parser = new Parser({ fields });
-  const csv = parser.parse(data);
-  res.header('Content-Type', 'text/csv');
-  res.attachment(filename);
-  return res.send(csv);
-}
-
+// --------------------
+// Middleware
+// --------------------
 function requireLogin(req, res, next) {
-  if (!req.session.user) {
-    return res.redirect('/');
-  }
+  if (!req.session.user) return res.redirect('/login');
   next();
 }
-
 function requireAdmin(req, res, next) {
-  if (!req.session.user || req.session.role === 'voucher') {
-    return res.redirect('/');
-  }
+  if (!req.session.user || req.session.role !== 'admin') return res.status(403).send('Forbidden');
+  next();
+}
+function requireOperator(req, res, next) {
+  if (!req.session.user || req.session.role !== 'operator') return res.status(403).send('Forbidden');
   next();
 }
 
 // --------------------
-// Login Routes
+// Auth Routes
 // --------------------
-app.get('/', csrfProtection, (req, res) => {
-  res.render('login', { csrfToken: req.csrfToken() });
-});
-
-app.post('/login', csrfProtection, async (req, res) => {
-  const { username, password, type } = req.body;
-  try {
-    if (type === 'voucher') {
-      const voucher = await db.getVoucherByUsername(username);
-      if (!voucher) return res.render('login_result', { ok: false, message: 'Invalid voucher' });
-      if (voucher.password !== password) return res.render('login_result', { ok: false, message: 'Incorrect voucher password' });
-      if (voucher.status !== 'active') return res.render('login_result', { ok: false, message: 'Voucher not active' });
-
-      req.session.user = voucher.username;
-      req.session.role = 'voucher';
-      return res.render('login_result', { ok: true, message: 'Voucher accepted. Internet access granted.' });
-    } else {
-      const operator = await db.getOperatorByUsername(username);
-      if (!operator) return res.render('login_result', { ok: false, message: 'Invalid admin/operator' });
-      const match = await bcrypt.compare(password, operator.password_hash);
-      if (!match) return res.render('login_result', { ok: false, message: 'Incorrect password' });
-
-      req.session.user = operator.username;
-      req.session.role = operator.role;
-      return res.redirect('/admin');
-    }
-  } catch (err) {
-    console.error(err);
-    res.render('login_result', { ok: false, message: 'Server error' });
+app.get('/login', (req, res) => res.render('login', { csrfToken: req.csrfToken() }));
+app.post('/login', async (req, res) => {
+  const { username } = req.body;
+  const voucher = await voucherManager.validateVoucher(username);
+  if (voucher) {
+    req.session.user = username;
+    req.session.role = 'user';
+    res.render('login_result', { ok: true, message: 'Login successful' });
+  } else {
+    res.render('login_result', { ok: false, message: 'Invalid voucher' });
   }
 });
-
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
-});
-// ===== server.js Part 2 =====
 
 // --------------------
 // Admin Dashboard
 // --------------------
-app.get('/admin', requireAdmin, csrfProtection, async (req, res) => {
-  try {
-    const vouchers = await db.getRecentVouchers(50);
-    const operators = await db.getOperators();
-    const tunnelUrl = db.getTunnelUrl();
-    res.render('admin', {
-      vouchers,
-      operators,
-      tunnelUrl,
-      csrfToken: req.csrfToken()
-    });
-  } catch (err) {
-    console.error(err);
-    res.render('login_result', { ok: false, message: 'Error loading admin dashboard' });
-  }
+app.get('/admin', requireAdmin, async (req, res) => {
+  const vouchers = await voucherManager.listVouchers();
+  const operators = await db.getOperators();
+  const tunnelUrl = await db.getTunnelUrl();
+  res.render('admin', { vouchers, operators, tunnelUrl });
 });
 
-// Operator Management
-app.post('/admin/create-operator', requireAdmin, csrfProtection, async (req, res) => {
-  const { username, password } = req.body;
-  try {
-    const hash = await bcrypt.hash(password, 12);
-    await db.createOperator(username, hash);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error creating operator');
-  }
+// Operator Dashboard
+app.get('/operator', requireOperator, async (req, res) => {
+  const vouchers = await voucherManager.listVouchers();
+  res.render('operator', { vouchers });
 });
 
-app.post('/admin/delete-operator/:id', requireAdmin, csrfProtection, async (req, res) => {
-  try {
-    const hasActions = await db.operatorHasActions(req.params.id);
-    if (hasActions) {
-      return res.send('Cannot delete operator with existing actions (audit integrity)');
-    }
-    await db.deleteOperator(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error deleting operator');
-  }
+// --------------------
+// Voucher Lifecycle
+// --------------------
+app.post('/admin/create-voucher', requireAdmin, async (req, res) => {
+  const { profile } = req.body;
+  const voucher = await voucherManager.createVoucher(profile);
+  res.json(voucher);
 });
 
-// Voucher Management
-app.post('/admin/create', requireAdmin, csrfProtection, async (req, res) => {
-  const { profile, batchTag } = req.body;
-  try {
-    await db.createVoucher(profile, batchTag);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error creating voucher');
-  }
+app.post('/admin/disable-voucher', requireAdmin, async (req, res) => {
+  const { username } = req.body;
+  const result = await voucherManager.disableVoucher(username);
+  res.json(result);
 });
 
-app.post('/admin/block/:id', requireAdmin, csrfProtection, async (req, res) => {
-  try {
-    await db.blockVoucher(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error blocking voucher');
-  }
+// --------------------
+// Payments
+// --------------------
+app.post('/pay/mtn', requireAdmin, async (req, res) => {
+  const { user, amount } = req.body;
+  const result = await voucherManager.initiateMTNPayment(user, amount);
+  res.json(result);
 });
 
-app.post('/admin/delete/:id', requireAdmin, csrfProtection, async (req, res) => {
-  try {
-    await db.deleteVoucher(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error deleting voucher');
-  }
+app.post('/pay/moov', requireAdmin, async (req, res) => {
+  const { user, amount } = req.body;
+  const result = await voucherManager.initiateMoovPayment(user, amount);
+  res.json(result);
 });
 
-// Bulk Action Route
-app.post('/admin/bulk-action', requireAdmin, csrfProtection, async (req, res) => {
-  const { action, voucherIds } = req.body;
-  const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
-  try {
-    for (const id of ids) {
-      if (action === 'block') await db.blockVoucher(id);
-      if (action === 'delete') await db.deleteVoucher(id);
-    }
-    res.redirect('/admin');
-  } catch (err) {
-    console.error(err);
-    res.send('Error applying bulk action');
-  }
-});
-// ===== server.js Part 3 =====
-
-// Logs Page & Export
-app.get('/admin/logs', requireAdmin, async (req, res) => {
-  try {
-    let logs = await db.getDownloadLogs(500);
-    res.render('logs', { logs, totalPages: 1, currentPage: 1, query: {} });
-  } catch (err) {
-    console.error(err);
-    res.send('Error loading logs');
-  }
+app.post('/pay/cash', requireOperator, async (req, res) => {
+  const { user, amount, profile } = req.body;
+  const result = await voucherManager.recordCashPayment(req.session.user, user, amount, profile);
+  res.json(result);
 });
 
-// Export all vouchers
-app.get('/admin/export-all', requireAdmin, async (req, res) => {
-  try {
-    let vouchers = await db.getAllVouchers();
-    const fields = ['id', 'username', 'password', 'profile', 'status', 'batch_tag'];
-    return exportCSV(res, vouchers, 'all_vouchers.csv', fields);
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting vouchers');
-  }
+// --------------------
+// Voucher Delivery
+// --------------------
+app.post('/deliver-voucher/:id', requireAdmin, async (req, res) => {
+  const { channel, recipient } = req.body;
+  const voucherId = req.params.id;
+  const voucher = { username: voucherId }; // simplified lookup
+  let result;
+  if (channel === 'SMS') result = await voucherManager.deliverVoucherSMS(voucher, recipient);
+  else if (channel === 'WhatsApp') result = await voucherManager.deliverVoucherWhatsApp(voucher, recipient);
+  else if (channel === 'Telegram') result = await voucherManager.deliverVoucherTelegram(voucher, recipient);
+  res.json(result);
 });
 
-// Export filtered logs (CSV)
-app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
-  try {
-    let logs = await db.getFilteredLogs(req.query);
-    const fields = ['action', 'filename', 'user', 'timestamp'];
-    return exportCSV(res, logs, 'filtered_logs.csv', fields);
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting logs CSV');
-  }
-});
-
-// Export filtered logs (JSON)
-app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
-  try {
-    let logs = await db.getFilteredLogs(req.query);
-    res.json(logs);
-  } catch (err) {
-    console.error(err);
-    res.send('Error exporting logs JSON');
-  }
-});
-
-// Analytics Page
-app.get('/analytics', requireAdmin, csrfProtection, async (req, res) => {
-  res.render('analytics', { csrfToken: req.csrfToken() });
-});
-
-// Stats Endpoints
+// --------------------
+// Analytics
+// --------------------
 app.get('/admin/stats', requireAdmin, async (req, res) => {
-  try {
-    const total = await db.countAllVouchers();
-    const active = await db.countActiveVouchers();
-    const inactive = await db.countInactiveVouchers();
-    const profiles = await db.countVouchersByProfile();
-    const creation7days = await db.voucherCreationLast7Days();
-    const trends = await db.voucherCreationTrends();
-    const exportsByProfile = await db.countExportsByProfile();
-    const exportsOverTime = await db.countExportsOverTime();
+  const creation7days = await voucherManager.voucherCreationLast7Days();
+  const trends = await voucherManager.voucherCreationTrends();
+  const exportsOverTime = await voucherManager.countExportsOverTime();
+  const active = await db.countActiveVouchers();
+  const inactive = await db.countInactiveVouchers();
+  const profiles = await db.countProfiles();
+  const exportsByProfile = await db.countExportsByProfile();
+  res.json({ active, inactive, profiles, creation7days, trends, exportsOverTime, exportsByProfile });
+});
 
-    res.json({
-      total,
-      active,
-      inactive,
-      profiles,
-      creation7days,
-      trends,
-      exportsByProfile,
-      exportsOverTime
-    });
-  } catch (err) {
-    console.error(err);
-    res.json({ error: err.message });
+// --------------------
+// Logs
+// --------------------
+app.get('/admin/logs', requireAdmin, async (req, res) => {
+  const logs = await db.getDownloadLogs();
+  res.render('logs', { logs });
+});
+
+// --------------------
+// Tunnel Management
+// --------------------
+app.post('/admin/tunnel', requireAdmin, async (req, res) => {
+  const { url } = req.body;
+  await db.saveTunnelUrl(url);
+  res.json({ ok: true, tunnelUrl: url });
+});
+
+// --------------------
+// Operator Management
+// --------------------
+app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+  const { name } = req.body;
+  const operator = await db.createOperator(name);
+  res.json(operator);
+});
+
+app.post('/admin/delete-operator', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  const hasActions = await db.operatorHasActions(id);
+  if (hasActions) {
+    res.json({ ok: false, message: 'Operator cannot be deleted after performing actions' });
+  } else {
+    await db.deleteOperator(id);
+    res.json({ ok: true });
   }
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server running on http://192.168.88.2:${PORT}`);
-});
+// --------------------
+// Start server
+// --------------------
+app.listen(3000, () => console.log('RAPIDWIFI-ZONE running on port 3000'));
 
