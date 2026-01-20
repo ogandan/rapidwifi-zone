@@ -4,6 +4,15 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2355] - 20 Jan 2026 23:55 WAT
+### Added
+- New `login.ejs` template with responsive layout for voucher login form.
+- Centered card-style login container with polished styling.
+- Mobile-friendly adjustments: reduced padding, smaller header font, full-width button.
+- Ensured consistent design language across all dashboards.
+
+---
+
 ## [20012026-2340] - 20 Jan 2026 23:40 WAT
 ### Added
 - New `logs.ejs` template with responsive layout.
