@@ -4,6 +4,15 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2340] - 20 Jan 2026 23:40 WAT
+### Added
+- New `logs.ejs` template with responsive layout.
+- Desktop: clean table view with headers.
+- Mobile: collapses into card-style blocks using `data-label` for readability.
+- Unified display for audit and download logs.
+
+---
+
 ## [20012026-2320] - 20 Jan 2026 23:20 WAT
 ### Added
 - Full updated `analytics.ejs` template with responsive CSS integration.
