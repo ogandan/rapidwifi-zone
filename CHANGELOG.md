@@ -4,6 +4,16 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2245] - 20 Jan 2026 22:45 WAT
+### Added
+- New `styles.css` for polished, responsive UI across all dashboards (admin, operator, analytics, logs).
+- Operator dashboard distinct styling:
+  - Green gradient header and buttons.
+  - Visual separation from admin dashboard.
+- Responsive tables collapse into card-style blocks on mobile devices.
+
+---
+
 ## [20012026-2210] - 20 Jan 2026 22:10 WAT
 ### Added
 - New `operator.ejs` template for restricted operator dashboard.
