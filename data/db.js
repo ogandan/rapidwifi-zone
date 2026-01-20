@@ -127,9 +127,27 @@ function getVouchersByBatch(batchTag) {
 // --------------------
 function getOperators() {
   return new Promise((resolve, reject) => {
-    db.all("SELECT id, username, role FROM users WHERE role = 'operator'", [], (err, rows) => {
+    db.all("SELECT id, username, role FROM users WHERE role = 'operator'", [], async (err, rows) => {
       if (err) return reject(err);
-      resolve(rows);
+
+      try {
+        const enriched = await Promise.all(rows.map(op => {
+          return new Promise((res, rej) => {
+            db.get(
+              "SELECT COUNT(*) AS count FROM download_logs WHERE user = ?",
+              [op.username],
+              (err2, row) => {
+                if (err2) return rej(err2);
+                op.hasActions = row.count > 0;
+                res(op);
+              }
+            );
+          });
+        }));
+        resolve(enriched);
+      } catch (e) {
+        reject(e);
+      }
     });
   });
 }
@@ -177,288 +195,4 @@ function operatorHasActions(id) {
     );
   });
 }
-// ===== db.js Part 2 =====
-
-// --------------------
-// Analytics Functions (continued)
-// --------------------
-function profilePerformance() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT v.profile,
-              COUNT(v.id) AS vouchers,
-              COALESCE(e.exports, 0) AS exports
-       FROM vouchers v
-       LEFT JOIN (
-         SELECT profile, COUNT(*) AS exports
-         FROM download_logs
-         GROUP BY profile
-       ) e ON v.profile = e.profile
-       GROUP BY v.profile`,
-      [],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-function exportBehaviorInsights() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT user AS admin_user,
-              profile,
-              DATE(timestamp) AS day,
-              COUNT(*) AS exports
-       FROM download_logs
-       GROUP BY admin_user, profile, day
-       ORDER BY day DESC`,
-      [],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-// --------------------
-// Tunnel URL Functions
-// --------------------
-function getTunnelUrl() {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    if (fs.existsSync(urlFile)) {
-      return fs.readFileSync(urlFile, 'utf8').trim();
-    }
-    return '';
-  } catch (err) {
-    console.error('Error reading tunnel_url.txt:', err);
-    return '';
-  }
-}
-
-function saveTunnelUrl(url) {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    fs.writeFileSync(urlFile, url, 'utf8');
-    return true;
-  } catch (err) {
-    console.error('Error writing tunnel_url.txt:', err);
-    return false;
-  }
-}
-
-// --------------------
-// Download Log Functions
-// --------------------
-function logDownload(action, filename, user, profile) {
-  return new Promise((resolve, reject) => {
-    const timestamp = new Date().toISOString();
-    db.run(
-      "INSERT INTO download_logs (action, filename, user, profile, timestamp) VALUES (?, ?, ?, ?, ?)",
-      [action, filename, user || 'admin', profile || 'unknown', timestamp],
-      function (err) {
-        if (err) return reject(err);
-        resolve(true);
-      }
-    );
-  });
-}
-
-function getDownloadLogs(limit = 50) {
-  return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM download_logs ORDER BY timestamp DESC LIMIT ?", [limit], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
-}
-
-// --------------------
-// Exports
-// --------------------
-module.exports = {
-  // Voucher functions
-  getVoucherByUsername,
-  getRecentVouchers,
-  createVoucher,
-  blockVoucher,
-  deleteVoucher,
-  getAllVouchers,
-  getVouchersByDateRange,
-  getVouchersByProfile,
-  getVouchersByBatch,
-
-  // Operator functions
-  getOperators,
-  getOperatorByUsername,
-  createOperator,
-  deleteOperator,
-  operatorHasActions,
-
-  // Analytics functions
-  countAllVouchers,
-  countActiveVouchers,
-  countInactiveVouchers,
-  countExportsToday,
-  countVouchersByProfile,
-  countExportsByProfile,
-  voucherCreationOverTime,
-  voucherCreationDaily,
-  voucherCreationWeekly,
-  profilePerformance,
-  exportBehaviorInsights,
-
-  // Tunnel functions
-  getTunnelUrl,
-  saveTunnelUrl,
-
-  // Log functions
-  logDownload,
-  getDownloadLogs
-};
-// ===== db.js Part 2 =====
-
-// --------------------
-// Analytics Functions (continued)
-// --------------------
-function profilePerformance() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT v.profile,
-              COUNT(v.id) AS vouchers,
-              COALESCE(e.exports, 0) AS exports
-       FROM vouchers v
-       LEFT JOIN (
-         SELECT profile, COUNT(*) AS exports
-         FROM download_logs
-         GROUP BY profile
-       ) e ON v.profile = e.profile
-       GROUP BY v.profile`,
-      [],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-function exportBehaviorInsights() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `SELECT user AS admin_user,
-              profile,
-              DATE(timestamp) AS day,
-              COUNT(*) AS exports
-       FROM download_logs
-       GROUP BY admin_user, profile, day
-       ORDER BY day DESC`,
-      [],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-// --------------------
-// Tunnel URL Functions
-// --------------------
-function getTunnelUrl() {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    if (fs.existsSync(urlFile)) {
-      return fs.readFileSync(urlFile, 'utf8').trim();
-    }
-    return '';
-  } catch (err) {
-    console.error('Error reading tunnel_url.txt:', err);
-    return '';
-  }
-}
-
-function saveTunnelUrl(url) {
-  try {
-    const urlFile = path.join(__dirname, 'tunnel_url.txt');
-    fs.writeFileSync(urlFile, url, 'utf8');
-    return true;
-  } catch (err) {
-    console.error('Error writing tunnel_url.txt:', err);
-    return false;
-  }
-}
-
-// --------------------
-// Download Log Functions
-// --------------------
-function logDownload(action, filename, user, profile) {
-  return new Promise((resolve, reject) => {
-    const timestamp = new Date().toISOString();
-    db.run(
-      "INSERT INTO download_logs (action, filename, user, profile, timestamp) VALUES (?, ?, ?, ?, ?)",
-      [action, filename, user || 'admin', profile || 'unknown', timestamp],
-      function (err) {
-        if (err) return reject(err);
-        resolve(true);
-      }
-    );
-  });
-}
-
-function getDownloadLogs(limit = 50) {
-  return new Promise((resolve, reject) => {
-    db.all("SELECT * FROM download_logs ORDER BY timestamp DESC LIMIT ?", [limit], (err, rows) => {
-      if (err) return reject(err);
-      resolve(rows);
-    });
-  });
-}
-
-// --------------------
-// Exports
-// --------------------
-module.exports = {
-  // Voucher functions
-  getVoucherByUsername,
-  getRecentVouchers,
-  createVoucher,
-  blockVoucher,
-  deleteVoucher,
-  getAllVouchers,
-  getVouchersByDateRange,
-  getVouchersByProfile,
-  getVouchersByBatch,
-
-  // Operator functions
-  getOperators,
-  getOperatorByUsername,
-  createOperator,
-  deleteOperator,
-  operatorHasActions,
-
-  // Analytics functions
-  countAllVouchers,
-  countActiveVouchers,
-  countInactiveVouchers,
-  countExportsToday,
-  countVouchersByProfile,
-  countExportsByProfile,
-  voucherCreationOverTime,
-  voucherCreationDaily,
-  voucherCreationWeekly,
-  profilePerformance,
-  exportBehaviorInsights,
-
-  // Tunnel functions
-  getTunnelUrl,
-  saveTunnelUrl,
-
-  // Log functions
-  logDownload,
-  getDownloadLogs
-};
 
