@@ -1,5 +1,5 @@
 // db.js — Final Corrected Version
-// Timestamp: 20 Jan 2026 — 15:35 WAT
+// Timestamp: 20 Jan 2026 — 15:56 WAT
 // Features: voucher, operator, analytics, tunnel, logs, hasActions
 
 const sqlite3 = require('sqlite3').verbose();
@@ -199,7 +199,7 @@ function operatorHasActions(id) {
   });
 }
 // ===== db.js Part 2 =====
-// Timestamp: 20 Jan 2026 — 15:40 WAT
+// Timestamp: 20 Jan 2026 — 16:06 WAT
 // Features: analytics, tunnel, logs, exports
 
 function countExportsByProfile() {
