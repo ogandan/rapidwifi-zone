@@ -305,7 +305,66 @@ body.login-page header {
     font-size: 1.25rem;
   }
 }
+/* Login Result Styling */
+.result-container {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
 
+.result-card {
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.result-card h2 {
+  margin-bottom: 1rem;
+}
+
+.result-card.success {
+  background-color: #e6ffed;
+  border: 1px solid #00aa77;
+  color: #006644;
+}
+
+.result-card.failure {
+  background-color: #ffe6e6;
+  border: 1px solid #cc0000;
+  color: #990000;
+}
+
+.result-card .btn {
+  display: inline-block;
+  margin: 1rem 0.5rem 0;
+  padding: 0.6rem 1.2rem;
+  background-color: #0077cc;
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.result-card .btn:hover {
+  background-color: #005fa3;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .result-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .result-card {
+    padding: 1.5rem;
+  }
+
+  .result-card h2 {
+    font-size: 1.25rem;
+  }
+}
 
 
 

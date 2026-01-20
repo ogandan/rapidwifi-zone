@@ -4,6 +4,15 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-0005] - 21 Jan 2026 00:05 WAT
+### Added
+- New `login_result.ejs` template with clean success/failure feedback.
+- Success: green card with ✅, links to operator/admin dashboards.
+- Failure: red card with ❌, retry link to login.
+- Responsive design for mobile readability.
+
+---
+
 ## [20012026-2355] - 20 Jan 2026 23:55 WAT
 ### Added
 - New `login.ejs` template with responsive layout for voucher login form.
