@@ -1,63 +1,73 @@
-<!-- File: views/operator.ejs — Operator dashboard with limited voucher management -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Operator Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <title>Operator Dashboard - RAPIDWIFI-ZONE</title>
+  <link rel="stylesheet" href="/styles.css">
 </head>
-<body class="bg-light">
-  <div class="container py-4">
-    <h2 class="mb-4">Operator Dashboard</h2>
+<body>
+  <header>
+    <h1>Operator Dashboard</h1>
+    <nav>
+      <a href="/logout">Logout</a>
+    </nav>
+  </header>
 
-    <!-- Create Voucher -->
-    <div class="mb-4">
-      <form action="/admin/create" method="POST" class="row g-3">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="col-auto">
-          <select name="profile" class="form-select" required>
-            <option value="">Select Profile</option>
-            <option value="basic">Basic</option>
-            <option value="premium">Premium</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag (optional)">
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-success">Create Voucher</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Voucher Table -->
-    <div class="table-responsive">
-      <table class="table table-hover table-bordered align-middle">
-        <thead class="table-dark">
+  <main>
+    <section>
+      <h2>Available Vouchers</h2>
+      <table>
+        <thead>
           <tr>
-            <th>ID</th>
             <th>Username</th>
-            <th>Password</th>
             <th>Profile</th>
             <th>Status</th>
-            <th>Batch Tag</th>
+            <th>Created At</th>
+            <th>Sell</th>
           </tr>
         </thead>
         <tbody>
-          <% vouchers.forEach(v => { %>
+          <% vouchers.forEach(function(voucher) { %>
             <tr>
-              <td><%= v.id %></td>
-              <td><%= v.username %></td>
-              <td><%= v.password %></td>
-              <td><%= v.profile %></td>
-              <td><%= v.status %></td>
-              <td><%= v.batch_tag %></td>
+              <td><%= voucher.username %></td>
+              <td><%= voucher.profile %></td>
+              <td><%= voucher.status %></td>
+              <td><%= voucher.created_at %></td>
+              <td>
+                <% if (voucher.status === 'active') { %>
+                  <form action="/pay/cash" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="user" value="<%= voucher.username %>">
+                    <input type="hidden" name="profile" value="<%= voucher.profile %>">
+                    <label>Amount:</label>
+                    <input type="number" name="amount" required>
+                    <button type="submit">Sell (Cash)</button>
+                  </form>
+                  <form action="/deliver-voucher/<%= voucher.username %>" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <label>Channel:</label>
+                    <select name="channel" required>
+                      <option value="SMS">SMS</option>
+                      <option value="WhatsApp">WhatsApp</option>
+                      <option value="Telegram">Telegram</option>
+                    </select>
+                    <label>Recipient:</label>
+                    <input type="text" name="recipient" placeholder="Phone or Chat ID" required>
+                    <button type="submit">Deliver</button>
+                  </form>
+                <% } else { %>
+                  <span>Not available</span>
+                <% } %>
+              </td>
             </tr>
-          <% }) %>
+          <% }); %>
         </tbody>
       </table>
-    </div>
-  </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
+  </footer>
 </body>
 </html>
 

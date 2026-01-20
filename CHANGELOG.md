@@ -4,6 +4,17 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2210] - 20 Jan 2026 22:10 WAT
+### Added
+- New `operator.ejs` template for restricted operator dashboard.
+- Operators can:
+  - View available vouchers.
+  - Sell vouchers via cash payments.
+  - Deliver vouchers via SMS, WhatsApp, or Telegram.
+- Operators cannot create vouchers (admin-only functionality).
+
+---
+
 ## [20012026-2140] - 20 Jan 2026 21:40 WAT
 ### Added
 - Updated `db.js` with operator CRUD functions:
