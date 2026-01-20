@@ -1,4 +1,7 @@
-// ===== db.js Part 1 =====
+// db.js — Final Complete Version
+// Timestamp: 20 Jan 2026 — 14:45 WAT
+// Features: voucher, operator, analytics, tunnel, logs, hasActions
+
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
@@ -195,4 +198,207 @@ function operatorHasActions(id) {
     );
   });
 }
+// ===== db.js Part 2 =====
+// Timestamp: 20 Jan 2026 — 14:55 WAT
+// Features: analytics, tunnel, logs, exports
+
+function countExportsByProfile() {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT profile, COUNT(*) AS count FROM download_logs GROUP BY profile", [], (err, rows) => {
+      if (err) return reject(err);
+      const result = {};
+      rows.forEach(r => result[r.profile] = r.count);
+      resolve(result);
+    });
+  });
+}
+
+function voucherCreationOverTime() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM vouchers
+       WHERE created_at >= DATE('now', '-6 days')
+       GROUP BY day
+       ORDER BY day ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        const labels = rows.map(r => r.day);
+        const values = rows.map(r => r.count);
+        resolve({ labels, values });
+      }
+    );
+  });
+}
+
+function voucherCreationDaily() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT DATE(created_at) AS day, COUNT(*) AS count
+       FROM vouchers
+       GROUP BY day
+       ORDER BY day ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+function voucherCreationWeekly() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT strftime('%Y-%W', created_at) AS week, COUNT(*) AS count
+       FROM vouchers
+       GROUP BY week
+       ORDER BY week ASC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+function profilePerformance() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT v.profile,
+              COUNT(v.id) AS vouchers,
+              COALESCE(e.exports, 0) AS exports
+       FROM vouchers v
+       LEFT JOIN (
+         SELECT profile, COUNT(*) AS exports
+         FROM download_logs
+         GROUP BY profile
+       ) e ON v.profile = e.profile
+       GROUP BY v.profile`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+function exportBehaviorInsights() {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT user AS admin_user,
+              profile,
+              DATE(timestamp) AS day,
+              COUNT(*) AS exports
+       FROM download_logs
+       GROUP BY admin_user, profile, day
+       ORDER BY day DESC`,
+      [],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// --------------------
+// Tunnel URL Functions
+// --------------------
+function getTunnelUrl() {
+  try {
+    const urlFile = path.join(__dirname, 'tunnel_url.txt');
+    if (fs.existsSync(urlFile)) {
+      return fs.readFileSync(urlFile, 'utf8').trim();
+    }
+    return '';
+  } catch (err) {
+    console.error('Error reading tunnel_url.txt:', err);
+    return '';
+  }
+}
+
+function saveTunnelUrl(url) {
+  try {
+    const urlFile = path.join(__dirname, 'tunnel_url.txt');
+    fs.writeFileSync(urlFile, url, 'utf8');
+    return true;
+  } catch (err) {
+    console.error('Error writing tunnel_url.txt:', err);
+    return false;
+  }
+}
+
+// --------------------
+// Download Log Functions
+// --------------------
+function logDownload(action, filename, user, profile) {
+  return new Promise((resolve, reject) => {
+    const timestamp = new Date().toISOString();
+    db.run(
+      "INSERT INTO download_logs (action, filename, user, profile, timestamp) VALUES (?, ?, ?, ?, ?)",
+      [action, filename, user || 'admin', profile || 'unknown', timestamp],
+      function (err) {
+        if (err) return reject(err);
+        resolve(true);
+      }
+    );
+  });
+}
+
+function getDownloadLogs(limit = 50) {
+  return new Promise((resolve, reject) => {
+    db.all("SELECT * FROM download_logs ORDER BY timestamp DESC LIMIT ?", [limit], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+}
+
+// --------------------
+// Exports
+// --------------------
+module.exports = {
+  // Voucher functions
+  getVoucherByUsername,
+  getRecentVouchers,
+  createVoucher,
+  blockVoucher,
+  deleteVoucher,
+  getAllVouchers,
+  getVouchersByDateRange,
+  getVouchersByProfile,
+  getVouchersByBatch,
+
+  // Operator functions
+  getOperators,
+  getOperatorByUsername,
+  createOperator,
+  deleteOperator,
+  operatorHasActions,
+
+  // Analytics functions
+  countAllVouchers,
+  countActiveVouchers,
+  countInactiveVouchers,
+  countExportsToday,
+  countVouchersByProfile,
+  countExportsByProfile,
+  voucherCreationOverTime,
+  voucherCreationDaily,
+  voucherCreationWeekly,
+  profilePerformance,
+  exportBehaviorInsights,
+
+  // Tunnel functions
+  getTunnelUrl,
+  saveTunnelUrl,
+
+  // Log functions
+  logDownload,
+  getDownloadLogs
+};
 
