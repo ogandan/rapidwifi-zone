@@ -4,6 +4,15 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [21012026-0015] - 21 Jan 2026 00:15 WAT
+### Added
+- New `logout.ejs` template with clean confirmation message.
+- Card-style layout with friendly icon and message.
+- Action buttons: Login Again and Return to Home.
+- Responsive design for mobile readability.
+
+---
+
 ## [20012026-0005] - 21 Jan 2026 00:05 WAT
 ### Added
 - New `login_result.ejs` template with clean success/failure feedback.

@@ -365,6 +365,71 @@ body.login-page header {
     font-size: 1.25rem;
   }
 }
+/* Logout Page Styling */
+.logout-container {
+  max-width: 500px;
+  margin: 2rem auto;
+  padding: 2rem;
+}
+
+.logout-card {
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.logout-card h2 {
+  margin-bottom: 1rem;
+  color: #0077cc;
+}
+
+.logout-card p {
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.logout-card .btn {
+  display: inline-block;
+  margin: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  background-color: #0077cc;
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.logout-card .btn.secondary {
+  background-color: #ccc;
+  color: #333;
+}
+
+.logout-card .btn:hover {
+  background-color: #005fa3;
+}
+
+.logout-card .btn.secondary:hover {
+  background-color: #999;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 600px) {
+  .logout-container {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .logout-card {
+    padding: 1.5rem;
+  }
+
+  .logout-card h2 {
+    font-size: 1.25rem;
+  }
+}
 
 
 
