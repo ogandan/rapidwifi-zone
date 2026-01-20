@@ -4,6 +4,16 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [20012026-2140] - 20 Jan 2026 21:40 WAT
+### Added
+- Updated `db.js` with operator CRUD functions:
+  - `createOperator`, `getOperators`, `deleteOperator` (with non-deletable constraint).
+  - `operatorHasActions` checks audit_logs and payments before allowing deletion.
+- Preserved tunnel URL management and logs functions.
+- Confirmed analytics count functions remain intact.
+
+---
+
 ## [20012026-2125] - 20 Jan 2026 21:25 WAT
 ### Added
 - Migration script to create missing `operators` table.
