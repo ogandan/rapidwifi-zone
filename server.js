@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 22:10 WAT
+// Timestamp: 2026-01-21 22:30 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // Path: /home/chairman/rapidwifi-zone/server.js
@@ -64,13 +64,13 @@ app.post('/login', async (req, res) => {
       req.session.user = username;
       req.session.role = 'user';
       res.render('login_result', {
-        success: true,   // ✅ fixed: use success instead of ok
+        success: true,
         message: 'Login successful',
         role: req.session.role
       });
     } else {
       res.render('login_result', {
-        success: false,  // ✅ fixed
+        success: false,
         message: 'Invalid voucher',
         role: null
       });
@@ -78,7 +78,7 @@ app.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.render('login_result', {
-      success: false,   // ✅ fixed
+      success: false,
       message: 'System error during login',
       role: null
     });
@@ -152,6 +152,67 @@ app.get('/admin', requireAdmin, async (req, res) => {
     csrfToken: req.csrfToken(),
     role: req.session.role
   });
+});
+
+// --------------------
+// Admin: Create Voucher
+// --------------------
+app.post('/admin/create', requireAdmin, async (req, res) => {
+  try {
+    const { profile, batchTag } = req.body;
+    await voucherManager.createVoucher(profile, batchTag);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Create voucher error:', err);
+    res.status(500).send('Error creating voucher');
+  }
+});
+
+// --------------------
+// Admin: Create Operator
+// --------------------
+app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const hash = await bcrypt.hash(password, 10);
+    await db.runQuery(
+      'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+      [username, hash, 'operator']
+    );
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Create operator error:', err);
+    res.status(500).send('Error creating operator');
+  }
+});
+
+// --------------------
+// Admin: Bulk Action on Vouchers
+// --------------------
+app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
+  try {
+    const { action, voucherIds } = req.body;
+    if (!voucherIds) return res.redirect('/admin');
+
+    const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
+
+    if (action === 'block') {
+      await db.runQuery(
+        `UPDATE vouchers SET status = 'blocked' WHERE id IN (${ids.map(() => '?').join(',')})`,
+        ids
+      );
+    } else if (action === 'delete') {
+      await db.runQuery(
+        `DELETE FROM vouchers WHERE id IN (${ids.map(() => '?').join(',')})`,
+        ids
+      );
+    }
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Bulk action error:', err);
+    res.status(500).send('Error applying bulk action');
+  }
 });
 
 // --------------------

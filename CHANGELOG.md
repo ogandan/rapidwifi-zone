@@ -3,6 +3,15 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 22:25 WAT] - Login Result & Admin POST Routes
+- Updated `login_result.ejs` to display both icon and message string (e.g. “✅ Login Successful – Welcome!”).
+- Implemented missing POST routes:
+  - `/admin/create` → create vouchers.
+  - `/admin/create-operator` → create operator accounts with hashed passwords.
+  - `/admin/bulk-action` → block or delete selected vouchers.
+- Admin dashboard forms now functional instead of failing with “Cannot POST” errors.
+
+---
 
 ## [2026-01-21 22:10 WAT] - Fix login_result mismatch
 - Updated `server.js` to render `success: true/false` instead of `ok`.
