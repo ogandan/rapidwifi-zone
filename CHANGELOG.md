@@ -4,6 +4,28 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [2026-01-21 10:47 WAT] - Unified Login UI
+- Updated `views/login.ejs` to match polished styling of `admin_login.ejs`.
+- Added voucher name and code fields with CSRF protection.
+- Improved branding and responsive layout.
+
+## [2026-01-21 10:47 WAT]
+---
+
+## [2026-01-21 10:35 WAT] - Admin Login Page
+- Added `views/admin_login.ejs` with polished UI for admin/operator login.
+- Clean card layout, responsive design, and error feedback.
+- Separated from voucher login to enforce role-based access.
+
+---
+
+i## [2026-01-21 10:30 WAT] - Split Login Flows
+- Added `/admin-login` route for admin/operator authentication.
+- Updated middleware to redirect unauthorized dashboard access to `/admin-login` instead of `/login`.
+- Prevented voucher clients from seeing or accessing admin/operator login flows.
+
+---
+
 ## [2026-01-21 10:05 WAT] - Fix Module Path
 - Corrected `server.js` require path for `voucherManager` from `./voucherManager` to `./modules/voucherManager`.
 - Ensures server can load voucher lifecycle functions without MODULE_NOT_FOUND error.
