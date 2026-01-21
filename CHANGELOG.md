@@ -3,6 +3,13 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 13:40 WAT] - Seed Data for Tunnel & Export Logs
+- Added initial Cloudflare tunnel URLs for testing `getTunnelUrl`.
+- Inserted sample export log entries for multiple profiles.
+- Enabled immediate verification of `countExportsByProfile` helper.
+
+---
+
 ## [2026-01-21 13:10 WAT] - DB Migration for Tunnel & Export Logs
 - Added `tunnel` table to store Cloudflare tunnel endpoint.
 - Added `export_logs` table to track voucher/profile export activity.
