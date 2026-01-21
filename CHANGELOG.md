@@ -3,6 +3,53 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 13:10 WAT] - DB Migration for Tunnel & Export Logs
+- Added `tunnel` table to store Cloudflare tunnel endpoint.
+- Added `export_logs` table to track voucher/profile export activity.
+- Used `CREATE TABLE IF NOT EXISTS` for safe migration without overwriting existing schema.
+
+---
+## [2026-01-21 12:30 WAT] - DB Migration: Tunnel & Export Logs
+- Added `tunnel` table to store Cloudflare tunnel URL.
+- Added `export_logs` table to track voucher/profile export activity.
+- Ensured safe creation with `IF NOT EXISTS` to avoid overwriting existing schema.
+
+---
+
+## [2026-01-21 12:00 WAT] - Centralized DB Helpers
+- Added `runQuery` and `runExec` helpers to `data/db.js` for consistent async DB access.
+- Migrated query functions (`getOperators`, `getTunnelUrl`, voucher counts, logs) into `db.js`.
+- Ensures `server.js` and `voucherManager.js` use the same query style.
+
+---
+
+## [2026-01-21 11:55 WAT] - Bcrypt User Insert with Duplicate Check
+- Extended helper script to check if username already exists in `users` table.
+- If found, updates password hash and role instead of inserting duplicate.
+- Simplifies account management for admins/operators.
+
+---
+
+## [2026-01-21 11:50 WAT] - Bcrypt User Insert CLI Helper
+- Extended helper script to accept command-line arguments for username, password, and role.
+- Validates role (`admin` or `operator`) before insertion.
+- Simplifies onboarding of new accounts via CLI.
+
+---
+
+## [2026-01-21 11:45 WAT] - Bcrypt User Insert Helper
+- Extended `bcrypt_test.js` to insert generated hash directly into `users` table.
+- Supports onboarding new admin/operator accounts with one script run.
+
+---
+
+## [2026-01-21 11:35 WAT] - Admin/Operator Login via Users Table
+- Updated `/admin-login` route to query `users` table for credentials.
+- Added bcrypt password hash comparison against `password_hash`.
+- Session role now set from `role` column (`admin` or `operator`).
+- Removed hardcoded credentials; now fully database-driven.
+
+---
 
 ## [2026-01-21 10:47 WAT] - Unified Login UI
 - Updated `views/login.ejs` to match polished styling of `admin_login.ejs`.
