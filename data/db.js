@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 22:50 WAT
+// Timestamp: 2026-01-21 22:55 WAT
 // File: data/db.js
 // Purpose: SQLite database helpers for RAPIDWIFI-ZONE
 // Path: /home/chairman/rapidwifi-zone/data/db.js

@@ -3,6 +3,14 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 22:55 WAT] - Fix aggregate COUNT queries
+- Verified schema: vouchers, users, export_logs tables all have expected columns.
+- Updated `db.js` to use `db.get` for aggregate queries (`COUNT(*)`).
+- Fixed `countAllVouchers`, `countActiveVouchers`, `countInactiveVouchers`.
+- Analytics dashboard should now load counts correctly.
+
+---
+
 ## [2026-01-21 22:45 WAT] - Fix SQLite COUNT misuse
 - Updated `db.js` to use `db.get` instead of `db.all` for aggregate queries.
 - Fixed `countActiveVouchers`, `countInactiveVouchers`, and `countAllVouchers` functions.
