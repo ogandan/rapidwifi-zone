@@ -1,10 +1,20 @@
-// data/db.js - DB utilities for operators, tunnel, logs
-const sqlite3 = require('sqlite3').verbose();
+// -----------------------------------------------------------------------------
+// Timestamp: 2026-01-21 12:00 WAT
+// File: db.js
+// Purpose: Centralized SQLite database helpers and query functions for RAPIDWIFI-ZONE
+// Path: /home/chairman/rapidwifi-zone/data/db.js
+// -----------------------------------------------------------------------------
+
 const path = require('path');
+const sqlite3 = require('sqlite3').verbose();
+
+// Database path
 const dbPath = path.join(__dirname, 'db.sqlite');
 const db = new sqlite3.Database(dbPath);
 
-// Helper: run query with Promise
+// --------------------
+// Generic Helpers
+// --------------------
 function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -24,82 +34,30 @@ function runExec(sql, params = []) {
 }
 
 // --------------------
-// Operator Management
+// Specific Queries
 // --------------------
-
-// Create a new operator
-async function createOperator(name, role = 'operator') {
-  await runExec(
-    'INSERT INTO operators (name, role, created_at, active) VALUES (?, ?, datetime("now"), 1)',
-    [name, role]
-  );
-  return { name, role, active: 1 };
-}
-
-// List all operators
 async function getOperators() {
-  return await runQuery('SELECT * FROM operators ORDER BY created_at DESC');
-}
-
-// Check if operator has performed actions (audit_logs or payments)
-async function operatorHasActions(operatorId) {
-  const logs = await runQuery(
-    'SELECT COUNT(*) AS count FROM audit_logs WHERE username = (SELECT name FROM operators WHERE id = ?)',
-    [operatorId]
-  );
-  const payments = await runQuery(
-    'SELECT COUNT(*) AS count FROM payments WHERE operator = (SELECT name FROM operators WHERE id = ?)',
-    [operatorId]
-  );
-  return (logs[0].count > 0 || payments[0].count > 0);
-}
-
-// Delete operator (only if no actions)
-async function deleteOperator(operatorId) {
-  const hasActions = await operatorHasActions(operatorId);
-  if (hasActions) {
-    throw new Error('Operator cannot be deleted after performing actions');
-  }
-  await runExec('DELETE FROM operators WHERE id = ?', [operatorId]);
-  return { deleted: true };
-}
-
-// --------------------
-// Tunnel URL Management
-// --------------------
-async function saveTunnelUrl(url) {
-  await runExec('DELETE FROM tunnel_url');
-  await runExec('INSERT INTO tunnel_url (url) VALUES (?)', [url]);
+  return await runQuery('SELECT * FROM users WHERE role = "operator"');
 }
 
 async function getTunnelUrl() {
-  const rows = await runQuery('SELECT url FROM tunnel_url LIMIT 1');
+  const rows = await runQuery('SELECT * FROM tunnel LIMIT 1');
   return rows.length ? rows[0].url : null;
 }
 
-// --------------------
-// Logs Management
-// --------------------
-async function getDownloadLogs(limit = 100) {
-  return await runQuery('SELECT * FROM download_logs ORDER BY timestamp DESC LIMIT ?', [limit]);
-}
-
-// --------------------
-// Analytics Counts
-// --------------------
 async function countAllVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS count FROM vouchers');
-  return rows[0].count;
+  const rows = await runQuery('SELECT COUNT(*) AS total FROM vouchers');
+  return rows[0].total;
 }
 
 async function countActiveVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS count FROM vouchers WHERE status = "active"');
-  return rows[0].count;
+  const rows = await runQuery('SELECT COUNT(*) AS active FROM vouchers WHERE status = "active"');
+  return rows[0].active;
 }
 
 async function countInactiveVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS count FROM vouchers WHERE status != "active"');
-  return rows[0].count;
+  const rows = await runQuery('SELECT COUNT(*) AS inactive FROM vouchers WHERE status = "inactive"');
+  return rows[0].inactive;
 }
 
 async function countProfiles() {
@@ -108,32 +66,27 @@ async function countProfiles() {
 }
 
 async function countExportsByProfile() {
-  const rows = await runQuery('SELECT profile, COUNT(*) AS count FROM download_logs GROUP BY profile');
+  const rows = await runQuery('SELECT profile, COUNT(*) AS exports FROM export_logs GROUP BY profile');
   return rows;
+}
+
+async function getDownloadLogs() {
+  return await runQuery('SELECT * FROM download_logs ORDER BY timestamp DESC');
 }
 
 // --------------------
 // Exports
 // --------------------
 module.exports = {
-  // Operators
-  createOperator,
+  runQuery,
+  runExec,
   getOperators,
-  operatorHasActions,
-  deleteOperator,
-
-  // Tunnel
-  saveTunnelUrl,
   getTunnelUrl,
-
-  // Logs
-  getDownloadLogs,
-
-  // Analytics
   countAllVouchers,
   countActiveVouchers,
   countInactiveVouchers,
   countProfiles,
-  countExportsByProfile
+  countExportsByProfile,
+  getDownloadLogs
 };
 
