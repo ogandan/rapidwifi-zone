@@ -3,6 +3,13 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 22:45 WAT] - Fix SQLite COUNT misuse
+- Updated `db.js` to use `db.get` instead of `db.all` for aggregate queries.
+- Fixed `countActiveVouchers`, `countInactiveVouchers`, and `countAllVouchers` functions.
+- Analytics dashboard now loads counts without SQLITE_ERROR.
+
+---
+
 ## [2026-01-21 22:25 WAT] - Login Result & Admin POST Routes
 - Updated `login_result.ejs` to display both icon and message string (e.g. “✅ Login Successful – Welcome!”).
 - Implemented missing POST routes:

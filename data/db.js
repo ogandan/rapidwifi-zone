@@ -1,77 +1,74 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 12:00 WAT
-// File: db.js
-// Purpose: Centralized SQLite database helpers and query functions for RAPIDWIFI-ZONE
+// Timestamp: 2026-01-21 22:50 WAT
+// File: data/db.js
+// Purpose: SQLite database helpers for RAPIDWIFI-ZONE
 // Path: /home/chairman/rapidwifi-zone/data/db.js
 // -----------------------------------------------------------------------------
 
-const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
-// Database path
 const dbPath = path.join(__dirname, 'db.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 // --------------------
 // Generic Helpers
 // --------------------
-function runQuery(sql, params = []) {
+function runQuery(query, params = []) {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    db.all(query, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
   });
 }
 
-function runExec(sql, params = []) {
+function runGet(query, params = []) {
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
+    db.get(query, params, (err, row) => {
       if (err) reject(err);
-      else resolve(this);
+      else resolve(row);
     });
   });
 }
 
 // --------------------
-// Specific Queries
+// Voucher Queries
 // --------------------
 async function getOperators() {
-  return await runQuery('SELECT * FROM users WHERE role = "operator"');
+  return runQuery('SELECT username, role FROM users WHERE role = "operator"');
 }
 
 async function getTunnelUrl() {
-  const rows = await runQuery('SELECT * FROM tunnel LIMIT 1');
-  return rows.length ? rows[0].url : null;
+  const row = await runGet('SELECT url FROM tunnel LIMIT 1');
+  return row ? row.url : null;
 }
 
 async function countAllVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS total FROM vouchers');
-  return rows[0].total;
+  const row = await runGet('SELECT COUNT(*) AS total FROM vouchers');
+  return row ? row.total : 0;
 }
 
 async function countActiveVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS active FROM vouchers WHERE status = "active"');
-  return rows[0].active;
+  const row = await runGet('SELECT COUNT(*) AS active FROM vouchers WHERE status = "active"');
+  return row ? row.active : 0;
 }
 
 async function countInactiveVouchers() {
-  const rows = await runQuery('SELECT COUNT(*) AS inactive FROM vouchers WHERE status = "inactive"');
-  return rows[0].inactive;
+  const row = await runGet('SELECT COUNT(*) AS inactive FROM vouchers WHERE status = "inactive"');
+  return row ? row.inactive : 0;
 }
 
 async function countProfiles() {
-  const rows = await runQuery('SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile');
-  return rows;
+  return runQuery('SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile');
 }
 
 async function countExportsByProfile() {
-  const rows = await runQuery('SELECT profile, COUNT(*) AS exports FROM export_logs GROUP BY profile');
-  return rows;
+  return runQuery('SELECT profile, COUNT(*) AS count FROM export_logs GROUP BY profile');
 }
 
 async function getDownloadLogs() {
-  return await runQuery('SELECT * FROM download_logs ORDER BY timestamp DESC');
+  return runQuery('SELECT * FROM export_logs ORDER BY timestamp DESC');
 }
 
 // --------------------
@@ -79,7 +76,7 @@ async function getDownloadLogs() {
 // --------------------
 module.exports = {
   runQuery,
-  runExec,
+  runGet,
   getOperators,
   getTunnelUrl,
   countAllVouchers,
