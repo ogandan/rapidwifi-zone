@@ -1,32 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Voucher Login - RAPIDWIFI-ZONE</title>
-  <link rel="stylesheet" href="/styles.css">
-</head>
-<body class="login-page">
-  <header>
-    <h1>Voucher Login</h1>
-  </header>
+<form action="/login" method="POST" class="login-form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-  <main>
-    <section class="login-container">
-      <form action="/login" method="POST" class="login-form">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="form-group">
+    <label for="username">Voucher Name</label>
+    <input type="text" id="username" name="username" placeholder="Enter voucher name" required>
+  </div>
 
-        <div class="form-group">
-          <label for="username">Voucher Code</label>
-          <input type="text" id="username" name="username" placeholder="Enter your voucher code" required>
-        </div>
+  <div class="form-group">
+    <label for="password">Voucher Code</label>
+    <input type="password" id="password" name="password" placeholder="Enter voucher code" required>
+  </div>
 
-        <button type="submit">Login</button>
-      </form>
-    </section>
-  </main>
-
-  <footer>
-    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
-  </footer>
-</body>
-</html>
+  <button type="submit">Login</button>
+</form>
 
