@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 10:47 WAT
+// Timestamp: 2026-01-21 11:35 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // Path: /home/chairman/rapidwifi-zone/server.js
@@ -10,6 +10,7 @@ const session = require('express-session');
 const bodyParser = require('body-parser');
 const csrf = require('csurf');
 const path = require('path');
+const bcrypt = require('bcrypt');
 
 const voucherManager = require('./modules/voucherManager');
 const db = require('./data/db');
@@ -97,24 +98,45 @@ app.get('/admin-login', csrfProtection, (req, res) => {
 app.post('/admin-login', csrfProtection, async (req, res) => {
   const { username, password } = req.body;
 
-  console.log('Admin login attempt:', username, password); // Debug
+  try {
+    // Query the users table
+    const rows = await db.runQuery(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
 
-  if (username === 'admin' && password === 'adminpass') {
-    req.session.user = username;
-    req.session.role = 'admin';
-    return res.redirect('/admin');
+    if (!rows.length) {
+      return res.render('admin_login', {
+        csrfToken: req.csrfToken(),
+        error: 'Invalid credentials'
+      });
+    }
+
+    const user = rows[0];
+
+    // Compare provided password with stored hash
+    const match = await bcrypt.compare(password, user.password_hash);
+
+    if (match) {
+      req.session.user = user.username;
+      req.session.role = user.role; // 'admin' or 'operator'
+
+      if (user.role === 'admin') return res.redirect('/admin');
+      if (user.role === 'operator') return res.redirect('/operator');
+    }
+
+    // If password mismatch
+    res.render('admin_login', {
+      csrfToken: req.csrfToken(),
+      error: 'Invalid credentials'
+    });
+  } catch (err) {
+    console.error('Admin login error:', err);
+    res.render('admin_login', {
+      csrfToken: req.csrfToken(),
+      error: 'System error during login'
+    });
   }
-
-  if (username === 'operator' && password === 'operatorpass') {
-    req.session.user = username;
-    req.session.role = 'operator';
-    return res.redirect('/operator');
-  }
-
-  res.render('admin_login', {
-    csrfToken: req.csrfToken(),
-    error: 'Invalid credentials'
-  });
 });
 
 // --------------------
