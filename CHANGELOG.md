@@ -3,6 +3,23 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+
+## [2026-01-21 21:45 WAT] - Basic_Ok Checkpoint
+- Marked current system state as **Basic_Ok**.
+- Server & environment: restart and logs OK, server listening confirmed.
+- Voucher login flow: UI loads, but login_result.ejs error (`success is not defined`) blocks success/failure rendering.
+- Admin/operator login flow: working correctly with role-based redirects.
+- CSRF validation: tokens present in forms, but voucher/operator creation not functional.
+- Role-based access control: enforced correctly.
+- Admin dashboard: create voucher/operator routes missing (`Cannot POST` errors), delete operator button absent, bulk actions failing.
+- Operator dashboard: vouchers list not loading.
+- Analytics dashboard: SQL misuse error on `COUNT()` aggregate.
+- Logs dashboard: loads correctly.
+- Database integrity: queries run, accounts and tunnel URL exist.
+- ✅ This is a baseline checkpoint with partial functionality, saved as **Basic_Ok** for rollback safety.
+
+---
+
 ## [2026-01-21 18:15 WAT] - Global CSRF Middleware Fix
 - Mounted `app.use(csrfProtection)` globally after session middleware in `server.js`.
 - Removed per-route `csrfProtection` wrappers to simplify and ensure consistency.

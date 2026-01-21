@@ -1,36 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login Result - RAPIDWIFI-ZONE</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Login Result</title>
+  <link rel="stylesheet" href="/css/bootstrap.min.css">
 </head>
-<body class="login-result-page">
-  <header>
-    <h1>Voucher Login</h1>
-  </header>
+<body class="container mt-5">
 
-  <main>
-    <section class="result-container">
-      <% if (ok) { %>
-        <div class="result-card success">
-          <h2>✅ Login Successful</h2>
-          <p><%= message %></p>
-          <a href="/operator" class="btn">Go to Operator Dashboard</a>
-          <a href="/admin" class="btn">Go to Admin Dashboard</a>
-        </div>
-      <% } else { %>
-        <div class="result-card failure">
-          <h2>❌ Login Failed</h2>
-          <p><%= message %></p>
-          <a href="/login" class="btn">Try Again</a>
-        </div>
-      <% } %>
-    </section>
-  </main>
+  <% if (success) { %>
+    <div class="alert alert-success">
+      ✅ Login Successful
+    </div>
+  <% } else { %>
+    <div class="alert alert-danger">
+      ❌ Login Failed
+    </div>
+    <a href="/login" class="btn btn-primary">Retry</a>
+  <% } %>
 
-  <footer>
-    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
-  </footer>
+  <!-- Conditional links: only show if role is admin or operator -->
+  <% if (user && user.role === 'admin') { %>
+    <a href="/admin" class="btn btn-secondary mt-3">Go to Admin Dashboard</a>
+  <% } else if (user && user.role === 'operator') { %>
+    <a href="/operator" class="btn btn-secondary mt-3">Go to Operator Dashboard</a>
+  <% } %>
+
 </body>
 </html>
 
