@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 10:30 WAT
+// Timestamp: 2026-01-21 10:47 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // Path: /home/chairman/rapidwifi-zone/server.js
@@ -97,7 +97,8 @@ app.get('/admin-login', csrfProtection, (req, res) => {
 app.post('/admin-login', csrfProtection, async (req, res) => {
   const { username, password } = req.body;
 
-  // For now, hardcoded credentials (replace with DB lookup later)
+  console.log('Admin login attempt:', username, password); // Debug
+
   if (username === 'admin' && password === 'adminpass') {
     req.session.user = username;
     req.session.role = 'admin';
