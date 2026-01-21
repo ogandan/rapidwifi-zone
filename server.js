@@ -16,7 +16,7 @@ const bodyParser = require('body-parser');
 const csrf = require('csurf');
 const path = require('path');
 
-const voucherManager = require('./voucherManager');
+const voucherManager = require('./modules/voucherManager');
 const db = require('./data/db');
 
 const app = express();

@@ -4,6 +4,20 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [2026-01-21 10:05 WAT] - Fix Module Path
+- Corrected `server.js` require path for `voucherManager` from `./voucherManager` to `./modules/voucherManager`.
+- Ensures server can load voucher lifecycle functions without MODULE_NOT_FOUND error.
+
+---
+
+## [2026-01-21 09:55 WAT] - VoucherManager Update
+- Added `validateVoucher(username, password)` to check both fields against DB.
+- Confirmed schema alignment with `vouchers` table (`username`, `password`, `status`).
+- Retained existing lifecycle functions: `listVouchers`, `createVoucher`, `deactivateVoucher`.
+- No features removed; login validation fixed.
+
+---
+
 ## [2026-01-21 09:40 WAT] - Voucher Login Fix
 - Updated `server.js` `/login` route to accept both `username` and `password`.
 - Added new `voucherManager.js` with `validateVoucher(username, password)` function.
