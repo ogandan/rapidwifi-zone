@@ -4,6 +4,14 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [2026-01-21 09:40 WAT] - Voucher Login Fix
+- Updated `server.js` `/login` route to accept both `username` and `password`.
+- Added new `voucherManager.js` with `validateVoucher(username, password)` function.
+- Ensured voucher authentication checks both fields against database.
+- No features removed; only fixed login validation.
+
+---
+
 ## [21012026-0015] - 21 Jan 2026 00:15 WAT
 ### Added
 - New `logout.ejs` template with clean confirmation message.
