@@ -3,6 +3,14 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 18:15 WAT] - Global CSRF Middleware Fix
+- Mounted `app.use(csrfProtection)` globally after session middleware in `server.js`.
+- Removed per-route `csrfProtection` wrappers to simplify and ensure consistency.
+- Verified that `req.csrfToken()` is now always defined for all dashboard routes.
+- Ensured `admin.ejs` and related forms correctly receive CSRF tokens.
+
+---
+
 ## [2026-01-21 13:45 WAT] - DB Migration & Seed Verification
 - Applied migrations to add `tunnel` and `export_logs` tables.
 - Seeded initial Cloudflare tunnel URLs and export log entries.

@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 11:35 WAT
+// Timestamp: 2026-01-21 18:15 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // Path: /home/chairman/rapidwifi-zone/server.js
@@ -27,6 +27,9 @@ app.use(session({
   saveUninitialized: true
 }));
 
+// ✅ Mount CSRF middleware globally AFTER session
+app.use(csrfProtection);
+
 // --------------------
 // Middleware
 // --------------------
@@ -48,11 +51,11 @@ function requireOperator(req, res, next) {
 // --------------------
 // Voucher Login (Captive Portal)
 // --------------------
-app.get('/login', csrfProtection, (req, res) => {
+app.get('/login', (req, res) => {
   res.render('login', { csrfToken: req.csrfToken() });
 });
 
-app.post('/login', csrfProtection, async (req, res) => {
+app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const voucher = await voucherManager.validateVoucher(username, password);
@@ -91,15 +94,14 @@ app.get('/logout', (req, res) => {
 // --------------------
 // Admin/Operator Login
 // --------------------
-app.get('/admin-login', csrfProtection, (req, res) => {
+app.get('/admin-login', (req, res) => {
   res.render('admin_login', { csrfToken: req.csrfToken() });
 });
 
-app.post('/admin-login', csrfProtection, async (req, res) => {
+app.post('/admin-login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    // Query the users table
     const rows = await db.runQuery(
       'SELECT * FROM users WHERE username = ?',
       [username]
@@ -113,19 +115,16 @@ app.post('/admin-login', csrfProtection, async (req, res) => {
     }
 
     const user = rows[0];
-
-    // Compare provided password with stored hash
     const match = await bcrypt.compare(password, user.password_hash);
 
     if (match) {
       req.session.user = user.username;
-      req.session.role = user.role; // 'admin' or 'operator'
+      req.session.role = user.role;
 
       if (user.role === 'admin') return res.redirect('/admin');
       if (user.role === 'operator') return res.redirect('/operator');
     }
 
-    // If password mismatch
     res.render('admin_login', {
       csrfToken: req.csrfToken(),
       error: 'Invalid credentials'
@@ -146,7 +145,13 @@ app.get('/admin', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const operators = await db.getOperators();
   const tunnelUrl = await db.getTunnelUrl();
-  res.render('admin', { vouchers, operators, tunnelUrl });
+  res.render('admin', {
+    vouchers,
+    operators,
+    tunnelUrl,
+    csrfToken: req.csrfToken(),
+    role: req.session.role
+  });
 });
 
 // --------------------
@@ -154,7 +159,11 @@ app.get('/admin', requireAdmin, async (req, res) => {
 // --------------------
 app.get('/operator', requireOperator, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  res.render('operator', { vouchers });
+  res.render('operator', {
+    vouchers,
+    csrfToken: req.csrfToken(),
+    role: req.session.role
+  });
 });
 
 // --------------------
@@ -166,7 +175,15 @@ app.get('/analytics', requireAdmin, async (req, res) => {
   const inactive = await db.countInactiveVouchers();
   const profiles = await db.countProfiles();
   const exportsByProfile = await db.countExportsByProfile();
-  res.render('analytics', { total, active, inactive, profiles, exportsByProfile });
+  res.render('analytics', {
+    total,
+    active,
+    inactive,
+    profiles,
+    exportsByProfile,
+    csrfToken: req.csrfToken(),
+    role: req.session.role
+  });
 });
 
 // --------------------
@@ -174,7 +191,11 @@ app.get('/analytics', requireAdmin, async (req, res) => {
 // --------------------
 app.get('/admin/logs', requireAdmin, async (req, res) => {
   const logs = await db.getDownloadLogs();
-  res.render('logs', { logs });
+  res.render('logs', {
+    logs,
+    csrfToken: req.csrfToken(),
+    role: req.session.role
+  });
 });
 
 // --------------------
