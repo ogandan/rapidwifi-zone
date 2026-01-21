@@ -4,6 +4,14 @@ All notable changes are tracked here with timestamps and tags.
 
 ---
 
+## [2026-01-21 22:10 WAT] - Fix login_result mismatch
+- Updated `server.js` to render `success: true/false` instead of `ok`.
+- Ensured `login_result.ejs` conditional `<% if (success) %>` works correctly.
+- Voucher login now shows proper success/failure messages instead of ReferenceError.
+- This fix unblocks the voucher login flow in smoke tests.
+
+---
+
 ## [2026-01-21 21:45 WAT] - Basic_Ok Checkpoint
 - Marked current system state as **Basic_Ok**.
 - Server & environment: restart and logs OK, server listening confirmed.

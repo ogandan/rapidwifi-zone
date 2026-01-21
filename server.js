@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 18:15 WAT
+// Timestamp: 2026-01-21 22:10 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // Path: /home/chairman/rapidwifi-zone/server.js
@@ -64,13 +64,13 @@ app.post('/login', async (req, res) => {
       req.session.user = username;
       req.session.role = 'user';
       res.render('login_result', {
-        ok: true,
+        success: true,   // ✅ fixed: use success instead of ok
         message: 'Login successful',
         role: req.session.role
       });
     } else {
       res.render('login_result', {
-        ok: false,
+        success: false,  // ✅ fixed
         message: 'Invalid voucher',
         role: null
       });
@@ -78,7 +78,7 @@ app.post('/login', async (req, res) => {
   } catch (err) {
     console.error('Login error:', err);
     res.render('login_result', {
-      ok: false,
+      success: false,   // ✅ fixed
       message: 'System error during login',
       role: null
     });
