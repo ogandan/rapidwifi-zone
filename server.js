@@ -1,13 +1,8 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 09:40 WAT
+// Timestamp: 2026-01-21 10:30 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
-// Path: project-root/server.js
-// -----------------------------------------------------------------------------
-// CHANGELOG:
-// - [2026-01-21 09:40 WAT] Updated /login route to accept both username + password,
-//   now calls voucherManager.validateVoucher(username, password).
-//   Ensures voucher authentication works correctly.
+// Path: /home/chairman/rapidwifi-zone/server.js
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -41,16 +36,16 @@ function requireLogin(req, res, next) {
 
 function requireAdmin(req, res, next) {
   if (req.session && req.session.role === 'admin') return next();
-  res.redirect('/login');
+  res.redirect('/admin-login');
 }
 
 function requireOperator(req, res, next) {
   if (req.session && req.session.role === 'operator') return next();
-  res.redirect('/login');
+  res.redirect('/admin-login');
 }
 
 // --------------------
-// Captive Portal Login
+// Voucher Login (Captive Portal)
 // --------------------
 app.get('/login', csrfProtection, (req, res) => {
   res.render('login', { csrfToken: req.csrfToken() });
@@ -64,19 +59,60 @@ app.post('/login', csrfProtection, async (req, res) => {
     if (voucher) {
       req.session.user = username;
       req.session.role = 'user';
-      res.render('login_result', { ok: true, message: 'Login successful' });
+      res.render('login_result', {
+        ok: true,
+        message: 'Login successful',
+        role: req.session.role
+      });
     } else {
-      res.render('login_result', { ok: false, message: 'Invalid voucher' });
+      res.render('login_result', {
+        ok: false,
+        message: 'Invalid voucher',
+        role: null
+      });
     }
   } catch (err) {
     console.error('Login error:', err);
-    res.render('login_result', { ok: false, message: 'System error during login' });
+    res.render('login_result', {
+      ok: false,
+      message: 'System error during login',
+      role: null
+    });
   }
 });
 
 app.get('/logout', (req, res) => {
   req.session.destroy(() => {
     res.render('logout');
+  });
+});
+
+// --------------------
+// Admin/Operator Login
+// --------------------
+app.get('/admin-login', csrfProtection, (req, res) => {
+  res.render('admin_login', { csrfToken: req.csrfToken() });
+});
+
+app.post('/admin-login', csrfProtection, async (req, res) => {
+  const { username, password } = req.body;
+
+  // For now, hardcoded credentials (replace with DB lookup later)
+  if (username === 'admin' && password === 'adminpass') {
+    req.session.user = username;
+    req.session.role = 'admin';
+    return res.redirect('/admin');
+  }
+
+  if (username === 'operator' && password === 'operatorpass') {
+    req.session.user = username;
+    req.session.role = 'operator';
+    return res.redirect('/operator');
+  }
+
+  res.render('admin_login', {
+    csrfToken: req.csrfToken(),
+    error: 'Invalid credentials'
   });
 });
 
