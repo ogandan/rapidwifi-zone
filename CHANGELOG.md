@@ -3,6 +3,13 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 13:45 WAT] - DB Migration & Seed Verification
+- Applied migrations to add `tunnel` and `export_logs` tables.
+- Seeded initial Cloudflare tunnel URLs and export log entries.
+- Verified helpers `getTunnelUrl` and `countExportsByProfile` return expected results.
+
+---
+
 ## [2026-01-21 13:40 WAT] - Seed Data for Tunnel & Export Logs
 - Added initial Cloudflare tunnel URLs for testing `getTunnelUrl`.
 - Inserted sample export log entries for multiple profiles.
