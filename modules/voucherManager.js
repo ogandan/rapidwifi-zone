@@ -1,13 +1,13 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 09:30 WAT
+// Timestamp: 2026-01-21 09:55 WAT
 // File: voucherManager.js
-// Purpose: Voucher lifecycle management (validation, creation, delivery, audit)
-// Path: project-root/voucherManager.js
+// Purpose: Voucher lifecycle management (validation, creation, listing, deactivation)
+// Path: project-root/modules/voucherManager.js
 // -----------------------------------------------------------------------------
 
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
-const dbPath = path.join(__dirname, 'data', 'db.sqlite');
+const dbPath = path.join(__dirname, '..', 'data', 'db.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 // Helper: run query with Promise
@@ -49,12 +49,13 @@ async function validateVoucher(username, password) {
     return null;
   }
 }
+
 // --------------------
 // Voucher Listing
 // --------------------
 async function listVouchers(limit = 100) {
   return await runQuery(
-    'SELECT * FROM vouchers ORDER BY createdAt DESC LIMIT ?',
+    'SELECT * FROM vouchers ORDER BY created_at DESC LIMIT ?',
     [limit]
   );
 }
@@ -64,7 +65,7 @@ async function listVouchers(limit = 100) {
 // --------------------
 async function createVoucher(username, password, profile) {
   await runExec(
-    'INSERT INTO vouchers (username, password, profile, createdAt, status) VALUES (?, ?, ?, datetime("now"), "active")',
+    'INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime("now"), "active", "")',
     [username, password, profile]
   );
   return { username, profile, status: 'active' };
