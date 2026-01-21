@@ -3,6 +3,15 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-21 23:40 WAT] - Voucher, Operator, Analytics, Exports Fixes
+- Implemented voucher creation in voucherManager.
+- Added `/admin/delete-operator` POST route.
+- Corrected analytics COUNT queries to use single quotes and db.get.
+- Added export routes: `/admin/export-all`, `/admin/export-logs-csv`, `/admin/export-logs-json`.
+- Fixed CSRF regression by ensuring operator login and dashboard forms include `_csrf`.
+
+---
+
 ## [2026-01-21 22:55 WAT] - Fix aggregate COUNT queries
 - Verified schema: vouchers, users, export_logs tables all have expected columns.
 - Updated `db.js` to use `db.get` for aggregate queries (`COUNT(*)`).

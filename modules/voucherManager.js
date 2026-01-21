@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 09:55 WAT
+// Timestamp: 2026-01-22 00:15 WAT
 // File: voucherManager.js
 // Purpose: Voucher lifecycle management (validation, creation, listing, deactivation)
 // Path: project-root/modules/voucherManager.js
@@ -7,10 +7,14 @@
 
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
+const crypto = require('crypto');
+
 const dbPath = path.join(__dirname, '..', 'data', 'db.sqlite');
 const db = new sqlite3.Database(dbPath);
 
-// Helper: run query with Promise
+// --------------------
+// Helpers
+// --------------------
 function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -29,6 +33,14 @@ function runExec(sql, params = []) {
   });
 }
 
+// Generate random voucher username (code) and password if not provided
+function generateCode() {
+  return crypto.randomBytes(3).toString('hex').toUpperCase(); // e.g. "A1B2C3"
+}
+function generatePassword() {
+  return crypto.randomBytes(4).toString('hex'); // e.g. "f9a2b3c4"
+}
+
 // --------------------
 // Voucher Validation
 // --------------------
@@ -37,17 +49,9 @@ async function validateVoucher(username, password) {
     'SELECT * FROM vouchers WHERE username = ? AND status = "active"',
     [username]
   );
-
   if (!rows.length) return null;
-
   const voucher = rows[0];
-
-  // Compare provided password with stored password
-  if (voucher.password === password) {
-    return voucher;
-  } else {
-    return null;
-  }
+  return voucher.password === password ? voucher : null;
 }
 
 // --------------------
@@ -63,12 +67,17 @@ async function listVouchers(limit = 100) {
 // --------------------
 // Voucher Creation (Admin only)
 // --------------------
-async function createVoucher(username, password, profile) {
+async function createVoucher(username, password, profile, batchTag = '') {
+  // If username/password not provided, auto-generate
+  const voucherUser = username || generateCode();
+  const voucherPass = password || generatePassword();
+
   await runExec(
-    'INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime("now"), "active", "")',
-    [username, password, profile]
+    'INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime("now"), "active", ?)',
+    [voucherUser, voucherPass, profile, batchTag]
   );
-  return { username, profile, status: 'active' };
+
+  return { username: voucherUser, password: voucherPass, profile, status: 'active', batch_tag: batchTag };
 }
 
 // --------------------
