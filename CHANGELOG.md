@@ -3,6 +3,17 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 15:50 WAT] - Analytics Dashboard Chart Fix
+- Rebuilt `analytics.ejs` to remove dependency on `/admin/stats` endpoint.
+- Injected server-side data (`active`, `inactive`, `profiles`, `exportsByProfile`) directly into Chart.js.
+- Added working charts for:
+  - Active vs Inactive vouchers (doughnut chart).
+  - Vouchers by profile (bar chart).
+  - Exports by profile (bar chart).
+- Verified charts render immediately when `/analytics` loads.
+
+---
+
 ## [2026-01-22 13:20 WAT] - Analytics COUNT Fix
 - Corrected aggregate queries in `data/db.js` to use single quotes for string literals ('active', 'inactive').
 - Verified `countActiveVouchers` and `countInactiveVouchers` now return correct values without SQLITE_ERROR.

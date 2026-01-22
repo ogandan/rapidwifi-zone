@@ -17,35 +17,19 @@
   <main>
     <h2>System Analytics</h2>
     <div class="analytics-container">
-      <!-- Voucher Creation (Last 7 Days) -->
-      <div class="chart-card">
-        <h3>Voucher Creation (Last 7 Days)</h3>
-        <div class="chart-wrapper">
-          <canvas id="creation7daysChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Voucher Trends (Weekly) -->
-      <div class="chart-card">
-        <h3>Voucher Trends (Weekly)</h3>
-        <div class="chart-wrapper">
-          <canvas id="trendsChart"></canvas>
-        </div>
-      </div>
-
-      <!-- Exports Over Time -->
-      <div class="chart-card">
-        <h3>Exports Over Time</h3>
-        <div class="chart-wrapper">
-          <canvas id="exportsChart"></canvas>
-        </div>
-      </div>
-
       <!-- Active vs Inactive Vouchers -->
       <div class="chart-card">
         <h3>Active vs Inactive Vouchers</h3>
         <div class="chart-wrapper">
           <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Vouchers by Profile -->
+      <div class="chart-card">
+        <h3>Vouchers by Profile</h3>
+        <div class="chart-wrapper">
+          <canvas id="profileChart"></canvas>
         </div>
       </div>
 
@@ -64,83 +48,46 @@
   </footer>
 
   <script>
-    // Fetch analytics data from server
-    fetch('/admin/stats')
-      .then(res => res.json())
-      .then(data => {
-        // Voucher Creation (Last 7 Days)
-        new Chart(document.getElementById('creation7daysChart'), {
-          type: 'line',
-          data: {
-            labels: data.creation7days.labels,
-            datasets: [{
-              label: 'Vouchers Created',
-              data: data.creation7days.values,
-              borderColor: '#0077cc',
-              backgroundColor: 'rgba(0,119,204,0.2)',
-              fill: true
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
+    // Active vs Inactive Vouchers
+    new Chart(document.getElementById('statusChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Active', 'Inactive'],
+        datasets: [{
+          data: [<%= active %>, <%= inactive %>],
+          backgroundColor: ['#0077cc', '#cccccc']
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
 
-        // Voucher Trends (Weekly)
-        new Chart(document.getElementById('trendsChart'), {
-          type: 'bar',
-          data: {
-            labels: data.trends.labels,
-            datasets: [{
-              label: 'Weekly Vouchers',
-              data: data.trends.values,
-              backgroundColor: '#00aa77'
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
+    // Vouchers by Profile
+    new Chart(document.getElementById('profileChart'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(profiles.map(p => p.profile)) %>,
+        datasets: [{
+          label: 'Vouchers',
+          data: <%- JSON.stringify(profiles.map(p => p.count)) %>,
+          backgroundColor: '#00aa77'
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
 
-        // Exports Over Time
-        new Chart(document.getElementById('exportsChart'), {
-          type: 'line',
-          data: {
-            labels: data.exportsOverTime.labels,
-            datasets: [{
-              label: 'Exports',
-              data: data.exportsOverTime.values,
-              borderColor: '#ff9900',
-              backgroundColor: 'rgba(255,153,0,0.2)',
-              fill: true
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
-
-        // Active vs Inactive Vouchers
-        new Chart(document.getElementById('statusChart'), {
-          type: 'doughnut',
-          data: {
-            labels: ['Active', 'Inactive'],
-            datasets: [{
-              data: [data.active, data.inactive],
-              backgroundColor: ['#0077cc', '#cccccc']
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
-
-        // Exports by Profile
-        new Chart(document.getElementById('exportsProfileChart'), {
-          type: 'bar',
-          data: {
-            labels: data.exportsByProfile.map(p => p.profile),
-            datasets: [{
-              label: 'Exports',
-              data: data.exportsByProfile.map(p => p.count),
-              backgroundColor: '#004aad'
-            }]
-          },
-          options: { responsive: true, maintainAspectRatio: false }
-        });
-      });
+    // Exports by Profile
+    new Chart(document.getElementById('exportsProfileChart'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(exportsByProfile.map(p => p.profile)) %>,
+        datasets: [{
+          label: 'Exports',
+          data: <%- JSON.stringify(exportsByProfile.map(p => p.count)) %>,
+          backgroundColor: '#004aad'
+        }]
+      },
+      options: { responsive: true, maintainAspectRatio: false }
+    });
   </script>
 </body>
 </html>
