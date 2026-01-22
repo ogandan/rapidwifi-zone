@@ -3,6 +3,15 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 16:45 WAT] - Voucher & Operator Management Fixes
+- Auto-generates batch tag during voucher creation if none is provided.
+- Operator deletion now works via ID-based route.
+- Operator listing now shows correct ID (requires db.js update).
+- Voucher bulk actions now operate by ID, not username.
+- Added support for activating inactive vouchers via bulk action.
+
+---
+
 ## [2026-01-22 15:50 WAT] - Analytics Dashboard Chart Fix
 - Rebuilt `analytics.ejs` to remove dependency on `/admin/stats` endpoint.
 - Injected server-side data (`active`, `inactive`, `profiles`, `exportsByProfile`) directly into Chart.js.

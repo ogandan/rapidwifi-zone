@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-21 23:55 WAT
+// Timestamp: 2026-01-22 16:50 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
@@ -31,11 +31,11 @@ app.use(csrfProtection);
 // Middleware
 // --------------------
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.role === 'admin') return next();
+  if (req.session && req.session.user && req.session.role === 'admin') return next();
   res.redirect('/admin-login');
 }
 function requireOperator(req, res, next) {
-  if (req.session && req.session.role === 'operator') return next();
+  if (req.session && req.session.user && req.session.role === 'operator') return next();
   res.redirect('/admin-login');
 }
 
@@ -93,15 +93,16 @@ app.post('/admin-login', async (req, res) => {
 // --------------------
 app.get('/admin', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  const operators = await db.getOperators();
+  const operators = await db.getOperators(); // must include id in db.js
   const tunnelUrl = await db.getTunnelUrl();
   res.render('admin', { vouchers, operators, tunnelUrl, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
 app.post('/admin/create', requireAdmin, async (req, res) => {
   try {
-    const { username, password, profile } = req.body;
-    await voucherManager.createVoucher(username, password, profile);
+    const { username, password, profile, batchTag } = req.body;
+    const tag = batchTag && batchTag.trim() !== '' ? batchTag : `batch_${new Date().toISOString().slice(0, 10)}`;
+    await voucherManager.createVoucher(username, password, profile, tag);
     res.redirect('/admin');
   } catch (err) {
     console.error('Create voucher error:', err);
@@ -121,10 +122,10 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/delete-operator', requireAdmin, async (req, res) => {
+app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   try {
-    const { username } = req.body;
-    await db.runQuery('DELETE FROM users WHERE username = ? AND role = "operator"', [username]);
+    const { id } = req.params;
+    await db.runQuery('DELETE FROM users WHERE id = ? AND role = "operator"', [id]);
     res.redirect('/admin');
   } catch (err) {
     console.error('Delete operator error:', err);
@@ -138,9 +139,11 @@ app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
     if (!voucherIds) return res.redirect('/admin');
     const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
     if (action === 'block') {
-      await db.runQuery(`UPDATE vouchers SET status = 'inactive' WHERE username IN (${ids.map(() => '?').join(',')})`, ids);
+      await db.runQuery(`UPDATE vouchers SET status = 'inactive' WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+    } else if (action === 'activate') {
+      await db.runQuery(`UPDATE vouchers SET status = 'active' WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
     } else if (action === 'delete') {
-      await db.runQuery(`DELETE FROM vouchers WHERE username IN (${ids.map(() => '?').join(',')})`, ids);
+      await db.runQuery(`DELETE FROM vouchers WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
     }
     res.redirect('/admin');
   } catch (err) {
