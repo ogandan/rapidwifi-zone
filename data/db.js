@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 13:10 WAT
+// Timestamp: 2026-01-22 17:45 WAT
 // File: data/db.js
 // Purpose: SQLite database helpers for RAPIDWIFI-ZONE
 // -----------------------------------------------------------------------------
@@ -35,7 +35,17 @@ function runGet(query, params = []) {
 // User / Operator Queries
 // --------------------
 async function getOperators() {
-  return runQuery("SELECT username, role FROM users WHERE role = 'operator'");
+  return runQuery("SELECT id, username, role FROM users WHERE role = 'operator' OR role = 'inactive'");
+}
+
+async function deactivateOperator(id) {
+  return runQuery("UPDATE users SET role = 'inactive' WHERE id = ?", [id]);
+}
+
+async function operatorHasActions(id) {
+  // Example check: has this operator exported vouchers?
+  const logs = await runQuery("SELECT COUNT(*) AS cnt FROM export_logs WHERE exported_by = ?", [id]);
+  return logs[0] && logs[0].cnt > 0;
 }
 
 // --------------------
@@ -89,6 +99,8 @@ module.exports = {
   runQuery,
   runGet,
   getOperators,
+  deactivateOperator,
+  operatorHasActions,
   getTunnelUrl,
   countAllVouchers,
   countActiveVouchers,

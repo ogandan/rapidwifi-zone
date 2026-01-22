@@ -3,6 +3,34 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 22:25 WAT] - Admin Dashboard & Voucher Lifecycle Fixes
+
+### Operator Lifecycle
+- Added explicit routes in `server.js` for operator **activate** and **deactivate**.
+- Updated `admin.ejs` to show **Activate / Deactivate / Delete** buttons per operator.
+- Ensured operators with audit logs are deactivated instead of deleted.
+
+### Voucher Lifecycle
+- Enforced voucher username/password length rules in `voucherManager.js`:
+  - Usernames must be exactly 4 characters.
+  - Passwords must be exactly 5 characters.
+- Auto‑generation of voucher credentials now respects these length rules.
+- Batch tags auto‑generated if not provided.
+
+### Admin Dashboard
+- Fixed EJS syntax errors (balanced `<% %>` blocks).
+- Cleaned operator management loop and voucher table loops.
+- Added bulk voucher actions (Block / Activate / Delete) by ID.
+- Toolbar updated with export options and links to logs/analytics.
+
+### Files Modified
+- `server.js` (split into two parts for clarity, now complete)
+- `views/admin.ejs` (split into two parts, lint‑safe)
+- `modules/voucherManager.js` (username/password enforcement)
+- `data/db.js` (operator lifecycle helpers, voucher counts, logs)
+
+---
+
 ## [2026-01-22 19:50 WAT] - Operator Toggle & Voucher Length Fix
 - Added explicit routes to activate and deactivate operators.
 - Updated admin dashboard UI with Activate/Deactivate buttons.
