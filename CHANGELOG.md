@@ -3,6 +3,14 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 13:20 WAT] - Analytics COUNT Fix
+- Corrected aggregate queries in `data/db.js` to use single quotes for string literals ('active', 'inactive').
+- Verified `countActiveVouchers` and `countInactiveVouchers` now return correct values without SQLITE_ERROR.
+- Confirmed `runGet` is used for single-row aggregates, `runQuery` for multi-row queries.
+- This patch stabilizes the `/analytics` dashboard counts.
+
+---
+
 ## [2026-01-21 23:40 WAT] - Voucher, Operator, Analytics, Exports Fixes
 - Implemented voucher creation in voucherManager.
 - Added `/admin/delete-operator` POST route.

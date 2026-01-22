@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 00:10 WAT
+// Timestamp: 2026-01-22 13:10 WAT
 // File: data/db.js
 // Purpose: SQLite database helpers for RAPIDWIFI-ZONE
 // -----------------------------------------------------------------------------
@@ -35,14 +35,14 @@ function runGet(query, params = []) {
 // User / Operator Queries
 // --------------------
 async function getOperators() {
-  return runQuery('SELECT username, role FROM users WHERE role = "operator"');
+  return runQuery("SELECT username, role FROM users WHERE role = 'operator'");
 }
 
 // --------------------
 // Tunnel Queries
 // --------------------
 async function getTunnelUrl() {
-  const row = await runGet('SELECT url FROM tunnel LIMIT 1');
+  const row = await runGet("SELECT url FROM tunnel LIMIT 1");
   return row ? row.url : null;
 }
 
