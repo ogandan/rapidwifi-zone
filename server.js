@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 17:55 WAT
-// File: server.js
+// Timestamp: 2026-01-22 20:50 WAT
+// File: server.js (Part 1 of 2)
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
 
@@ -121,6 +121,10 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
     res.status(500).send('Error creating operator');
   }
 });
+// -----------------------------------------------------------------------------
+// Timestamp: 2026-01-22 20:55 WAT
+// File: server.js (Part 2 of 2)
+// -----------------------------------------------------------------------------
 
 app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   try {
@@ -135,6 +139,28 @@ app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Delete operator error:', err);
     res.status(500).send('Error deleting operator');
+  }
+});
+
+app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deactivateOperator(id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Deactivate operator error:', err);
+    res.status(500).send('Error deactivating operator');
+  }
+});
+
+app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.runQuery("UPDATE users SET role = 'operator' WHERE id = ?", [id]);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Activate operator error:', err);
+    res.status(500).send('Error activating operator');
   }
 });
 

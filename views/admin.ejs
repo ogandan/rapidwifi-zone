@@ -1,6 +1,6 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-22 18:30 WAT
-File: views/admin.ejs
+Timestamp: 2026-01-22 20:55 WAT
+File: views/admin.ejs (Part 1 of 2)
 Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator management
 ---------------------------------------------------------------------------- -->
 <!DOCTYPE html>
@@ -53,47 +53,22 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
         <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
       </div>
     </div>
-
-    <!-- Operator Management -->
-    <div class="mb-4">
-      <h4>Manage Operators</h4>
-      <form action="/admin/create-operator" method="POST" class="row g-3 mb-3">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <div class="col-auto">
-          <input type="text" name="username" class="form-control" placeholder="Operator Username" required>
-        </div>
-        <div class="col-auto">
-          <input type="password" name="password" class="form-control" placeholder="Operator Password" required>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-secondary">Create Operator</button>
-        </div>
-      </form>
-
-      <table class="table table-bordered">
-        <thead class="table-light">
-          <tr>
-            <th>ID</th>
-            <th>Username</th>
-            <th>Role</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% if (operators) { operators.forEach(op => { %>
-            <tr>
-              <td><%= op.id %></td>
-              <td><%= op.username %></td>
-              <td><%= op.role %></td>
               <td>
-                <form action="/admin/delete-operator/<%= op.id %>" method="POST" style="display:inline;">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <% if (op.role === 'inactive') { %>
-                    <button type="submit" class="btn btn-secondary btn-sm" disabled>Deactivated</button>
-                  <% } else { %>
+                <% if (op.role === 'inactive') { %>
+                  <form action="/admin/activate-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-success btn-sm">Activate</button>
+                  </form>
+                <% } else { %>
+                  <form action="/admin/deactivate-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-warning btn-sm">Deactivate</button>
+                  </form>
+                  <form action="/admin/delete-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                  <% } %>
-                </form>
+                  </form>
+                <% } %>
               </td>
             </tr>
           <% }) } %>

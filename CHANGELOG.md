@@ -3,6 +3,16 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 19:50 WAT] - Operator Toggle & Voucher Length Fix
+- Added explicit routes to activate and deactivate operators.
+- Updated admin dashboard UI with Activate/Deactivate buttons.
+- Restored voucher username/password length enforcement:
+  - Usernames = 4 characters
+  - Passwords = 5 characters
+- Maintains auto-generated batch tags and audit integrity rules.
+
+---
+
 ## [2026-01-22 18:30 WAT] - Operator Lifecycle Fix
 - Operator IDs now displayed in admin dashboard.
 - Operator deletion route corrected to `POST /admin/delete-operator/:id`.

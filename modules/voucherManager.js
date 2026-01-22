@@ -1,103 +1,70 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 00:15 WAT
-// File: voucherManager.js
-// Purpose: Voucher lifecycle management (validation, creation, listing, deactivation)
-// Path: project-root/modules/voucherManager.js
+// Timestamp: 2026-01-22 21:15 WAT
+// File: modules/voucherManager.js
+// Purpose: Voucher lifecycle management for RAPIDWIFI-ZONE
 // -----------------------------------------------------------------------------
 
-const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const crypto = require('crypto');
-
-const dbPath = path.join(__dirname, '..', 'data', 'db.sqlite');
-const db = new sqlite3.Database(dbPath);
+const db = require('../data/db');
 
 // --------------------
-// Helpers
+// Utility: Random String Generator
 // --------------------
-function runQuery(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-}
-
-function runExec(sql, params = []) {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    });
-  });
-}
-
-// Generate random voucher username (code) and password if not provided
-function generateCode() {
-  return crypto.randomBytes(3).toString('hex').toUpperCase(); // e.g. "A1B2C3"
-}
-function generatePassword() {
-  return crypto.randomBytes(4).toString('hex'); // e.g. "f9a2b3c4"
+function generateRandomString(length) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
 }
 
 // --------------------
-// Voucher Validation
+// Create Voucher
+// --------------------
+async function createVoucher(username, password, profile, batchTag) {
+  // enforce username = 4 chars, password = 5 chars
+  const u = username && username.trim() !== '' ? username : generateRandomString(4);
+  const p = password && password.trim() !== '' ? password : generateRandomString(5);
+
+  if (u.length !== 4) {
+    throw new Error('Voucher username must be exactly 4 characters long');
+  }
+  if (p.length !== 5) {
+    throw new Error('Voucher password must be exactly 5 characters long');
+  }
+
+  const tag = batchTag && batchTag.trim() !== '' ? batchTag : `batch_${new Date().toISOString().slice(0, 10)}`;
+
+  await db.runQuery(
+    "INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime('now'), 'active', ?)",
+    [u, p, profile, tag]
+  );
+}
+
+// --------------------
+// Validate Voucher
 // --------------------
 async function validateVoucher(username, password) {
-  const rows = await runQuery(
-    'SELECT * FROM vouchers WHERE username = ? AND status = "active"',
-    [username]
+  const rows = await db.runQuery(
+    "SELECT * FROM vouchers WHERE username = ? AND password = ? AND status = 'active'",
+    [username, password]
   );
-  if (!rows.length) return null;
-  const voucher = rows[0];
-  return voucher.password === password ? voucher : null;
+  return rows.length > 0 ? rows[0] : null;
 }
 
 // --------------------
-// Voucher Listing
+// List Vouchers
 // --------------------
-async function listVouchers(limit = 100) {
-  return await runQuery(
-    'SELECT * FROM vouchers ORDER BY created_at DESC LIMIT ?',
-    [limit]
-  );
-}
-
-// --------------------
-// Voucher Creation (Admin only)
-// --------------------
-async function createVoucher(username, password, profile, batchTag = '') {
-  // If username/password not provided, auto-generate
-  const voucherUser = username || generateCode();
-  const voucherPass = password || generatePassword();
-
-  await runExec(
-    'INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime("now"), "active", ?)',
-    [voucherUser, voucherPass, profile, batchTag]
-  );
-
-  return { username: voucherUser, password: voucherPass, profile, status: 'active', batch_tag: batchTag };
-}
-
-// --------------------
-// Voucher Deactivation
-// --------------------
-async function deactivateVoucher(username) {
-  await runExec(
-    'UPDATE vouchers SET status = "inactive" WHERE username = ?',
-    [username]
-  );
-  return { username, status: 'inactive' };
+async function listVouchers() {
+  return db.runQuery("SELECT * FROM vouchers ORDER BY created_at DESC");
 }
 
 // --------------------
 // Exports
 // --------------------
 module.exports = {
-  validateVoucher,
-  listVouchers,
   createVoucher,
-  deactivateVoucher
+  validateVoucher,
+  listVouchers
 };
 
