@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 16:50 WAT
+// Timestamp: 2026-01-22 17:55 WAT
 // File: server.js
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ app.post('/admin-login', async (req, res) => {
 // --------------------
 app.get('/admin', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  const operators = await db.getOperators(); // must include id in db.js
+  const operators = await db.getOperators();
   const tunnelUrl = await db.getTunnelUrl();
   res.render('admin', { vouchers, operators, tunnelUrl, csrfToken: req.csrfToken(), role: 'admin' });
 });
@@ -125,7 +125,12 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
 app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.runQuery('DELETE FROM users WHERE id = ? AND role = "operator"', [id]);
+    const hasActions = await db.operatorHasActions(id);
+    if (hasActions) {
+      await db.deactivateOperator(id);
+    } else {
+      await db.runQuery('DELETE FROM users WHERE id = ? AND role = "operator"', [id]);
+    }
     res.redirect('/admin');
   } catch (err) {
     console.error('Delete operator error:', err);

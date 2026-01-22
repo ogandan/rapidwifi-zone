@@ -1,4 +1,8 @@
-<!-- File: views/admin.ejs — Admin dashboard with voucher management, exports, logs, analytics, and operator management -->
+<!-- --------------------------------------------------------------------------
+Timestamp: 2026-01-22 18:30 WAT
+File: views/admin.ejs
+Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator management
+---------------------------------------------------------------------------- -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -30,7 +34,7 @@
       </form>
     </div>
 
-    <!-- Toolbar with Dropdown Menu -->
+    <!-- Toolbar -->
     <div class="btn-toolbar mb-4" role="toolbar">
       <div class="btn-group me-2">
         <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -84,10 +88,11 @@
               <td>
                 <form action="/admin/delete-operator/<%= op.id %>" method="POST" style="display:inline;">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <button type="submit" class="btn btn-danger btn-sm"
-                    <% if (op.hasActions) { %> disabled title="Cannot delete operator with actions" <% } %>>
-                    Delete
-                  </button>
+                  <% if (op.role === 'inactive') { %>
+                    <button type="submit" class="btn btn-secondary btn-sm" disabled>Deactivated</button>
+                  <% } else { %>
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                  <% } %>
                 </form>
               </td>
             </tr>
@@ -104,6 +109,7 @@
           <select name="action" class="form-select" required>
             <option value="">Choose Action</option>
             <option value="block">Block Selected</option>
+            <option value="activate">Activate Selected</option>
             <option value="delete">Delete Selected</option>
           </select>
         </div>

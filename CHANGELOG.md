@@ -3,6 +3,17 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-22 18:30 WAT] - Operator Lifecycle Fix
+- Operator IDs now displayed in admin dashboard.
+- Operator deletion route corrected to `POST /admin/delete-operator/:id`.
+- Audit integrity enforced:
+  - Operators with recorded actions are deactivated instead of deleted.
+  - Empty operators (no actions) can be deleted.
+- Voucher bulk actions confirmed working by ID, with “Activate Selected” option.
+- Voucher creation auto-generates batch tags if none provided.
+
+---
+
 ## [2026-01-22 16:45 WAT] - Voucher & Operator Management Fixes
 - Auto-generates batch tag during voucher creation if none is provided.
 - Operator deletion now works via ID-based route.
