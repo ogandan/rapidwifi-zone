@@ -1,8 +1,7 @@
 <!-- -----------------------------------------------------------------------------
-Timestamp: 2026-01-21 10:47 WAT
+Timestamp: 2026-01-23
 File: login.ejs
 Purpose: Voucher login page for RAPIDWIFI-ZONE captive portal
-Path: /home/chairman/rapidwifi-zone/views/login.ejs
 ----------------------------------------------------------------------------- -->
 
 <!DOCTYPE html>
@@ -11,101 +10,30 @@ Path: /home/chairman/rapidwifi-zone/views/login.ejs
   <meta charset="UTF-8">
   <title>Voucher Login - RAPIDWIFI-ZONE</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(135deg, #1e3c72, #2a5298);
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      color: #333;
-    }
-    .login-card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-      width: 100%;
-      max-width: 400px;
-      padding: 2rem;
-      text-align: center;
-      animation: fadeIn 0.6s ease-in-out;
-    }
-    .login-card h1 {
-      margin-bottom: 1rem;
-      font-size: 1.6rem;
-      color: #2a5298;
-    }
-    .form-group {
-      margin-bottom: 1rem;
-      text-align: left;
-    }
-    label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: #444;
-    }
-    input[type="text"], input[type="password"] {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: border-color 0.3s;
-    }
-    input[type="text"]:focus, input[type="password"]:focus {
-      border-color: #2a5298;
-      outline: none;
-    }
-    button {
-      width: 100%;
-      padding: 0.75rem;
-      background: #2a5298;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    button:hover {
-      background: #1e3c72;
-    }
-    footer {
-      margin-top: 1.5rem;
-      font-size: 0.85rem;
-      color: #777;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  </style>
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
-<body>
-  <div class="login-card">
-    <h1>Voucher Login</h1>
+<body class="bg-light d-flex align-items-center justify-content-center vh-100">
+  <div class="card shadow-lg p-4" style="max-width: 400px; width: 100%;">
+    <h2 class="mb-3 text-center text-primary">Voucher Login</h2>
     <form action="/login" method="POST">
+      <!-- ✅ Dynamic CSRF token -->
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-      <div class="form-group">
-        <label for="username">Voucher Name</label>
-        <input type="text" id="username" name="username" placeholder="Enter voucher name" required>
+      <div class="mb-3">
+        <label for="username" class="form-label">Voucher Username</label>
+        <input type="text" id="username" name="username"
+               class="form-control" placeholder="Enter voucher username" required>
       </div>
 
-      <div class="form-group">
-        <label for="password">Voucher Code</label>
-        <input type="password" id="password" name="password" placeholder="Enter voucher code" required>
+      <div class="mb-3">
+        <label for="password" class="form-label">Voucher Password</label>
+        <input type="password" id="password" name="password"
+               class="form-control" placeholder="Enter voucher password" required>
       </div>
 
-      <button type="submit">Login</button>
+      <button type="submit" class="btn btn-success w-100">Login</button>
     </form>
-
-    <footer>© 2026 RAPIDWIFI-ZONE</footer>
   </div>
 </body>
 </html>

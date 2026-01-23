@@ -1,13 +1,13 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-23 10:50 WAT
-// File: data/db.js (Part 1 of 2)
-// Purpose: Database helpers for RAPIDWIFI-ZONE with role+status separation
+// File: data/db.js
+// Purpose: Database helper functions for RAPIDWIFI-ZONE
 // -----------------------------------------------------------------------------
 
 const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./data/rapidwifi.db');
+const path = require('path');
 
-// Generic query runner
+const db = new sqlite3.Database(path.join(__dirname, 'db.sqlite'));
+
 function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -18,94 +18,79 @@ function runQuery(sql, params = []) {
 }
 
 // --------------------
-// Operator Lifecycle
+// Voucher Functions
 // --------------------
+async function listVouchers() {
+  return await runQuery('SELECT * FROM vouchers ORDER BY id DESC');
+}
 
-// Get all operators (include status)
+async function countAllVouchers() {
+  const rows = await runQuery('SELECT COUNT(*) AS total FROM vouchers');
+  return rows[0].total;
+}
+
+async function countActiveVouchers() {
+  const rows = await runQuery("SELECT COUNT(*) AS active FROM vouchers WHERE status='active'");
+  return rows[0].active;
+}
+
+async function countInactiveVouchers() {
+  const rows = await runQuery("SELECT COUNT(*) AS inactive FROM vouchers WHERE status='inactive'");
+  return rows[0].inactive;
+}
+
+async function countProfiles() {
+  return await runQuery('SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile');
+}
+
+async function countExportsByProfile() {
+  return await runQuery('SELECT profile, COUNT(*) AS count FROM export_logs GROUP BY profile');
+}
+
+// --------------------
+// Operator Functions
+// --------------------
 async function getOperators() {
-  return runQuery("SELECT id, username, role, status FROM users WHERE role='operator'");
+  return await runQuery('SELECT id, username, role, status FROM users WHERE role="operator"');
 }
 
-// Deactivate operator (set status=inactive)
 async function deactivateOperator(id) {
-  return runQuery("UPDATE users SET status='inactive' WHERE id=?", [id]);
+  return await runQuery("UPDATE users SET status='inactive' WHERE id=?", [id]);
 }
 
-// Activate operator (set status=active)
 async function activateOperator(id) {
-  return runQuery("UPDATE users SET status='active' WHERE id=?", [id]);
+  return await runQuery("UPDATE users SET status='active' WHERE id=?", [id]);
 }
 
-// Delete operator (only if no actions)
 async function deleteOperator(id) {
-  return runQuery("DELETE FROM users WHERE id=?", [id]);
+  return await runQuery("DELETE FROM users WHERE id=? AND role='operator'", [id]);
 }
 
-// Check if operator has actions (logs, vouchers, etc.)
 async function operatorHasActions(id) {
-  const rows = await runQuery("SELECT COUNT(*) as cnt FROM logs WHERE operator_id=?", [id]);
+  const rows = await runQuery('SELECT COUNT(*) AS cnt FROM export_logs WHERE exported_by=?', [id]);
   return rows[0].cnt > 0;
 }
-// -----------------------------------------------------------------------------
-// data/db.js (Part 2 of 2)
-// -----------------------------------------------------------------------------
 
 // --------------------
-// Voucher Lifecycle
-// --------------------
-async function getVouchers() {
-  return runQuery("SELECT * FROM vouchers ORDER BY created_at DESC");
-}
-
-async function blockVoucher(id) {
-  return runQuery("UPDATE vouchers SET status='inactive' WHERE id=?", [id]);
-}
-
-async function activateVoucher(id) {
-  return runQuery("UPDATE vouchers SET status='active' WHERE id=?", [id]);
-}
-
-async function deleteVoucher(id) {
-  return runQuery("DELETE FROM vouchers WHERE id=?", [id]);
-}
-
-// --------------------
-// Analytics
-// --------------------
-async function getVoucherCounts() {
-  return runQuery(`
-    SELECT 
-      COUNT(*) as total,
-      SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active,
-      SUM(CASE WHEN status='inactive' THEN 1 ELSE 0 END) as inactive
-    FROM vouchers
-  `);
-}
-
-async function getProfileCounts() {
-  return runQuery("SELECT profile, COUNT(*) as cnt FROM vouchers GROUP BY profile");
-}
-
-// --------------------
-// Logs
+// Logs Functions
 // --------------------
 async function getLogs() {
-  return runQuery("SELECT * FROM logs ORDER BY timestamp DESC LIMIT 100");
+  return await runQuery('SELECT * FROM export_logs ORDER BY timestamp DESC LIMIT 100');
 }
 
 module.exports = {
   runQuery,
+  listVouchers,
+  countAllVouchers,
+  countActiveVouchers,
+  countInactiveVouchers,
+  countProfiles,
+  countExportsByProfile,
   getOperators,
   deactivateOperator,
   activateOperator,
   deleteOperator,
   operatorHasActions,
-  getVouchers,
-  blockVoucher,
-  activateVoucher,
-  deleteVoucher,
-  getVoucherCounts,
-  getProfileCounts,
   getLogs
 };
 

@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-23 11:00 WAT
+// Timestamp: 2026-01-23
 // File: server.js (Part 1 of 2)
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
@@ -121,35 +121,8 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
   }
 });
 // -----------------------------------------------------------------------------
-// server.js (Part 2 of 2)
+// File: server.js (Part 2 of 2)
 // -----------------------------------------------------------------------------
-
-app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const hasActions = await db.operatorHasActions(id);
-    if (hasActions) {
-      await db.deactivateOperator(id);
-    } else {
-      await db.deleteOperator(id);
-    }
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Delete operator error:', err);
-    res.status(500).send('Error deleting operator');
-  }
-});
-
-app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    await db.deactivateOperator(id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Deactivate operator error:', err);
-    res.status(500).send('Error deactivating operator');
-  }
-});
 
 app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
   try {
@@ -193,9 +166,20 @@ app.get('/operator', requireOperator, async (req, res) => {
 // Analytics Dashboard
 // --------------------
 app.get('/analytics', requireAdmin, async (req, res) => {
-  const counts = await db.getVoucherCounts();
-  const profiles = await db.getProfileCounts();
-  res.render('analytics', { counts, profiles, csrfToken: req.csrfToken(), role: 'admin' });
+  const total = await db.countAllVouchers();
+  const active = await db.countActiveVouchers();
+  const inactive = await db.countInactiveVouchers();
+  const profiles = await db.countProfiles();
+  const exportsByProfile = await db.countExportsByProfile();
+  res.render('analytics', {
+    total,
+    active,
+    inactive,
+    profiles,
+    exportsByProfile,
+    csrfToken: req.csrfToken(),
+    role: 'admin'
+  });
 });
 
 // --------------------
@@ -214,7 +198,7 @@ app.get('/admin/export-all', requireAdmin, async (req, res) => {
 
 app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
-  const csv = logs.map(l => `${l.id},${l.operator_id},${l.action},${l.timestamp}`).join('\n');
+  const csv = logs.map(l => `${l.id},${l.profile},${l.filename},${l.exported_by},${l.timestamp}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
