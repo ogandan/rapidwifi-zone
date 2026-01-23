@@ -1,112 +1,111 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 17:45 WAT
-// File: data/db.js
-// Purpose: SQLite database helpers for RAPIDWIFI-ZONE
+// Timestamp: 2026-01-23 10:50 WAT
+// File: data/db.js (Part 1 of 2)
+// Purpose: Database helpers for RAPIDWIFI-ZONE with role+status separation
 // -----------------------------------------------------------------------------
 
 const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const db = new sqlite3.Database('./data/rapidwifi.db');
 
-const dbPath = path.join(__dirname, 'db.sqlite');
-const db = new sqlite3.Database(dbPath);
-
-// --------------------
-// Generic Helpers
-// --------------------
-function runQuery(query, params = []) {
+// Generic query runner
+function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
-    db.all(query, params, (err, rows) => {
+    db.all(sql, params, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
   });
 }
 
-function runGet(query, params = []) {
-  return new Promise((resolve, reject) => {
-    db.get(query, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-}
+// --------------------
+// Operator Lifecycle
+// --------------------
 
-// --------------------
-// User / Operator Queries
-// --------------------
+// Get all operators (include status)
 async function getOperators() {
-  return runQuery("SELECT id, username, role FROM users WHERE role = 'operator' OR role = 'inactive'");
+  return runQuery("SELECT id, username, role, status FROM users WHERE role='operator'");
 }
 
+// Deactivate operator (set status=inactive)
 async function deactivateOperator(id) {
-  return runQuery("UPDATE users SET role = 'inactive' WHERE id = ?", [id]);
+  return runQuery("UPDATE users SET status='inactive' WHERE id=?", [id]);
 }
 
+// Activate operator (set status=active)
+async function activateOperator(id) {
+  return runQuery("UPDATE users SET status='active' WHERE id=?", [id]);
+}
+
+// Delete operator (only if no actions)
+async function deleteOperator(id) {
+  return runQuery("DELETE FROM users WHERE id=?", [id]);
+}
+
+// Check if operator has actions (logs, vouchers, etc.)
 async function operatorHasActions(id) {
-  // Example check: has this operator exported vouchers?
-  const logs = await runQuery("SELECT COUNT(*) AS cnt FROM export_logs WHERE exported_by = ?", [id]);
-  return logs[0] && logs[0].cnt > 0;
+  const rows = await runQuery("SELECT COUNT(*) as cnt FROM logs WHERE operator_id=?", [id]);
+  return rows[0].cnt > 0;
+}
+// -----------------------------------------------------------------------------
+// data/db.js (Part 2 of 2)
+// -----------------------------------------------------------------------------
+
+// --------------------
+// Voucher Lifecycle
+// --------------------
+async function getVouchers() {
+  return runQuery("SELECT * FROM vouchers ORDER BY created_at DESC");
+}
+
+async function blockVoucher(id) {
+  return runQuery("UPDATE vouchers SET status='inactive' WHERE id=?", [id]);
+}
+
+async function activateVoucher(id) {
+  return runQuery("UPDATE vouchers SET status='active' WHERE id=?", [id]);
+}
+
+async function deleteVoucher(id) {
+  return runQuery("DELETE FROM vouchers WHERE id=?", [id]);
 }
 
 // --------------------
-// Tunnel Queries
+// Analytics
 // --------------------
-async function getTunnelUrl() {
-  const row = await runGet("SELECT url FROM tunnel LIMIT 1");
-  return row ? row.url : null;
+async function getVoucherCounts() {
+  return runQuery(`
+    SELECT 
+      COUNT(*) as total,
+      SUM(CASE WHEN status='active' THEN 1 ELSE 0 END) as active,
+      SUM(CASE WHEN status='inactive' THEN 1 ELSE 0 END) as inactive
+    FROM vouchers
+  `);
 }
 
-// --------------------
-// Voucher Counts
-// --------------------
-async function countAllVouchers() {
-  const row = await runGet("SELECT COUNT(*) AS total FROM vouchers");
-  return row ? row.total : 0;
-}
-
-async function countActiveVouchers() {
-  const row = await runGet("SELECT COUNT(*) AS active FROM vouchers WHERE status = 'active'");
-  return row ? row.active : 0;
-}
-
-async function countInactiveVouchers() {
-  const row = await runGet("SELECT COUNT(*) AS inactive FROM vouchers WHERE status = 'inactive'");
-  return row ? row.inactive : 0;
-}
-
-// --------------------
-// Grouped Counts
-// --------------------
-async function countProfiles() {
-  return runQuery("SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile");
-}
-
-async function countExportsByProfile() {
-  return runQuery("SELECT profile, COUNT(*) AS count FROM export_logs GROUP BY profile");
+async function getProfileCounts() {
+  return runQuery("SELECT profile, COUNT(*) as cnt FROM vouchers GROUP BY profile");
 }
 
 // --------------------
 // Logs
 // --------------------
-async function getDownloadLogs() {
-  return runQuery("SELECT * FROM export_logs ORDER BY timestamp DESC");
+async function getLogs() {
+  return runQuery("SELECT * FROM logs ORDER BY timestamp DESC LIMIT 100");
 }
 
-// --------------------
-// Exports
-// --------------------
 module.exports = {
   runQuery,
-  runGet,
   getOperators,
   deactivateOperator,
+  activateOperator,
+  deleteOperator,
   operatorHasActions,
-  getTunnelUrl,
-  countAllVouchers,
-  countActiveVouchers,
-  countInactiveVouchers,
-  countProfiles,
-  countExportsByProfile,
-  getDownloadLogs
+  getVouchers,
+  blockVoucher,
+  activateVoucher,
+  deleteVoucher,
+  getVoucherCounts,
+  getProfileCounts,
+  getLogs
 };
 

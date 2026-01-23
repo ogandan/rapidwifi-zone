@@ -3,6 +3,32 @@
 All notable changes are tracked here with timestamps and tags.
 
 ---
+## [2026-01-23 11:30 WAT] - Operator Lifecycle Status Separation
+
+### Operator Lifecycle
+- Added `status` column to `users` table (`active` / `inactive`).
+- Updated `db.js` functions:
+  - `getOperators()` now returns role + status.
+  - `deactivateOperator()` sets `status='inactive'`.
+  - `activateOperator()` sets `status='active'`.
+  - `deleteOperator()` safely removes operators without actions.
+- Updated `admin.ejs`:
+  - Operator table now shows `status`.
+  - Buttons switch correctly between Activate / Deactivate / Delete.
+- Updated `server.js`:
+  - `create-operator` inserts with `status='active'`.
+  - Lifecycle routes call new `db.js` functions.
+  - Analytics aligned with new `getVoucherCounts()` and `getProfileCounts()`.
+  - Exports aligned with `db.getLogs()`.
+
+### Files Modified
+- `data/db.js`
+- `views/admin.ejs`
+- `server.js`
+- `CHANGELOG.md`
+
+---
+
 ## [2026-01-22 22:25 WAT] - Admin Dashboard & Voucher Lifecycle Fixes
 
 ### Operator Lifecycle

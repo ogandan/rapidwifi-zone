@@ -1,7 +1,7 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-22 22:20 WAT
+Timestamp: 2026-01-23 10:50 WAT
 File: views/admin.ejs (Part 1 of 2)
-Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator management
+Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator lifecycle fixes
 ---------------------------------------------------------------------------- -->
 <!DOCTYPE html>
 <html>
@@ -75,6 +75,7 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
             <th>ID</th>
             <th>Username</th>
             <th>Role</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -84,13 +85,14 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
               <td><%= op.id %></td>
               <td><%= op.username %></td>
               <td><%= op.role %></td>
+              <td><%= op.status %></td>
               <td>
-                <% if (op.role === 'inactive') { %>
+                <% if (op.status === 'inactive') { %>
                   <form action="/admin/activate-operator/<%= op.id %>" method="POST" style="display:inline;">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <button type="submit" class="btn btn-success btn-sm">Activate</button>
                   </form>
-                <% } else { %>
+                <% } else if (op.status === 'active') { %>
                   <form action="/admin/deactivate-operator/<%= op.id %>" method="POST" style="display:inline;">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <button type="submit" class="btn btn-warning btn-sm">Deactivate</button>

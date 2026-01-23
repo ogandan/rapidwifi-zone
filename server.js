@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 20:50 WAT
+// Timestamp: 2026-01-23 11:00 WAT
 // File: server.js (Part 1 of 2)
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
@@ -94,8 +94,7 @@ app.post('/admin-login', async (req, res) => {
 app.get('/admin', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const operators = await db.getOperators();
-  const tunnelUrl = await db.getTunnelUrl();
-  res.render('admin', { vouchers, operators, tunnelUrl, csrfToken: req.csrfToken(), role: 'admin' });
+  res.render('admin', { vouchers, operators, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
 app.post('/admin/create', requireAdmin, async (req, res) => {
@@ -114,7 +113,7 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
   try {
     const { username, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
-    await db.runQuery('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)', [username, hash, 'operator']);
+    await db.runQuery('INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, ?)', [username, hash, 'operator', 'active']);
     res.redirect('/admin');
   } catch (err) {
     console.error('Create operator error:', err);
@@ -122,8 +121,7 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
   }
 });
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 20:55 WAT
-// File: server.js (Part 2 of 2)
+// server.js (Part 2 of 2)
 // -----------------------------------------------------------------------------
 
 app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
@@ -133,7 +131,7 @@ app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
     if (hasActions) {
       await db.deactivateOperator(id);
     } else {
-      await db.runQuery('DELETE FROM users WHERE id = ? AND role = "operator"', [id]);
+      await db.deleteOperator(id);
     }
     res.redirect('/admin');
   } catch (err) {
@@ -156,7 +154,7 @@ app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
 app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await db.runQuery("UPDATE users SET role = 'operator' WHERE id = ?", [id]);
+    await db.activateOperator(id);
     res.redirect('/admin');
   } catch (err) {
     console.error('Activate operator error:', err);
@@ -195,33 +193,33 @@ app.get('/operator', requireOperator, async (req, res) => {
 // Analytics Dashboard
 // --------------------
 app.get('/analytics', requireAdmin, async (req, res) => {
-  const total = await db.countAllVouchers();
-  const active = await db.countActiveVouchers();
-  const inactive = await db.countInactiveVouchers();
-  const profiles = await db.countProfiles();
-  const exportsByProfile = await db.countExportsByProfile();
-  res.render('analytics', { total, active, inactive, profiles, exportsByProfile, csrfToken: req.csrfToken(), role: 'admin' });
+  const counts = await db.getVoucherCounts();
+  const profiles = await db.getProfileCounts();
+  res.render('analytics', { counts, profiles, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
 // --------------------
 // Logs Dashboard + Exports
 // --------------------
 app.get('/admin/logs', requireAdmin, async (req, res) => {
-  const logs = await db.getDownloadLogs();
+  const logs = await db.getLogs();
   res.render('logs', { logs, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
 app.get('/admin/export-all', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  res.json(vouchers);
-});
-app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
-  const logs = await db.getDownloadLogs();
-  const csv = logs.map(l => `${l.id},${l.profile},${l.filename},${l.exported_by},${l.timestamp}`).join('\n');
+  const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag}`).join('\n');
   res.type('text/csv').send(csv);
 });
+
+app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
+  const logs = await db.getLogs();
+  const csv = logs.map(l => `${l.id},${l.operator_id},${l.action},${l.timestamp}`).join('\n');
+  res.type('text/csv').send(csv);
+});
+
 app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
-  const logs = await db.getDownloadLogs();
+  const logs = await db.getLogs();
   res.json(logs);
 });
 
