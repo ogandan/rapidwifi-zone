@@ -8,6 +8,9 @@ const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, 'db.sqlite'));
 
+// --------------------
+// Utility: Run Query
+// --------------------
 function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -72,25 +75,60 @@ async function operatorHasActions(id) {
 }
 
 // --------------------
-// Logs Functions
+// Export Logs Functions
 // --------------------
 async function getLogs() {
   return await runQuery('SELECT * FROM export_logs ORDER BY timestamp DESC LIMIT 100');
 }
 
+// --------------------
+// Payments Functions
+// --------------------
+async function getPayments(limit = 100) {
+  return await runQuery(
+    'SELECT id, voucher_id, method, amount, status, created_at FROM payments ORDER BY created_at DESC LIMIT ?',
+    [limit]
+  );
+}
+
+// --------------------
+// Audit Logs Functions
+// --------------------
+async function getAuditLogs(limit = 100) {
+  return await runQuery(
+    'SELECT id, voucher_id, action, username, profile, details, channel, status, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ?',
+    [limit]
+  );
+}
+
+// --------------------
+// Module Exports
+// --------------------
 module.exports = {
   runQuery,
+
+  // Voucher
   listVouchers,
   countAllVouchers,
   countActiveVouchers,
   countInactiveVouchers,
   countProfiles,
   countExportsByProfile,
+
+  // Operator
   getOperators,
   deactivateOperator,
   activateOperator,
   deleteOperator,
   operatorHasActions,
-  getLogs
+
+  // Logs
+  getLogs,
+
+  // Payments
+  getPayments,
+
+  // Audit Logs
+  getAuditLogs
 };
 

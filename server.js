@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-23
+// Timestamp: 2026-01-24
 // File: server.js (Part 1 of 2)
 // Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
 // -----------------------------------------------------------------------------
@@ -20,12 +20,20 @@ const csrfProtection = csrf({ cookie: false });
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// --------------------
+// Updated Session Config
+// --------------------
 app.use(session({
   secret: 'rapidwifi-secret',
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: false,
+  cookie: {
+    secure: false,   // set to true only if using HTTPS
+    httpOnly: true,  // helps prevent XSS
+    maxAge: 1000 * 60 * 60 // 1 hour
+  }
 }));
-app.use(csrfProtection);
 
 // --------------------
 // Middleware
@@ -42,10 +50,10 @@ function requireOperator(req, res, next) {
 // --------------------
 // Voucher Login
 // --------------------
-app.get('/login', (req, res) => {
+app.get('/login', csrfProtection, (req, res) => {
   res.render('login', { csrfToken: req.csrfToken() });
 });
-app.post('/login', async (req, res) => {
+app.post('/login', csrfProtection, async (req, res) => {
   try {
     const { username, password } = req.body;
     const voucher = await voucherManager.validateVoucher(username, password);
@@ -65,10 +73,10 @@ app.post('/login', async (req, res) => {
 // --------------------
 // Admin/Operator Login
 // --------------------
-app.get('/admin-login', (req, res) => {
+app.get('/admin-login', csrfProtection, (req, res) => {
   res.render('admin_login', { csrfToken: req.csrfToken() });
 });
-app.post('/admin-login', async (req, res) => {
+app.post('/admin-login', csrfProtection, async (req, res) => {
   const { username, password } = req.body;
   try {
     const rows = await db.runQuery('SELECT * FROM users WHERE username = ?', [username]);
@@ -89,15 +97,41 @@ app.post('/admin-login', async (req, res) => {
 });
 
 // --------------------
+// JSON APIs (no CSRF)
+// --------------------
+app.get('/api/payments', requireAdmin, async (req, res) => {
+  try {
+    const payments = await db.getPayments();
+    res.json({ status: 'success', data: payments });
+  } catch (err) {
+    console.error('Payments API error:', err);
+    res.json({ status: 'error', message: 'Unable to fetch payments' });
+  }
+});
+
+app.get('/api/audit_logs', requireAdmin, async (req, res) => {
+  try {
+    const logs = await db.getAuditLogs();
+    res.json({ status: 'success', data: logs });
+  } catch (err) {
+    console.error('Audit Logs API error:', err);
+    res.json({ status: 'error', message: 'Unable to fetch audit logs' });
+  }
+});
+// -----------------------------------------------------------------------------
+// File: server.js (Part 2 of 2)
+// -----------------------------------------------------------------------------
+
+// --------------------
 // Admin Dashboard + Routes
 // --------------------
-app.get('/admin', requireAdmin, async (req, res) => {
+app.get('/admin', csrfProtection, requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const operators = await db.getOperators();
   res.render('admin', { vouchers, operators, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
-app.post('/admin/create', requireAdmin, async (req, res) => {
+app.post('/admin/create', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { username, password, profile, batchTag } = req.body;
     const tag = batchTag && batchTag.trim() !== '' ? batchTag : `batch_${new Date().toISOString().slice(0, 10)}`;
@@ -109,22 +143,22 @@ app.post('/admin/create', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+app.post('/admin/create-operator', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { username, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
-    await db.runQuery('INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, ?)', [username, hash, 'operator', 'active']);
+    await db.runQuery(
+      'INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, ?)',
+      [username, hash, 'operator', 'active']
+    );
     res.redirect('/admin');
   } catch (err) {
     console.error('Create operator error:', err);
     res.status(500).send('Error creating operator');
   }
 });
-// -----------------------------------------------------------------------------
-// File: server.js (Part 2 of 2)
-// -----------------------------------------------------------------------------
 
-app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
+app.post('/admin/delete-operator/:id', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const hasActions = await db.operatorHasActions(id);
@@ -140,7 +174,7 @@ app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+app.post('/admin/deactivate-operator/:id', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await db.deactivateOperator(id);
@@ -151,7 +185,7 @@ app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
+app.post('/admin/activate-operator/:id', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     await db.activateOperator(id);
@@ -162,7 +196,7 @@ app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
+app.post('/admin/bulk-action', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { action, voucherIds } = req.body;
     if (!voucherIds) return res.redirect('/admin');
@@ -184,7 +218,7 @@ app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
 // --------------------
 // Operator Dashboard
 // --------------------
-app.get('/operator', requireOperator, async (req, res) => {
+app.get('/operator', csrfProtection, requireOperator, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   res.render('operator', { vouchers, csrfToken: req.csrfToken(), role: 'operator' });
 });
@@ -192,7 +226,7 @@ app.get('/operator', requireOperator, async (req, res) => {
 // --------------------
 // Analytics Dashboard
 // --------------------
-app.get('/analytics', requireAdmin, async (req, res) => {
+app.get('/analytics', csrfProtection, requireAdmin, async (req, res) => {
   const total = await db.countAllVouchers();
   const active = await db.countActiveVouchers();
   const inactive = await db.countInactiveVouchers();
@@ -212,24 +246,24 @@ app.get('/analytics', requireAdmin, async (req, res) => {
 // --------------------
 // Logs Dashboard + Exports
 // --------------------
-app.get('/admin/logs', requireAdmin, async (req, res) => {
+app.get('/admin/logs', csrfProtection, requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   res.render('logs', { logs, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
-app.get('/admin/export-all', requireAdmin, async (req, res) => {
+app.get('/admin/export-all', csrfProtection, requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
-app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
+app.get('/admin/export-logs-csv', csrfProtection, requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   const csv = logs.map(l => `${l.id},${l.profile},${l.filename},${l.exported_by},${l.timestamp}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
-app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
+app.get('/admin/export-logs-json', csrfProtection, requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   res.json(logs);
 });

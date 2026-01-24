@@ -1,14 +1,17 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-23 10:50 WAT
+Timestamp: 2026-01-24
 File: views/admin.ejs (Part 1 of 2)
-Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator lifecycle fixes
+Purpose: Admin dashboard with vouchers, operators, payments, audit logs
 ---------------------------------------------------------------------------- -->
 <!DOCTYPE html>
 <html>
 <head>
   <title>Admin Dashboard</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+  <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-4">
@@ -53,6 +56,7 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
         <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
       </div>
     </div>
+
     <!-- Operator Management -->
     <div class="mb-4">
       <h4>Manage Operators</h4>
@@ -155,6 +159,24 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
         </table>
       </div>
     </form>
+    <!-- Audit Logs Table -->
+    <h4 class="mt-5">Audit Logs</h4>
+    <div class="mb-3">
+      <select id="actionFilter" class="form-select d-inline w-auto">
+        <option value="">All Actions</option>
+        <option value="voucher_created">Voucher Created</option>
+        <option value="voucher_status_change">Voucher Status Change</option>
+        <option value="payment_success">Payment Success</option>
+        <option value="payment_failed">Payment Failed</option>
+      </select>
+      <select id="batchTagFilter" class="form-select d-inline w-auto">
+        <option value="">All Batch Tags</option>
+        <!-- You can dynamically populate batch tags here if needed -->
+      </select>
+    </div>
+    <div class="table-responsive">
+      <table id="auditLogsTable" class="table table-striped table-bordered"></table>
+    </div>
   </div>
 
   <script>
@@ -162,6 +184,65 @@ Purpose: Admin dashboard with voucher management, exports, logs, analytics, and 
       const checkboxes = document.querySelectorAll('input[name="voucherIds"]');
       checkboxes.forEach(cb => cb.checked = source.checked);
     }
+
+    $(document).ready(function() {
+      // Payments DataTable
+      const paymentsTable = $('#paymentsTable').DataTable({
+        ajax: '/api/payments',
+        columns: [
+          { data: 'id', title: 'Payment ID' },
+          { data: 'voucher_id', title: 'Voucher ID' },
+          { data: 'method', title: 'Method' },
+          { data: 'amount', title: 'Amount' },
+          { data: 'status', title: 'Status' },
+          { data: 'created_at', title: 'Created At' }
+        ],
+        order: [[5, 'desc']],
+        pageLength: 25,
+        dom: 'Bfrtip',
+        buttons: ['csv', 'excel']
+      });
+
+      // Filter dropdowns for Payments
+      $('#statusFilter').on('change', function () {
+        let val = $(this).val();
+        paymentsTable.column(4).search(val ? '^' + val + '$' : '', true, false).draw();
+      });
+      $('#methodFilter').on('change', function () {
+        let val = $(this).val();
+        paymentsTable.column(2).search(val ? '^' + val + '$' : '', true, false).draw();
+      });
+
+      // Audit Logs DataTable
+      const auditLogsTable = $('#auditLogsTable').DataTable({
+        ajax: '/api/audit_logs',
+        columns: [
+          { data: 'id', title: 'Log ID' },
+          { data: 'voucher_id', title: 'Voucher ID' },
+          { data: 'action', title: 'Action' },
+          { data: 'username', title: 'Batch Tag' },
+          { data: 'profile', title: 'Profile' },
+          { data: 'details', title: 'Details' },
+          { data: 'channel', title: 'Channel' },
+          { data: 'status', title: 'Status' },
+          { data: 'created_at', title: 'Timestamp' }
+        ],
+        order: [[8, 'desc']],
+        pageLength: 50,
+        dom: 'Bfrtip',
+        buttons: ['csv', 'excel']
+      });
+
+      // Filter dropdowns for Audit Logs
+      $('#actionFilter').on('change', function () {
+        let val = $(this).val();
+        auditLogsTable.column(2).search(val ? '^' + val + '$' : '', true, false).draw();
+      });
+      $('#batchTagFilter').on('change', function () {
+        let val = $(this).val();
+        auditLogsTable.column(3).search(val ? val : '', true, false).draw();
+      });
+    });
   </script>
 </body>
 </html>
