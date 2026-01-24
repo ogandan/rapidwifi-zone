@@ -1,4 +1,35 @@
 # RAPIDWIFI-ZONE
+# 📖 Changelog
+
+## 2026‑01‑24 — Payment Trigger Migration & Audit Trail Enhancement
+
+### 🔧 Trigger Updates
+- Added and updated payment triggers to ensure full lifecycle auditability:
+  - **payment_success** → Logs successful payments with voucher ID, batch tag, method, and amount.
+  - **payment_failed** → Logs failed payments with voucher ID, batch tag, method, and amount.
+- All payment events now consistently record:
+  - `voucher_id` (numeric primary key of the voucher)
+  - `batch_tag` (batch context for traceability)
+  - `method` (payment channel, e.g., mobile_money, cash)
+  - `amount` (mandatory, enforced by schema)
+
+### 🧹 Schema Normalization
+- Enforced `NOT NULL` constraint on `amount` to prevent incomplete payment records.
+- Added `created_at` timestamp default for all payment entries.
+- Ensured `voucher_id` is a foreign key referencing `vouchers.id`.
+
+### ✅ Verification
+- Smoke tests confirmed:
+  - Voucher 77 → `payment_success` logged with method `mobile_money`, amount `500.0`, and batch tag.
+  - Vouchers 70–73 → Multiple `payment_failed` entries logged with voucher IDs and methods.
+  - Voucher 1 → Legacy `payment_failed` entry now aligned with new schema.
+- Query results show all `payment_%` actions include populated `voucher_id` and enriched details.
+
+### 📌 Notes
+- From this date forward, **all payment events are guaranteed consistent** in the audit trail.
+- Legacy incomplete rows were normalized or flagged during migration.
+- Future migrations should preserve this invariant: `amount` must never be NULL and `voucher_id` must always be populated.
+
 
 RAPIDWIFI-ZONE is a captive portal and dashboard system designed for community Wi-Fi deployments.  
 It provides voucher-based access, operator/admin management, analytics, and export logging.
