@@ -124,6 +124,33 @@ app.post('/admin/create-operator', requireAdmin, async (req, res) => {
 // File: server.js (Part 2 of 2)
 // -----------------------------------------------------------------------------
 
+app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hasActions = await db.operatorHasActions(id);
+    if (hasActions) {
+      await db.deactivateOperator(id);
+    } else {
+      await db.deleteOperator(id);
+    }
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Delete operator error:', err);
+    res.status(500).send('Error deleting operator');
+  }
+});
+
+app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deactivateOperator(id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Deactivate operator error:', err);
+    res.status(500).send('Error deactivating operator');
+  }
+});
+
 app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;

@@ -2,6 +2,107 @@
 
 All notable changes are tracked here with timestamps and tags.
 
+# RAPIDWIFI-ZONE
+
+RAPIDWIFI-ZONE is a community-focused WISP platform designed for secure, auditable, and modular voucher-based internet access.  
+This project runs on Raspberry Pi 3 with SQLite3 for lightweight, embedded database management.
+
+---
+# 📖 Changelog
+
+## 2026‑01‑24 — Audit Log Trigger Migration & Cleanup
+
+### 🔧 Trigger Updates
+- Replaced all audit log triggers (`voucher_created`, `voucher_status_change`, `voucher_expired`, `payment_failed`) with new definitions.  
+- Each trigger now **always records both**:
+  - `voucher_id` (numeric primary key of the voucher)  
+  - `batch_tag` (batch context for traceability)  
+- `details` field enriched to include voucher ID and batch tag for human‑readable clarity.
+
+### 🧹 Data Cleanup
+- Identified **275 legacy audit log rows** missing `voucher_id`.  
+- Implemented a one‑time backfill strategy:
+  - Direct joins patched recoverable rows.  
+  - Batch mapping table used for partial reconstruction.  
+  - Remaining irrecoverable rows flagged as unresolved.  
+- Final step: **deleted 273 unresolved orphaned rows** to simplify reporting and ensure data integrity.
+
+### ✅ Verification
+- Post‑migration audit log count: **29 total rows**.  
+- All rows now have a valid `voucher_id`.  
+- Smoke tests confirmed:
+  - Voucher creation logs include both ID and batch tag.  
+  - Status changes and expirations are captured consistently.  
+  - Payment failures log voucher ID and batch tag correctly.
+
+### 📌 Notes
+- From this date forward, **all audit logs are guaranteed consistent**.  
+- Legacy orphaned rows were intentionally purged; this is documented for audit transparency.  
+- Future migrations should preserve this invariant: `voucher_id` must never be NULL in `audit_logs`.
+
+---
+
+## Features
+
+- **Voucher Lifecycle (Fully Automated)**
+  - `pending` → created at payment initiation
+  - `reserved` → allocated to operator, awaiting cash confirmation
+  - `sold` → delivered to client, locked
+  - `expired` → validity period ended
+  - `inactive` → cancelled or failed payment
+
+- **Payment Integration**
+  - Mobile money (self-service, voucherless or voucher delivery)
+  - Operator-mediated cash sales
+  - Normalized `payments` table with FK links to vouchers and users
+  - Audit logging for every voucher transition
+
+- **Auditability**
+  - Triggers enforce lifecycle transitions:
+    - `pending → sold` requires completed payment
+    - `reserved → sold` requires completed cash payment
+    - `sold → expired` automatically logged
+  - All transitions recorded in `audit_logs`
+
+- **Best Practices for Pi + SQLite**
+  - WAL mode enabled for concurrency
+  - Indexed critical columns (`status`, `profile`, `voucher_id`)
+  - Background notification queue (SMS/WhatsApp/Telegram)
+  - Regular pruning of expired vouchers/logs
+  - Daily backup of `db.sqlite`
+
+---
+
+## Development Workflow
+
+1. **Database Migrations**
+   - Migration scripts stored in `/migrations`
+   - Run with:
+     ```bash
+     sqlite3 data/db.sqlite < migrations/<script>.sql
+     ```
+
+2. **Version Control**
+   - Track schema and documentation changes in git
+   - Commit `db.sqlite` only after verified migrations
+
+---
+
+## Git Workflow
+
+```bash
+# Stage changes
+git add README.md data/db.sqlite
+
+# Commit with descriptive message
+git commit -m "Add payments table, voucher lifecycle triggers, update README.md"
+
+# Tag for rollback safety
+git tag -a v20260123-lifecycle -m "Voucher lifecycle enforcement + payments schema"
+
+# Push changes
+git push origin main --tags
+
 ---
 ## [23012026-1806] - 23 Jan 2026 18:06 WAT
 ### Changed
