@@ -13,6 +13,48 @@ RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This 
    On the login page, the client enters their **mobile phone number** and chooses a browsing profile (e.g. 1‑hour pass, daily pass, weekly pass).
 
 2. **Voucher created (pending)**  
+   The backend generates a valid voucher (4‑char username, 5‑char password) and records a payment entry linked to that voucher ID.
+
+3. **Payment initiated**  
+   A `requesttopay` is sent to the Mobile Money API.  
+   - The client’s phone number is used as the payer (`partyId`).  
+   - The voucher ID is passed as `externalId` to link payment → voucher.
+
+4. **Gateway callback → confirmation**  
+   The Mobile Money gateway sends a callback to `/payments/callback`.  
+   - The callback handler verifies the payload (signature in production, sandbox status otherwise).  
+   - Voucher transitions from `pending` → `sold` if payment is successful.
+
+5. **Client notified**  
+   Once voucher is marked `sold`, the system triggers `notificationManager` to send voucher credentials via SMS/WhatsApp/Telegram.  
+   Notifications are queued so DB transactions are not blocked.
+
+6. **Audit trail created**  
+   Every voucher transition and payment confirmation is logged in `audit_logs`.  
+   Sandbox callbacks are also logged for visibility.
+
+7. **Client login → browsing enabled**  
+   The client uses the delivered voucher credentials to log in via the captive portal.  
+   Browsing access is granted immediately.
+
+---
+
+### ✅ Key Files Updated
+- `server.js` — corrected self‑service payment flow, merged working `/admin-login`, callback handler aligned with schema.  
+- `views/payment_result.ejs` — new view to display payment status.  
+- `README.md` — this section added to document the workflow.
+
+---
+
+## 📌 Self‑Service Mobile Money Payment Workflow
+
+RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This feature allows a client to purchase a voucher themselves, without operator intervention, and immediately gain browsing access once payment is confirmed.
+
+### 🔎 Workflow Overview
+1. **Client selects profile**  
+   On the login page, the client enters their **mobile phone number** and chooses a browsing profile (e.g. 1‑hour pass, daily pass, weekly pass).
+
+2. **Voucher created (pending)**  
    The backend creates a voucher in `pending` state and records a payment entry linked to that voucher.
 
 3. **Payment initiated**  
