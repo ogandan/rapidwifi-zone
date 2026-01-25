@@ -1,7 +1,8 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-24
+// Timestamp: 2026-01-25
 // File: server.js (Part 1 of 2)
-// Purpose: Express server routes for RAPIDWIFI-ZONE captive portal and dashboards
+// Purpose: RAPIDWIFI-ZONE captive portal, dashboards, voucher lifecycle,
+//          payments integration, and notifications.
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -10,9 +11,13 @@ const bodyParser = require('body-parser');
 const csrf = require('csurf');
 const path = require('path');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const fetch = require('node-fetch');
+const { v4: uuidv4 } = require('uuid');
 
 const voucherManager = require('./modules/voucherManager');
 const db = require('./data/db');
+const notificationManager = require('./modules/notificationManager');
 
 const app = express();
 const csrfProtection = csrf({ cookie: false });
@@ -20,6 +25,7 @@ const csrfProtection = csrf({ cookie: false });
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 
 // --------------------
 // Updated Session Config
@@ -71,31 +77,64 @@ app.post('/login', csrfProtection, async (req, res) => {
 });
 
 // --------------------
-// Admin/Operator Login
+// Self-Service Payment Route
 // --------------------
-app.get('/admin-login', csrfProtection, (req, res) => {
-  res.render('admin_login', { csrfToken: req.csrfToken() });
-});
-app.post('/admin-login', csrfProtection, async (req, res) => {
-  const { username, password } = req.body;
+app.post('/selfservice/pay', csrfProtection, async (req, res) => {
   try {
-    const rows = await db.runQuery('SELECT * FROM users WHERE username = ?', [username]);
-    if (!rows.length) return res.render('admin_login', { csrfToken: req.csrfToken(), error: 'Invalid credentials' });
-    const user = rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (match) {
-      req.session.user = user.username;
-      req.session.role = user.role;
-      if (user.role === 'admin') return res.redirect('/admin');
-      if (user.role === 'operator') return res.redirect('/operator');
-    }
-    res.render('admin_login', { csrfToken: req.csrfToken(), error: 'Invalid credentials' });
+    const { phone, profile } = req.body;
+
+    // 1. Create voucher in pending state
+    const voucherId = await voucherManager.createVoucher(phone, crypto.randomBytes(4).toString('hex'), profile, `batch_${new Date().toISOString().slice(0,10)}`, 'pending');
+
+    // 2. Create payment record
+    await db.runQuery(
+      'INSERT INTO payments (voucher_id, status, amount, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
+      [voucherId, 'initiated', profile === '1h' ? 500 : profile === 'day' ? 1000 : 5000]
+    );
+
+    // 3. Initiate requesttopay
+    const subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
+    const apiUserId = process.env.MOMO_API_USER;
+    const apiKey = process.env.GATEWAY_SECRET;
+
+    const tokenResp = await fetch("https://sandbox.momodeveloper.mtn.com/collection/token/", {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Authorization": "Basic " + Buffer.from(apiUserId + ":" + apiKey).toString("base64")
+      }
+    });
+    const tokenData = await tokenResp.json();
+    const accessToken = tokenData.access_token;
+
+    const referenceId = uuidv4();
+    const body = {
+      amount: profile === '1h' ? "500" : profile === 'day' ? "1000" : "5000",
+      currency: "XOF",
+      externalId: voucherId,
+      payer: { partyIdType: "MSISDN", partyId: phone },
+      payerMessage: "Voucher purchase",
+      payeeNote: "RAPIDWIFI-ZONE"
+    };
+
+    await fetch("https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + accessToken,
+        "X-Reference-Id": referenceId,
+        "X-Target-Environment": "sandbox",
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    });
+
+    res.render('payment_result', { success: true, message: 'Payment initiated. Please confirm on your phone.' });
   } catch (err) {
-    console.error('Admin login error:', err);
-    res.render('admin_login', { csrfToken: req.csrfToken(), error: 'System error during login' });
+    console.error('Self-service payment error:', err);
+    res.render('payment_result', { success: false, message: 'Error initiating payment' });
   }
 });
-
 // --------------------
 // JSON APIs (no CSRF)
 // --------------------
@@ -118,9 +157,62 @@ app.get('/api/audit_logs', requireAdmin, async (req, res) => {
     res.json({ status: 'error', message: 'Unable to fetch audit logs' });
   }
 });
-// -----------------------------------------------------------------------------
-// File: server.js (Part 2 of 2)
-// -----------------------------------------------------------------------------
+
+// --------------------
+// Mobile Money Callback Handler (production + sandbox)
+// --------------------
+app.post('/payments/callback', async (req, res) => {
+  try {
+    const body = req.body;
+
+    // Production-style payload
+    if (body.transaction_id && body.voucher_id && body.signature) {
+      const { transaction_id, voucher_id, amount, status, signature } = body;
+      const expectedSig = crypto.createHmac('sha256', process.env.GATEWAY_SECRET)
+                                .update(transaction_id + amount + status)
+                                .digest('hex');
+      if (signature !== expectedSig) {
+        console.error('Invalid callback signature');
+        return res.status(403).send('Forbidden');
+      }
+
+      await db.runQuery('UPDATE payments SET status=?, transaction_id=? WHERE voucher_id=?',
+        [status, transaction_id, voucher_id]);
+
+      if (status === 'completed') {
+        await db.runQuery('UPDATE vouchers SET status=? WHERE id=?', ['sold', voucher_id]);
+        await db.runQuery('INSERT INTO audit_logs (voucher_id, action, actor, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
+          [voucher_id, 'payment_confirmed', 'system']);
+        notificationManager.sendVoucherSold(voucher_id);
+      }
+
+      return res.json({ success: true });
+    }
+
+    // Sandbox payload
+    if (body.externalId && body.status) {
+      console.log("📩 Sandbox callback received:", body);
+
+      await db.runQuery('UPDATE payments SET status=? WHERE voucher_id=?',
+        [body.status, body.externalId]);
+
+      if (body.status === 'SUCCESSFUL') {
+        await db.runQuery('UPDATE vouchers SET status=? WHERE id=?', ['sold', body.externalId]);
+        await db.runQuery('INSERT INTO audit_logs (voucher_id, action, actor, timestamp) VALUES (?, ?, ?, CURRENT_TIMESTAMP)',
+          [body.externalId, 'sandbox_payment_confirmed', 'sandbox']);
+        notificationManager.sendVoucherSold(body.externalId);
+      }
+
+      return res.json({ success: true, sandbox: true });
+    }
+
+    console.warn("⚠️ Unknown callback payload:", body);
+    res.status(400).send('Bad callback format');
+  } catch (err) {
+    console.error('Callback error:', err);
+    res.status(500).send('Server error');
+  }
+});
 
 // --------------------
 // Admin Dashboard + Routes
@@ -149,7 +241,7 @@ app.post('/admin/create-operator', csrfProtection, requireAdmin, async (req, res
     const hash = await bcrypt.hash(password, 10);
     await db.runQuery(
       'INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, ?)',
-      [username, hash, 'operator', 'active']
+      [username.trim(), hash, 'operator', 'active']
     );
     res.redirect('/admin');
   } catch (err) {
@@ -157,7 +249,6 @@ app.post('/admin/create-operator', csrfProtection, requireAdmin, async (req, res
     res.status(500).send('Error creating operator');
   }
 });
-
 app.post('/admin/delete-operator/:id', csrfProtection, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -275,4 +366,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`RAPIDWIFI-ZONE server running on port ${PORT}`);
 });
-

@@ -1,5 +1,61 @@
 # RAPIDWIFI-ZONE
+
 # 📖 Changelog
+
+## 🏷️ Tags
+
+## 📌 Self‑Service Mobile Money Payment Workflow
+
+RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This feature allows a client to purchase a voucher themselves, without operator intervention, and immediately gain browsing access once payment is confirmed.
+
+### 🔎 Workflow Overview
+1. **Client selects profile**  
+   On the login page, the client enters their **mobile phone number** and chooses a browsing profile (e.g. 1‑hour pass, daily pass, weekly pass).
+
+2. **Voucher created (pending)**  
+   The backend creates a voucher in `pending` state and records a payment entry linked to that voucher.
+
+3. **Payment initiated**  
+   A `requesttopay` is sent to the Mobile Money API.  
+   - The client’s phone number is used as the payer (`partyId`).  
+   - The voucher ID is passed as `externalId` to link payment → voucher.
+
+4. **Gateway callback → confirmation**  
+   The Mobile Money gateway sends a callback to `/payments/callback`.  
+   - The callback handler verifies the payload (signature in production, sandbox status otherwise).  
+   - Voucher transitions from `pending` → `sold` if payment is successful.
+
+5. **Client notified**  
+   Once voucher is marked `sold`, the system triggers `notificationManager` to send voucher credentials via SMS/WhatsApp/Telegram.  
+   Notifications are queued so DB transactions are not blocked.
+
+6. **Audit trail created**  
+   Every voucher transition and payment confirmation is logged in `audit_logs`.  
+   Sandbox callbacks are also logged for visibility.
+
+7. **Client login → browsing enabled**  
+   The client uses the delivered voucher credentials to log in via the captive portal.  
+   Browsing access is granted immediately.
+
+---
+
+### ✅ Key Files Updated
+- `views/login.ejs` — extended with phone number + profile selection form.  
+- `server.js` — new `/selfservice/pay` route, updated `/payments/callback` handler.  
+- `README.md` — this section added to document the workflow.
+
+
+- **feature-user-management-20260124-1504**  
+  Voucher audit log migration and cleanup (2026‑01‑24 15:04 WAT).  
+  - Updated triggers to always record `voucher_id` and `batch_tag`.  
+  - Purged 273 unresolved orphaned rows for consistency.
+
+- **feature-user-management-20260124-1533**  
+  Payment trigger migration and audit trail enhancement (2026‑01‑24 15:33 WAT).  
+  - Added `payment_success` and `payment_failed` triggers.  
+  - Enforced `NOT NULL amount` and FK to vouchers.  
+  - Audit logs now capture `voucher_id`, `batch_tag`, `method`, and `amount`.
+
 
 ## 2026‑01‑24 — Payment Trigger Migration & Audit Trail Enhancement
 
