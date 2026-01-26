@@ -351,6 +351,27 @@ app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
 });
 
 // --------------------
+// Extra Routes
+// --------------------
+app.post('/pay/cash', async (req, res) => {
+  try {
+    const { voucherId, amount } = req.body;
+    await db.runQuery("UPDATE payments SET status='success', method='cash' WHERE voucher_id=?", [voucherId]);
+    await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
+    res.render('payment_result', { success: true, message: 'Cash payment recorded.' });
+  } catch (err) {
+    console.error('Cash payment error:', err);
+    res.render('payment_result', { success: false, message: 'Error recording cash payment' });
+  }
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => {
+    res.redirect('/login');
+  });
+});
+
+// --------------------
 // Server Start
 // --------------------
 const PORT = process.env.PORT || 3000;

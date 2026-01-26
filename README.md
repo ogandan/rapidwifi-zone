@@ -6,6 +6,32 @@
 
 ## 📌 Self‑Service Mobile Money Payment Workflow
 
+# RAPIDWIFI-ZONE
+
+RAPIDWIFI-ZONE is a captive portal and dashboard system for voucher lifecycle management, payments integration, and notifications.
+
+## Recent Fixes
+
+### Audit Logs
+- Fixed query in `db.js` to use `timestamp` instead of non-existent `created_at`.
+- Ensures audit logs load correctly in dashboards and API.
+
+### CSRF Protection
+- Global CSRF middleware applied after session setup.
+- Added CSRF error handler to render a friendly error page.
+
+### Error Page
+- Updated `error.ejs` to use `<%= message %>` instead of `__("payment_error")`.
+- Prevents runtime `ReferenceError: __ is not defined`.
+
+### Routes
+- Added `/pay/cash` route for recording cash payments.
+- Added `/logout` route to destroy session and redirect to login.
+
+### Exports
+- Verified export routes (`/admin/export-all`, `/admin/export-logs-csv`, `/admin/export-logs-json`) are wired and functional.
+
+
 RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This feature allows a client to purchase a voucher themselves, without operator intervention, and immediately gain browsing access once payment is confirmed.
 
 ### Audit Logs
