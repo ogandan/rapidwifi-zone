@@ -96,7 +96,7 @@ async function getPayments(limit = 100) {
 // --------------------
 async function getAuditLogs(limit = 100) {
   return await runQuery(
-    'SELECT id, voucher_id, action, username, profile, details, channel, status, created_at FROM audit_logs ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, voucher_id, action, username, profile, details, channel, status, timestamp  FROM audit_logs ORDER BY created_at DESC LIMIT ?',
     [limit]
   );
 }
