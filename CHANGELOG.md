@@ -10,6 +10,33 @@ This project runs on Raspberry Pi 3 with SQLite3 for lightweight, embedded datab
 ---
 # 📖 Changelog
 
+# Changelog
+
+## [2026-01-25] Self-Service Mobile Money Integration
+
+### Added
+- **Self-service payment flow** in `server.js`:
+  - Clients can enter phone number + profile on `/login`.
+  - Voucher credentials (4-char username, 5-char password) generated automatically.
+  - Payment record linked to voucher ID with `method=mobile_money` and `status=pending`.
+  - MTN MoMo `requesttopay` initiated with voucher ID as `externalId`.
+- **Mobile Money callback handler**:
+  - Updates `payments.status` (`pending`, `success`, `failed`) based on gateway response.
+  - Transitions voucher state to `sold` on success.
+  - Triggers notification dispatch via `notificationManager`.
+- **New view** `views/payment_result.ejs` to display payment status to clients.
+
+### Changed
+- **Merged working `/admin-login` block** from backup into updated `server.js` to preserve tested admin/operator login flow.
+- **README.md** updated with documentation for self-service Mobile Money workflow.
+
+### Fixed
+- Voucher creation error by enforcing correct credential generation (4-char username, 5-char password).
+- Missing view error by adding `payment_result.ejs`.
+
+---
+
+---
 ## 2026‑01‑24 — Audit Log Trigger Migration & Cleanup
 
 ### 🔧 Trigger Updates

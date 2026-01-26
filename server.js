@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-25
+// Timestamp: 2026-01-26
 // File: server.js (Part 1 of 4)
 // Purpose: RAPIDWIFI-ZONE captive portal, dashboards, voucher lifecycle,
 //          payments integration, and notifications.
@@ -20,6 +20,10 @@ const db = require('./data/db');
 const notificationManager = require('./modules/notificationManager');
 
 const app = express();
+
+// --------------------
+// CSRF Protection
+// --------------------
 const csrfProtection = csrf({ cookie: false });
 
 app.set('view engine', 'ejs');
@@ -35,14 +39,30 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,
+    secure: false,       // must be false for HTTP testing
     httpOnly: true,
     maxAge: 1000 * 60 * 60 // 1 hour
   }
 }));
 
 // --------------------
-// Middleware
+// Apply CSRF Middleware Globally
+// --------------------
+app.use(csrfProtection);
+
+// --------------------
+// CSRF Error Handler
+// --------------------
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN') {
+    console.error('Invalid CSRF token:', err);
+    return res.status(403).render('error', { message: 'Invalid CSRF token. Please refresh and try again.' });
+  }
+  next(err);
+});
+
+// --------------------
+// Middleware Helpers
 // --------------------
 function requireAdmin(req, res, next) {
   if (req.session && req.session.user && req.session.role === 'admin') return next();
@@ -55,10 +75,10 @@ function requireOperator(req, res, next) {
 // --------------------
 // Voucher Login
 // --------------------
-app.get('/login', csrfProtection, (req, res) => {
+app.get('/login', (req, res) => {
   res.render('login', { csrfToken: req.csrfToken() });
 });
-app.post('/login', csrfProtection, async (req, res) => {
+app.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const voucher = await voucherManager.validateVoucher(username, password);
@@ -76,13 +96,13 @@ app.post('/login', csrfProtection, async (req, res) => {
 });
 
 // --------------------
-// Admin Login (merged from backup)
+// Admin Login
 // --------------------
-app.get('/admin-login', csrfProtection, (req, res) => {
+app.get('/admin-login', (req, res) => {
   res.render('admin_login', { csrfToken: req.csrfToken() });
 });
 
-app.post('/admin-login', csrfProtection, async (req, res) => {
+app.post('/admin-login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const rows = await db.runQuery('SELECT * FROM users WHERE username = ?', [username.trim()]);
@@ -102,21 +122,18 @@ app.post('/admin-login', csrfProtection, async (req, res) => {
     console.error('Admin login error:', err);
     res.render('admin_login', { csrfToken: req.csrfToken(), error: 'System error during login' });
   }
-  res.redirect('/admin-login');
 });
 
 // --------------------
-// Self-Service Payment Route
+// Self-Service Payment
 // --------------------
-app.post('/selfservice/pay', csrfProtection, async (req, res) => {
+app.post('/selfservice/pay', async (req, res) => {
   try {
     const { phone, profile } = req.body;
 
-    // Generate valid voucher credentials
-    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase(); // 4 chars
-    const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5); // 5 chars
+    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase();
+    const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
 
-    // Create voucher
     await voucherManager.createVoucher(
       voucherUsername,
       voucherPassword,
@@ -124,21 +141,18 @@ app.post('/selfservice/pay', csrfProtection, async (req, res) => {
       `batch_${new Date().toISOString().slice(0,10)}`
     );
 
-    // Retrieve voucher ID
     const voucherRow = await db.runQuery(
       "SELECT id FROM vouchers WHERE username = ? AND password = ?",
       [voucherUsername, voucherPassword]
     );
     const voucherId = voucherRow[0].id;
 
-    // Insert payment record
     const amount = profile === '1h' ? 500 : profile === 'day' ? 1000 : 5000;
     await db.runQuery(
       "INSERT INTO payments (voucher_id, amount, method, status, currency) VALUES (?, ?, ?, ?, ?)",
       [voucherId, amount, 'mobile_money', 'pending', 'XOF']
     );
 
-    // Initiate requesttopay
     const subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
     const apiUserId = process.env.MOMO_API_USER;
     const apiKey = process.env.GATEWAY_SECRET;
@@ -222,7 +236,6 @@ app.post('/payments/callback', async (req, res) => {
         return res.status(403).send('Forbidden');
       }
 
-      // Update payment + voucher
       await db.runQuery("UPDATE payments SET status=?, transaction_ref=? WHERE voucher_id=?",
         [status, transaction_id, voucher_id]);
 
@@ -256,18 +269,17 @@ app.post('/payments/callback', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+
 // --------------------
 // Admin Dashboard + Routes
 // --------------------
-app.get('/admin', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/admin', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const operators = await db.getOperators();
   res.render('admin', { vouchers, operators, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
-// ... (create, delete, activate/deactivate operator routes as before)
-
-app.post('/admin/bulk-action', csrfProtection, requireAdmin, async (req, res) => {
+app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
   try {
     const { action, voucherIds } = req.body;
     if (!voucherIds) return res.redirect('/admin');
@@ -289,7 +301,7 @@ app.post('/admin/bulk-action', csrfProtection, requireAdmin, async (req, res) =>
 // --------------------
 // Operator Dashboard
 // --------------------
-app.get('/operator', csrfProtection, requireOperator, async (req, res) => {
+app.get('/operator', requireOperator, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   res.render('operator', { vouchers, csrfToken: req.csrfToken(), role: 'operator' });
 });
@@ -297,7 +309,7 @@ app.get('/operator', csrfProtection, requireOperator, async (req, res) => {
 // --------------------
 // Analytics Dashboard
 // --------------------
-app.get('/analytics', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/analytics', requireAdmin, async (req, res) => {
   const total = await db.countAllVouchers();
   const active = await db.countActiveVouchers();
   const inactive = await db.countInactiveVouchers();
@@ -313,28 +325,27 @@ app.get('/analytics', csrfProtection, requireAdmin, async (req, res) => {
     role: 'admin'
   });
 });
-
 // --------------------
 // Logs Dashboard + Exports
 // --------------------
-app.get('/admin/logs', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/admin/logs', requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   res.render('logs', { logs, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
-app.get('/admin/export-all', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/admin/export-all', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
   const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
-app.get('/admin/export-logs-csv', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   const csv = logs.map(l => `${l.id},${l.profile},${l.filename},${l.exported_by},${l.timestamp}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
-app.get('/admin/export-logs-json', csrfProtection, requireAdmin, async (req, res) => {
+app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
   const logs = await db.getLogs();
   res.json(logs);
 });
