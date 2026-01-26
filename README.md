@@ -8,6 +8,11 @@
 
 RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This feature allows a client to purchase a voucher themselves, without operator intervention, and immediately gain browsing access once payment is confirmed.
 
+### Audit Logs
+- The `audit_logs` table uses a `timestamp` column for entries.
+- Code has been updated to query `timestamp` instead of `created_at`.
+- No migration or backfill is required because `timestamp` is already populated automatically.
+
 # RAPIDWIFI-ZONE
 
 RAPIDWIFI-ZONE is a captive portal and dashboard system for voucher lifecycle management, payments integration, and notifications.
