@@ -8,7 +8,29 @@
 
 RAPIDWIFI‑ZONE now supports **direct client payments via Mobile Money**. This feature allows a client to purchase a voucher themselves, without operator intervention, and immediately gain browsing access once payment is confirmed.
 
+# RAPIDWIFI-ZONE
+
+RAPIDWIFI-ZONE is a captive portal and dashboard system for voucher lifecycle management, payments integration, and notifications.
+
+## Recent Fixes
+
+### CSRF Protection
+- Added global CSRF middleware (`app.use(csrfProtection)`) after session setup.
+- Implemented a CSRF error handler to catch invalid tokens and display a friendly error message.
+- All forms now include `<input type="hidden" name="_csrf" value="<%= csrfToken %>">` and route handlers pass `req.csrfToken()` to templates.
+
+### Audit Logs
+- The `audit_logs` table uses a `timestamp` column (not `created_at`).
+- Updated queries in `db.js` to reference `timestamp` instead of `created_at`.
+- This resolves `SQLITE_ERROR: no such column: created_at`.
+
+## Deployment Notes
+- Restart with `pm2 restart rapidwifi --update-env` to ensure environment variables are loaded.
+- For local testing, session cookies are configured with `secure: false`.
+
+
 ### 🔎 Workflow Overview
+
 1. **Client selects profile**  
    On the login page, the client enters their **mobile phone number** and chooses a browsing profile (e.g. 1‑hour pass, daily pass, weekly pass).
 
