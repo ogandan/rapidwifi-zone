@@ -74,6 +74,19 @@ async function operatorHasActions(id) {
   return rows[0].cnt > 0;
 }
 
+// Helper: count vouchers sold today by operator
+async function countOperatorSoldToday(username) {
+  const rows = await runQuery(`
+    SELECT COUNT(*) AS total
+    FROM payments p
+    JOIN vouchers v ON p.voucher_id = v.id
+    WHERE p.status='success'
+      AND DATE(p.timestamp) = DATE('now')
+      AND v.created_by = ?
+  `, [username]);
+  return rows[0] ? rows[0].total : 0;
+}
+
 // --------------------
 // Export Logs Functions
 // --------------------
@@ -91,7 +104,6 @@ async function getPayments(limit = 100) {
   );
 }
 
-// Payments grouped by date (daily counts)
 async function getPaymentsByDate() {
   return await runQuery(`
     SELECT DATE(timestamp) AS date, COUNT(*) AS count
@@ -101,7 +113,6 @@ async function getPaymentsByDate() {
   `);
 }
 
-// Revenue trend (cumulative over time)
 async function getRevenueTrend() {
   return await runQuery(`
     SELECT DATE(timestamp) AS date, SUM(amount) AS total
@@ -112,7 +123,6 @@ async function getRevenueTrend() {
   `);
 }
 
-// Revenue grouped by voucher profile
 async function getProfileRevenue() {
   return await runQuery(`
     SELECT v.profile AS profile, SUM(p.amount) AS total
@@ -154,6 +164,7 @@ module.exports = {
   activateOperator,
   deleteOperator,
   operatorHasActions,
+  countOperatorSoldToday,
 
   // Logs
   getLogs,

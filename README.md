@@ -6,6 +6,77 @@
 
 # RAPIDWIFI-ZONE
 
+RAPIDWIFI-ZONE is a captive portal and management system for vouchers, operators, and payments.  
+It provides dashboards for admins and operators, analytics, and export functionality.
+
+---
+
+## Features
+
+### Authentication & CSRF
+- Voucher login with CSRF protection.
+- Admin and operator login with role-based redirects.
+- CSRF tokens enforced on all forms except `/api/*` and `/payments/callback`.
+
+### Voucher Lifecycle
+- Create vouchers individually or in bulk.
+- Activate, block, or delete vouchers.
+- Voucher status tracked (`active`, `inactive`, `sold`).
+
+### Payments
+- Self-service mobile money payments insert vouchers with `pending` status.
+- Callback handler updates payment status and marks vouchers as sold.
+- Cash payments supported with credential display.
+- Payments API available at `/api/payments`.
+
+### Operator Dashboard (Redesigned)
+- Displays **total vouchers sold today** by the logged-in operator.
+- Profile dropdown to create vouchers (`1h`, `day`, `week`).
+- Sell workflow:
+  - Operator enters amount.
+  - Voucher password revealed after sale.
+  - Transaction closed with a "Close Sale" button.
+
+### Analytics Dashboard
+- Voucher status chart (active vs inactive).
+- Profile distribution chart.
+- Export logs chart.
+- Payments status chart (success vs failed).
+- Revenue by method chart.
+- Payments time-series chart.
+- Revenue trend chart.
+- Profile-based revenue chart.
+
+### Logs & Exports
+- Export vouchers to CSV with headers.
+- Export logs to CSV/JSON with filters:
+  - Filter by profile, status, batch tag.
+
+### Operator Management
+- Create, activate/deactivate, and delete operators.
+- Operator actions tracked.
+
+### Audit Logs
+- Audit logs available via `/api/audit_logs`.
+
+---
+
+## Database Helpers
+
+- `countOperatorSoldToday(username)`  
+  Returns the number of vouchers sold today by the specified operator.
+
+---
+
+## Setup
+
+1. Install dependencies:
+   ```bash
+   npm install
+
+
+# RAPIDWIFI-ZONE
+
 Captive portal and admin dashboards for voucher lifecycle, payments integration, analytics, and notifications.
 
 ## Features

@@ -1,73 +1,52 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Operator Dashboard - RAPIDWIFI-ZONE</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Operator Dashboard</title>
 </head>
 <body>
-  <header>
-    <h1>Operator Dashboard</h1>
-    <nav>
-      <a href="/logout">Logout</a>
-    </nav>
-  </header>
+  <h1>Operator Dashboard</h1>
+  <p>Total vouchers sold today: <%= totalSoldToday %></p>
 
-  <main>
-    <section>
-      <h2>Available Vouchers</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Username</th>
-            <th>Profile</th>
-            <th>Status</th>
-            <th>Created At</th>
-            <th>Sell</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% vouchers.forEach(function(voucher) { %>
-            <tr>
-              <td><%= voucher.username %></td>
-              <td><%= voucher.profile %></td>
-              <td><%= voucher.status %></td>
-              <td><%= voucher.created_at %></td>
-              <td>
-                <% if (voucher.status === 'active') { %>
-                  <form action="/pay/cash" method="POST">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <input type="hidden" name="user" value="<%= voucher.username %>">
-                    <input type="hidden" name="profile" value="<%= voucher.profile %>">
-                    <label>Amount:</label>
-                    <input type="number" name="amount" required>
-                    <button type="submit">Sell (Cash)</button>
-                  </form>
-                  <form action="/deliver-voucher/<%= voucher.username %>" method="POST">
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <label>Channel:</label>
-                    <select name="channel" required>
-                      <option value="SMS">SMS</option>
-                      <option value="WhatsApp">WhatsApp</option>
-                      <option value="Telegram">Telegram</option>
-                    </select>
-                    <label>Recipient:</label>
-                    <input type="text" name="recipient" placeholder="Phone or Chat ID" required>
-                    <button type="submit">Deliver</button>
-                  </form>
-                <% } else { %>
-                  <span>Not available</span>
-                <% } %>
-              </td>
-            </tr>
-          <% }); %>
-        </tbody>
-      </table>
-    </section>
-  </main>
+  <!-- Profile selection -->
+  <form method="POST" action="/operator/create-voucher">
+    <label for="profile">Choose profile:</label>
+    <select name="profile" id="profile">
+      <option value="1h">1 Hour</option>
+      <option value="day">1 Day</option>
+      <option value="week">1 Week</option>
+    </select>
+    <button type="submit">Create Voucher</button>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  </form>
 
-  <footer>
-    <p>&copy; 2026 RAPIDWIFI-ZONE</p>
-  </footer>
+  <% if (voucher) { %>
+    <div>
+      <p>Voucher Username: <%= voucher.username %></p>
+      <p>Price: <%= voucher.price %> XOF</p>
+      <form method="POST" action="/operator/sell-voucher">
+        <input type="hidden" name="voucherId" value="<%= voucher.id %>">
+        <label for="amount">Enter amount:</label>
+        <input type="number" name="amount" required>
+        <button type="submit">Sell</button>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      </form>
+    </div>
+  <% } %>
+
+  <% if (voucherSold) { %>
+    <div>
+      <p>Voucher Password: <%= voucherSold.password %></p>
+      <form method="POST" action="/operator/close-sale">
+        <input type="hidden" name="voucherId" value="<%= voucherSold.id %>">
+        <button type="submit">Close Transaction</button>
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      </form>
+    </div>
+  <% } %>
+
+  <% if (error) { %>
+    <p style="color:red;"><%= error %></p>
+  <% } %>
 </body>
 </html>
 
