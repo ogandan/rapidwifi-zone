@@ -11,6 +11,33 @@ Captive portal and admin dashboards for voucher lifecycle, payments integration,
 ## Features
 - Voucher login and lifecycle management
 - Admin and operator dashboards
+- Self-service payments (MTN MoMo sandbox + cash)
+- Audit logs and payments dashboard (`/admin/logs`)
+- Enhanced analytics dashboard (`/analytics`) with:
+  - Voucher status
+  - Profile distribution
+  - Export logs
+  - Payments status
+  - Revenue by method
+  - Payments time-series
+  - Revenue trend (cumulative)
+  - Profile-based revenue
+- Operator management (create, activate, deactivate, delete)
+- Export vouchers and logs (CSV/JSON)
+- CSRF protection for all forms
+
+## Installation
+```bash
+npm install
+
+
+# RAPIDWIFI-ZONE
+
+Captive portal and admin dashboards for voucher lifecycle, payments integration, analytics, and notifications.
+
+## Features
+- Voucher login and lifecycle management
+- Admin and operator dashboards
 - Self-service payments (MTN MoMo sandbox)
 - Cash payments with voucher credentials returned
 - Audit logs and payments dashboard (`/admin/logs`)

@@ -241,49 +241,6 @@ app.post('/admin/create', requireAdmin, async (req, res) => {
     res.status(500).send('Error creating voucher');
   }
 });
-
-// Bulk action route
-app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
-  try {
-    const { action, voucherIds } = req.body;
-    if (!voucherIds) return res.redirect('/admin');
-    const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
-    if (action === 'block') {
-      await db.runQuery(`UPDATE vouchers SET status='inactive' WHERE id IN (${ids.map(() => '?').join(',')}) AND status!='expired'`, ids);
-    } else if (action === 'activate') {
-      await db.runQuery(`UPDATE vouchers SET status='active' WHERE id IN (${ids.map(() => '?').join(',')}) AND status!='expired'`, ids);
-    } else if (action === 'delete') {
-      await db.runQuery(`DELETE FROM vouchers WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
-    }
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Bulk action error:', err);
-    res.status(500).send('Error applying bulk action');
-  }
-});
-
-// Operator management routes
-app.post('/admin/create-operator', requireAdmin, async (req, res) => {
-  const { username, password } = req.body;
-  const hash = await bcrypt.hash(password, 10);
-  await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')", [username, hash]);
-  res.redirect('/admin');
-});
-
-app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
-  await db.activateOperator(req.params.id);
-  res.redirect('/admin');
-});
-
-app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
-  await db.deactivateOperator(req.params.id);
-  res.redirect('/admin');
-});
-
-app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
-  await db.deleteOperator(req.params.id);
-  res.redirect('/admin');
-});
 // --------------------
 // Operator Dashboard
 // --------------------
@@ -363,10 +320,14 @@ app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
 app.post('/pay/cash', async (req, res) => {
   try {
     const { voucherId, amount } = req.body;
-    await db.runQuery("UPDATE payments SET status='success', method='cash' WHERE voucher_id=?", [voucherId]);
+    await db.runQuery("UPDATE payments SET status='success', method='cash', amount=? WHERE voucher_id=?", [amount, voucherId]);
     await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
     const voucher = await db.runQuery("SELECT username, password FROM vouchers WHERE id=?", [voucherId]);
-    res.render('payment_result', { success: true, message: `Cash payment recorded. Voucher: ${voucher[0].username}/${voucher[0].password}` });
+    if (voucher.length > 0) {
+      res.render('payment_result', { success: true, message: `Cash payment recorded. Voucher: ${voucher[0].username}/${voucher[0].password}` });
+    } else {
+      res.render('payment_result', { success: true, message: 'Cash payment recorded, but voucher credentials not found.' });
+    }
   } catch (err) {
     console.error('Cash payment error:', err);
     res.render('payment_result', { success: false, message: 'Error recording cash payment' });

@@ -91,6 +91,39 @@ async function getPayments(limit = 100) {
   );
 }
 
+// Payments grouped by date (daily counts)
+async function getPaymentsByDate() {
+  return await runQuery(`
+    SELECT DATE(timestamp) AS date, COUNT(*) AS count
+    FROM payments
+    GROUP BY DATE(timestamp)
+    ORDER BY DATE(timestamp)
+  `);
+}
+
+// Revenue trend (cumulative over time)
+async function getRevenueTrend() {
+  return await runQuery(`
+    SELECT DATE(timestamp) AS date, SUM(amount) AS total
+    FROM payments
+    WHERE status='success'
+    GROUP BY DATE(timestamp)
+    ORDER BY DATE(timestamp)
+  `);
+}
+
+// Revenue grouped by voucher profile
+async function getProfileRevenue() {
+  return await runQuery(`
+    SELECT v.profile AS profile, SUM(p.amount) AS total
+    FROM payments p
+    JOIN vouchers v ON p.voucher_id = v.id
+    WHERE p.status='success'
+    GROUP BY v.profile
+    ORDER BY total DESC
+  `);
+}
+
 // --------------------
 // Audit Logs Functions
 // --------------------
@@ -127,6 +160,9 @@ module.exports = {
 
   // Payments
   getPayments,
+  getPaymentsByDate,
+  getRevenueTrend,
+  getProfileRevenue,
 
   // Audit Logs
   getAuditLogs
