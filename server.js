@@ -48,7 +48,6 @@ app.use(session({
 // Apply CSRF Middleware Globally
 // --------------------
 app.use((req, res, next) => {
-  // Exempt callback and API routes from CSRF
   if (req.path === '/payments/callback' || req.path.startsWith('/api/')) return next();
   csrfProtection(req, res, next);
 });
@@ -126,7 +125,6 @@ app.post('/admin-login', async (req, res) => {
     res.render('admin_login', { csrfToken: req.csrfToken(), error: 'System error during login' });
   }
 });
-
 // --------------------
 // Self-Service Payment
 // --------------------
@@ -141,7 +139,8 @@ app.post('/selfservice/pay', async (req, res) => {
       voucherUsername,
       voucherPassword,
       profile,
-      `batch_${new Date().toISOString().slice(0,10)}`
+      `batch_${new Date().toISOString().slice(0,10)}`,
+      req.session.user || 'selfservice'
     );
 
     const voucherRow = await db.runQuery(
@@ -162,56 +161,45 @@ app.post('/selfservice/pay', async (req, res) => {
     res.render('payment_result', { success: false, message: 'Error initiating payment' });
   }
 });
+
 // --------------------
-// JSON APIs
+// Operator Dashboard
+// --------------------
+app.get('/operator', requireOperator, async (req, res) => {
+  const vouchers = await voucherManager.listVouchers();
+  const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
+
+  res.render("operator", {
+    vouchers,
+    voucher: null, // ensure defined
+    totalSoldToday,
+    csrfToken: req.csrfToken(),
+    role: "operator"
+  });
+});
+
+// --------------------
+// JSON APIs for DataTables
 // --------------------
 app.get('/api/payments', requireAdmin, async (req, res) => {
   try {
     const payments = await db.getPayments();
-    res.json({ status: 'success', data: payments });
+    res.json({ data: payments }); // ✅ DataTables expects { data: [...] }
   } catch (err) {
     console.error('Payments API error:', err);
-    res.json({ status: 'error', message: 'Unable to fetch payments' });
+    res.json({ data: [] });
   }
 });
 
 app.get('/api/audit_logs', requireAdmin, async (req, res) => {
   try {
     const logs = await db.getAuditLogs();
-    res.json({ status: 'success', data: logs });
+    res.json({ data: logs }); // ✅ DataTables expects { data: [...] }
   } catch (err) {
     console.error('Audit Logs API error:', err);
-    res.json({ status: 'error', message: 'Unable to fetch audit logs' });
+    res.json({ data: [] });
   }
 });
-
-// --------------------
-// Mobile Money Callback Handler
-// --------------------
-app.post('/payments/callback', async (req, res) => {
-  try {
-    const body = req.body;
-
-    if (body.externalId && body.status) {
-      console.log("📩 Sandbox callback received:", body);
-
-      await db.runQuery("UPDATE payments SET status=? WHERE voucher_id=?", [body.status.toLowerCase(), body.externalId]);
-
-      if (body.status === 'SUCCESSFUL' || body.status.toLowerCase() === 'success') {
-        await db.runQuery("UPDATE vouchers SET status=? WHERE id=?", ['sold', body.externalId]);
-        notificationManager.sendVoucherSold(body.externalId);
-      }
-
-      return res.json({ success: true, sandbox: true });
-    }
-
-    res.status(400).send('Bad callback format');
-  } catch (err) {
-    console.error('Callback error:', err);
-    res.status(500).send('Server error');
-  }
-});
-
 // --------------------
 // Admin Dashboard + Routes
 // --------------------
@@ -232,7 +220,8 @@ app.post('/admin/create', requireAdmin, async (req, res) => {
       voucherUsername,
       voucherPassword,
       profile,
-      batchTag || `batch_${new Date().toISOString().slice(0,10)}`
+      batchTag || `batch_${new Date().toISOString().slice(0,10)}`,
+      req.session.user
     );
 
     res.redirect('/admin');
@@ -241,13 +230,88 @@ app.post('/admin/create', requireAdmin, async (req, res) => {
     res.status(500).send('Error creating voucher');
   }
 });
+
 // --------------------
-// Operator Dashboard
+// Operator Management Routes
 // --------------------
-app.get('/operator', requireOperator, async (req, res) => {
-  const vouchers = await voucherManager.listVouchers();
-    const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
-    res.render("operator", { vouchers, totalSoldToday, csrfToken: req.csrfToken(), role: "operator" });
+app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.deactivateOperator(req.params.id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Deactivate operator error:', err);
+    res.status(500).send('Error deactivating operator');
+  }
+});
+
+app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.activateOperator(req.params.id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Activate operator error:', err);
+    res.status(500).send('Error activating operator');
+  }
+});
+
+app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.deleteOperator(req.params.id);
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Delete operator error:', err);
+    res.status(500).send('Error deleting operator');
+  }
+});
+
+app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const hash = await bcrypt.hash(password, 10);
+    await db.runQuery(
+      "INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')",
+      [username, hash]
+    );
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Create operator error:', err);
+    res.status(500).send('Error creating operator');
+  }
+});
+
+// --------------------
+// Bulk Action (Operators + Vouchers)
+// --------------------
+app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
+  try {
+    let { action, ids } = req.body;
+
+    // Normalize ids into an array
+    if (!ids) {
+      ids = [];
+    } else if (typeof ids === 'string') {
+      ids = [ids];
+    }
+
+    if (action === 'deactivate') {
+      for (const id of ids) await db.deactivateOperator(id);
+    } else if (action === 'activate') {
+      for (const id of ids) await db.activateOperator(id);
+    } else if (action === 'delete') {
+      for (const id of ids) await db.deleteOperator(id);
+    } else if (action === 'block-voucher') {
+      for (const id of ids) await db.runQuery("UPDATE vouchers SET status='inactive' WHERE id=?", [id]);
+    } else if (action === 'activate-voucher') {
+      for (const id of ids) await db.runQuery("UPDATE vouchers SET status='active' WHERE id=?", [id]);
+    } else if (action === 'delete-voucher') {
+      for (const id of ids) await db.runQuery("DELETE FROM vouchers WHERE id=?", [id]);
+    }
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Bulk action error:', err);
+    res.status(500).send('Error performing bulk action');
+  }
 });
 
 // --------------------
@@ -300,7 +364,7 @@ app.get('/admin/logs', requireAdmin, async (req, res) => {
 
 app.get('/admin/export-all', requireAdmin, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag}`).join('\n');
+  const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag},${v.created_by || ''}`).join('\n');
   res.type('text/csv').send(csv);
 });
 
@@ -338,7 +402,9 @@ app.post('/pay/cash', async (req, res) => {
 app.get('/logout', (req, res) => {
   const role = req.session.role;
   req.session.destroy(() => {
-    if (role === 'operator' || role === 'admin') return res.redirect('/admin-login');
+    if (role === 'operator' || role === 'admin') {
+      return res.redirect('/admin-login'); // ✅ fixed redirect
+    }
     return res.redirect('/login');
   });
 });

@@ -4,6 +4,21 @@
 
 ## 🏷️ Tags
 
+# RAPIDWIFI-ZONE
+
+## Overview
+RAPIDWIFI-ZONE is a captive portal and admin dashboard for managing vouchers, operators, payments, and analytics.
+
+## Recent Updates (2026-01-27)
+- **Bulk Actions Fixed**: Voucher bulk actions (block, activate, delete) now work correctly.
+  - Updated `views/admin.ejs` checkboxes to use `ids[]`.
+  - Aligned action values (`block-voucher`, `activate-voucher`, `delete-voucher`) with backend routes.
+- **Admin Dashboard Cleanup**:
+  - Removed embedded Audit Logs table from `admin.ejs`.
+  - Restored **View Logs** button in the toolbar to navigate to `/admin/logs`.
+- **server.js Updates**:
+  - Corrected `/admin/bulk-action` route to normalize `ids
+
 ### Operator Dashboard and Voucher Attribution
 
 - **New Column:** `created_by` has been added to the `vouchers` table schema.

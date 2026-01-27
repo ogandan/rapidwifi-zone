@@ -1,7 +1,7 @@
 <!-- --------------------------------------------------------------------------
 Timestamp: 2026-01-26
 File: views/admin.ejs (Part 1 of 2)
-Purpose: Admin dashboard with vouchers, operators, payments, audit logs
+Purpose: Admin dashboard with vouchers, operators, payments
 ---------------------------------------------------------------------------- -->
 <!DOCTYPE html>
 <html>
@@ -46,10 +46,9 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         </button>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="/admin/export-all">Export All Vouchers (CSV)</a></li>
-          <li><a class="dropdown-item" href="/admin/export-logs-csv">Export Filtered Logs (CSV)</a></li>
-          <li><a class="dropdown-item" href="/admin/export-logs-json">Export Filtered Logs (JSON)</a></li>
         </ul>
       </div>
+      <!-- ✅ Restored View Logs button -->
       <div class="btn-group me-2">
         <a href="/admin/logs" class="btn btn-outline-dark">View Logs</a>
       </div>
@@ -123,9 +122,9 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         <div class="col-auto">
           <select name="action" class="form-select" required>
             <option value="">Choose Action</option>
-            <option value="block">Block Selected</option>
-            <option value="activate">Activate Selected</option>
-            <option value="delete">Delete Selected</option>
+            <option value="block-voucher">Block Selected</option>
+            <option value="activate-voucher">Activate Selected</option>
+            <option value="delete-voucher">Delete Selected</option>
           </select>
         </div>
         <div class="col-auto">
@@ -149,7 +148,8 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
           <tbody>
             <% vouchers.forEach(v => { %>
               <tr>
-                <td><input type="checkbox" name="voucherIds" value="<%= v.id %>"></td>
+                <!-- ✅ checkbox name corrected to ids[] -->
+                <td><input type="checkbox" name="ids[]" value="<%= v.id %>"></td>
                 <td><%= v.id %></td>
                 <td><%= v.username %></td>
                 <td><%= v.password %></td>
@@ -163,28 +163,12 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
       </div>
     </form>
 
-    <!-- Audit Logs Table -->
-    <h4 class="mt-5">Audit Logs</h4>
-    <div class="mb-3">
-      <select id="actionFilter" class="form-select d-inline w-auto">
-        <option value="">All Actions</option>
-        <option value="voucher_created">Voucher Created</option>
-        <option value="voucher_status_change">Voucher Status Change</option>
-        <option value="payment_success">Payment Success</option>
-        <option value="payment_failed">Payment Failed</option>
-      </select>
-      <select id="batchTagFilter" class="form-select d-inline w-auto">
-        <option value="">All Batch Tags</option>
-      </select>
-    </div>
-    <div class="table-responsive">
-      <table id="auditLogsTable" class="table table-striped table-bordered"></table>
-    </div>
+    <!-- Removed Audit Logs section -->
   </div>
 
   <script>
     function toggleAll(source) {
-      const checkboxes = document.querySelectorAll('input[name="voucherIds"]');
+      const checkboxes = document.querySelectorAll('input[name="ids[]"]');
       checkboxes.forEach(cb => cb.checked = source.checked);
     }
 
@@ -206,40 +190,9 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         buttons: ['csv', 'excel']
       });
 
-      // Audit Logs DataTable
-      const auditLogsTable = $('#auditLogsTable').DataTable({
-        ajax: '/api/audit_logs',
-        columns: [
-          { data: 'id', title: 'Log ID' },
-          { data: 'voucher_id', title: 'Voucher ID' },
-          { data: 'action', title: 'Action' },
-          { data: 'username', title: 'Batch Tag' },
-          { data: 'profile', title: 'Profile' },
-          { data: 'details', title: 'Details' },
-          { data: 'channel', title: 'Channel' },
-          { data: 'status', title: 'Status' },
-          { data: 'timestamp', title: 'Timestamp' }
-        ],
-        order: [[8, 'desc']],
-        pageLength: 50,
-        dom: 'Bfrtip',
-        buttons: ['csv', 'excel']
-      });
-
-      // Filters
-      $('#actionFilter').on('change', function () {
-        let val = $(this).val();
-        auditLogsTable.column(2).search(val ? '^' + val + '$' : '', true, false).draw();
-      });
-      $('#batchTagFilter').on('change', function () {
-        let val = $(this).val();
-        auditLogsTable.column(3).search(val ? val : '', true, false).draw();
-      });
-
       // Auto-refresh every 30s
       setInterval(() => {
         paymentsTable.ajax.reload(null, false);
-        auditLogsTable.ajax.reload(null, false);
       }, 30000);
     });
   </script>
