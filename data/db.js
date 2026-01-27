@@ -8,9 +8,6 @@ const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, 'db.sqlite'));
 
-// --------------------
-// Utility: Run Query
-// --------------------
 function runQuery(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.all(sql, params, (err, rows) => {
@@ -74,7 +71,7 @@ async function operatorHasActions(id) {
   return rows[0].cnt > 0;
 }
 
-// Helper: count vouchers sold today by operator
+// ✅ Fixed helper query: now uses created_by column
 async function countOperatorSoldToday(username) {
   const rows = await runQuery(`
     SELECT COUNT(*) AS total

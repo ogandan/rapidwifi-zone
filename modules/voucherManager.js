@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-22 21:15 WAT
+// Timestamp: 2026-01-27 20:30 WAT
 // File: modules/voucherManager.js
 // Purpose: Voucher lifecycle management for RAPIDWIFI-ZONE
 // -----------------------------------------------------------------------------
@@ -21,7 +21,7 @@ function generateRandomString(length) {
 // --------------------
 // Create Voucher
 // --------------------
-async function createVoucher(username, password, profile, batchTag) {
+async function createVoucher(username, password, profile, batchTag, createdBy) {
   // enforce username = 4 chars, password = 5 chars
   const u = username && username.trim() !== '' ? username : generateRandomString(4);
   const p = password && password.trim() !== '' ? password : generateRandomString(5);
@@ -36,8 +36,8 @@ async function createVoucher(username, password, profile, batchTag) {
   const tag = batchTag && batchTag.trim() !== '' ? batchTag : `batch_${new Date().toISOString().slice(0, 10)}`;
 
   await db.runQuery(
-    "INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag) VALUES (?, ?, ?, datetime('now'), 'active', ?)",
-    [u, p, profile, tag]
+    "INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag, created_by) VALUES (?, ?, ?, datetime('now'), 'active', ?, ?)",
+    [u, p, profile, tag, createdBy]
   );
 }
 

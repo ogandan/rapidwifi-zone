@@ -246,7 +246,8 @@ app.post('/admin/create', requireAdmin, async (req, res) => {
 // --------------------
 app.get('/operator', requireOperator, async (req, res) => {
   const vouchers = await voucherManager.listVouchers();
-  res.render('operator', { vouchers, csrfToken: req.csrfToken(), role: 'operator' });
+    const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
+    res.render("operator", { vouchers, totalSoldToday, csrfToken: req.csrfToken(), role: "operator" });
 });
 
 // --------------------

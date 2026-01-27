@@ -4,6 +4,18 @@
 
 ## 🏷️ Tags
 
+### Operator Dashboard and Voucher Attribution
+
+- **New Column:** `created_by` has been added to the `vouchers` table schema.
+- **Purpose:** Tracks which operator created each voucher.
+- **Usage:**
+  - When an operator creates a voucher, their username is stored in `created_by`.
+  - The operator dashboard now displays the total vouchers sold today per operator using this column.
+- **Migration:**
+  ```sql
+  ALTER TABLE vouchers ADD COLUMN created_by TEXT;
+
+
 # RAPIDWIFI-ZONE
 
 RAPIDWIFI-ZONE is a captive portal and management system for vouchers, operators, and payments.  
