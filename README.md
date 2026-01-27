@@ -3,6 +3,24 @@
 # 📖 Changelog
 
 ## 🏷️ Tags
+# RAPIDWIFI-ZONE
+
+Captive portal and admin dashboards for voucher lifecycle, payments integration, and notifications.
+
+## Features
+- Voucher login and lifecycle management
+- Admin and operator dashboards
+- Self-service payments (MTN MoMo sandbox)
+- Cash payments
+- Audit logs and payments dashboard (`/admin/logs`)
+- Analytics dashboard (`/analytics`)
+- Operator management (create, activate, deactivate, delete)
+- Export vouchers and logs (CSV/JSON)
+
+## Installation
+```bash
+npm install
+
 
 ## 📌 Self‑Service Mobile Money Payment Workflow
 

@@ -77,8 +77,8 @@ async function operatorHasActions(id) {
 // --------------------
 // Export Logs Functions
 // --------------------
-async function getLogs() {
-  return await runQuery('SELECT * FROM export_logs ORDER BY timestamp DESC LIMIT 100');
+async function getLogs(limit = 100) {
+  return await runQuery('SELECT * FROM export_logs ORDER BY timestamp DESC LIMIT ?', [limit]);
 }
 
 // --------------------
@@ -86,7 +86,7 @@ async function getLogs() {
 // --------------------
 async function getPayments(limit = 100) {
   return await runQuery(
-    'SELECT id, voucher_id, method, amount, status, created_at FROM payments ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, voucher_id, method, amount, status, timestamp FROM payments ORDER BY timestamp DESC LIMIT ?',
     [limit]
   );
 }
@@ -96,7 +96,7 @@ async function getPayments(limit = 100) {
 // --------------------
 async function getAuditLogs(limit = 100) {
   return await runQuery(
-    'SELECT id, voucher_id, action, username, profile, details, channel, status, timestamp  FROM audit_logs ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, voucher_id, action, username, profile, details, channel, status, timestamp FROM audit_logs ORDER BY timestamp DESC LIMIT ?',
     [limit]
   );
 }

@@ -1,5 +1,5 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-24
+Timestamp: 2026-01-26
 File: views/admin.ejs (Part 1 of 2)
 Purpose: Admin dashboard with vouchers, operators, payments, audit logs
 ---------------------------------------------------------------------------- -->
@@ -12,6 +12,7 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
   <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body class="bg-light">
   <div class="container py-4">
@@ -52,8 +53,11 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
       <div class="btn-group me-2">
         <a href="/admin/logs" class="btn btn-outline-dark">View Logs</a>
       </div>
-      <div class="btn-group">
+      <div class="btn-group me-2">
         <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
+      </div>
+      <div class="btn-group">
+        <a href="/logout" class="btn btn-outline-danger">Logout</a>
       </div>
     </div>
 
@@ -112,7 +116,6 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         </tbody>
       </table>
     </div>
-
     <!-- Voucher Table -->
     <form action="/admin/bulk-action" method="POST">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -159,6 +162,7 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         </table>
       </div>
     </form>
+
     <!-- Audit Logs Table -->
     <h4 class="mt-5">Audit Logs</h4>
     <div class="mb-3">
@@ -171,7 +175,6 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
       </select>
       <select id="batchTagFilter" class="form-select d-inline w-auto">
         <option value="">All Batch Tags</option>
-        <!-- You can dynamically populate batch tags here if needed -->
       </select>
     </div>
     <div class="table-responsive">
@@ -195,22 +198,12 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
           { data: 'method', title: 'Method' },
           { data: 'amount', title: 'Amount' },
           { data: 'status', title: 'Status' },
-          { data: 'created_at', title: 'Created At' }
+          { data: 'timestamp', title: 'Timestamp' }
         ],
         order: [[5, 'desc']],
         pageLength: 25,
         dom: 'Bfrtip',
         buttons: ['csv', 'excel']
-      });
-
-      // Filter dropdowns for Payments
-      $('#statusFilter').on('change', function () {
-        let val = $(this).val();
-        paymentsTable.column(4).search(val ? '^' + val + '$' : '', true, false).draw();
-      });
-      $('#methodFilter').on('change', function () {
-        let val = $(this).val();
-        paymentsTable.column(2).search(val ? '^' + val + '$' : '', true, false).draw();
       });
 
       // Audit Logs DataTable
@@ -225,7 +218,7 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
           { data: 'details', title: 'Details' },
           { data: 'channel', title: 'Channel' },
           { data: 'status', title: 'Status' },
-          { data: 'created_at', title: 'Timestamp' }
+          { data: 'timestamp', title: 'Timestamp' }
         ],
         order: [[8, 'desc']],
         pageLength: 50,
@@ -233,7 +226,7 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         buttons: ['csv', 'excel']
       });
 
-      // Filter dropdowns for Audit Logs
+      // Filters
       $('#actionFilter').on('change', function () {
         let val = $(this).val();
         auditLogsTable.column(2).search(val ? '^' + val + '$' : '', true, false).draw();
@@ -242,6 +235,12 @@ Purpose: Admin dashboard with vouchers, operators, payments, audit logs
         let val = $(this).val();
         auditLogsTable.column(3).search(val ? val : '', true, false).draw();
       });
+
+      // Auto-refresh every 30s
+      setInterval(() => {
+        paymentsTable.ajax.reload(null, false);
+        auditLogsTable.ajax.reload(null, false);
+      }, 30000);
     });
   </script>
 </body>

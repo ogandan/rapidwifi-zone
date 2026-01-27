@@ -1,5 +1,4 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-26
 // File: server.js (Part 1 of 4)
 // Purpose: RAPIDWIFI-ZONE captive portal, dashboards, voucher lifecycle,
 //          payments integration, and notifications.
@@ -39,7 +38,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false,       // must be false for HTTP testing
+    secure: false,
     httpOnly: true,
     maxAge: 1000 * 60 * 60 // 1 hour
   }
@@ -48,7 +47,11 @@ app.use(session({
 // --------------------
 // Apply CSRF Middleware Globally
 // --------------------
-app.use(csrfProtection);
+app.use((req, res, next) => {
+  // Exempt callback and API routes from CSRF
+  if (req.path === '/payments/callback' || req.path.startsWith('/api/')) return next();
+  csrfProtection(req, res, next);
+});
 
 // --------------------
 // CSRF Error Handler
@@ -131,7 +134,7 @@ app.post('/selfservice/pay', async (req, res) => {
   try {
     const { phone, profile } = req.body;
 
-    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase();
+    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
 
     await voucherManager.createVoucher(
@@ -152,42 +155,6 @@ app.post('/selfservice/pay', async (req, res) => {
       "INSERT INTO payments (voucher_id, amount, method, status, currency) VALUES (?, ?, ?, ?, ?)",
       [voucherId, amount, 'mobile_money', 'pending', 'XOF']
     );
-
-    const subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
-    const apiUserId = process.env.MOMO_API_USER;
-    const apiKey = process.env.GATEWAY_SECRET;
-
-    const tokenResp = await fetch("https://sandbox.momodeveloper.mtn.com/collection/token/", {
-      method: "POST",
-      headers: {
-        "Ocp-Apim-Subscription-Key": subscriptionKey,
-        "Authorization": "Basic " + Buffer.from(apiUserId + ":" + apiKey).toString("base64")
-      }
-    });
-    const tokenData = await tokenResp.json();
-    const accessToken = tokenData.access_token;
-
-    const referenceId = uuidv4();
-    const body = {
-      amount: amount.toString(),
-      currency: "XOF",
-      externalId: voucherId.toString(),
-      payer: { partyIdType: "MSISDN", partyId: phone },
-      payerMessage: "Voucher purchase",
-      payeeNote: "RAPIDWIFI-ZONE"
-    };
-
-    await fetch("https://sandbox.momodeveloper.mtn.com/collection/v1_0/requesttopay", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + accessToken,
-        "X-Reference-Id": referenceId,
-        "X-Target-Environment": "sandbox",
-        "Ocp-Apim-Subscription-Key": subscriptionKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
 
     res.render('payment_result', { success: true, message: 'Payment initiated. Please confirm on your phone.' });
   } catch (err) {
@@ -225,34 +192,10 @@ app.post('/payments/callback', async (req, res) => {
   try {
     const body = req.body;
 
-    // Production payload
-    if (body.transaction_id && body.voucher_id && body.signature) {
-      const { transaction_id, voucher_id, amount, status, signature } = body;
-      const expectedSig = crypto.createHmac('sha256', process.env.GATEWAY_SECRET)
-                                .update(transaction_id + amount + status)
-                                .digest('hex');
-      if (signature !== expectedSig) {
-        console.error('Invalid callback signature');
-        return res.status(403).send('Forbidden');
-      }
-
-      await db.runQuery("UPDATE payments SET status=?, transaction_ref=? WHERE voucher_id=?",
-        [status, transaction_id, voucher_id]);
-
-      if (status === 'success') {
-        await db.runQuery("UPDATE vouchers SET status=? WHERE id=?", ['sold', voucher_id]);
-        notificationManager.sendVoucherSold(voucher_id);
-      }
-
-      return res.json({ success: true });
-    }
-
-    // Sandbox payload
     if (body.externalId && body.status) {
       console.log("📩 Sandbox callback received:", body);
 
-      await db.runQuery("UPDATE payments SET status=? WHERE voucher_id=?",
-        [body.status.toLowerCase(), body.externalId]);
+      await db.runQuery("UPDATE payments SET status=? WHERE voucher_id=?", [body.status.toLowerCase(), body.externalId]);
 
       if (body.status === 'SUCCESSFUL' || body.status.toLowerCase() === 'success') {
         await db.runQuery("UPDATE vouchers SET status=? WHERE id=?", ['sold', body.externalId]);
@@ -262,7 +205,6 @@ app.post('/payments/callback', async (req, res) => {
       return res.json({ success: true, sandbox: true });
     }
 
-    console.warn("⚠️ Unknown callback payload:", body);
     res.status(400).send('Bad callback format');
   } catch (err) {
     console.error('Callback error:', err);
@@ -279,6 +221,28 @@ app.get('/admin', requireAdmin, async (req, res) => {
   res.render('admin', { vouchers, operators, csrfToken: req.csrfToken(), role: 'admin' });
 });
 
+// Voucher creation route
+app.post('/admin/create', requireAdmin, async (req, res) => {
+  try {
+    const { profile, batchTag } = req.body;
+    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
+    const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
+
+    await voucherManager.createVoucher(
+      voucherUsername,
+      voucherPassword,
+      profile,
+      batchTag || `batch_${new Date().toISOString().slice(0,10)}`
+    );
+
+    res.redirect('/admin');
+  } catch (err) {
+    console.error('Voucher creation error:', err);
+    res.status(500).send('Error creating voucher');
+  }
+});
+
+// Bulk action route
 app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
   try {
     const { action, voucherIds } = req.body;
@@ -296,6 +260,29 @@ app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
     console.error('Bulk action error:', err);
     res.status(500).send('Error applying bulk action');
   }
+});
+
+// Operator management routes
+app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+  const { username, password } = req.body;
+  const hash = await bcrypt.hash(password, 10);
+  await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')", [username, hash]);
+  res.redirect('/admin');
+});
+
+app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
+  await db.activateOperator(req.params.id);
+  res.redirect('/admin');
+});
+
+app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+  await db.deactivateOperator(req.params.id);
+  res.redirect('/admin');
+});
+
+app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
+  await db.deleteOperator(req.params.id);
+  res.redirect('/admin');
 });
 
 // --------------------
@@ -326,11 +313,10 @@ app.get('/analytics', requireAdmin, async (req, res) => {
   });
 });
 // --------------------
-// Logs Dashboard + Exports
+// Logs Dashboard (Audit Logs + Payments)
 // --------------------
 app.get('/admin/logs', requireAdmin, async (req, res) => {
-  const logs = await db.getLogs();
-  res.render('logs', { logs, csrfToken: req.csrfToken(), role: 'admin' });
+  res.render('audit_logs', { csrfToken: req.csrfToken(), role: 'admin' });
 });
 
 app.get('/admin/export-all', requireAdmin, async (req, res) => {
@@ -366,8 +352,10 @@ app.post('/pay/cash', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
+  const role = req.session.role;
   req.session.destroy(() => {
-    res.redirect('/login');
+    if (role === 'operator' || role === 'admin') return res.redirect('/admin-login');
+    return res.redirect('/login');
   });
 });
 
