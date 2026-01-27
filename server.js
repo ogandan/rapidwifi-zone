@@ -152,11 +152,11 @@ app.post('/selfservice/pay', async (req, res) => {
 
     const amount = profile === '1h' ? 500 : profile === 'day' ? 1000 : 5000;
     await db.runQuery(
-      "INSERT INTO payments (voucher_id, amount, method, status, currency) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO payments (voucher_id, amount, method, status, currency, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))",
       [voucherId, amount, 'mobile_money', 'pending', 'XOF']
     );
 
-    res.render('payment_result', { success: true, message: 'Payment initiated. Please confirm on your phone.' });
+    res.render('payment_result', { success: true, message: `Payment initiated. Voucher: ${voucherUsername}/${voucherPassword}` });
   } catch (err) {
     console.error('Self-service payment error:', err);
     res.render('payment_result', { success: false, message: 'Error initiating payment' });
@@ -249,9 +249,9 @@ app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
     if (!voucherIds) return res.redirect('/admin');
     const ids = Array.isArray(voucherIds) ? voucherIds : [voucherIds];
     if (action === 'block') {
-      await db.runQuery(`UPDATE vouchers SET status='inactive' WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+      await db.runQuery(`UPDATE vouchers SET status='inactive' WHERE id IN (${ids.map(() => '?').join(',')}) AND status!='expired'`, ids);
     } else if (action === 'activate') {
-      await db.runQuery(`UPDATE vouchers SET status='active' WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
+      await db.runQuery(`UPDATE vouchers SET status='active' WHERE id IN (${ids.map(() => '?').join(',')}) AND status!='expired'`, ids);
     } else if (action === 'delete') {
       await db.runQuery(`DELETE FROM vouchers WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
     }
@@ -284,7 +284,6 @@ app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
   await db.deleteOperator(req.params.id);
   res.redirect('/admin');
 });
-
 // --------------------
 // Operator Dashboard
 // --------------------
@@ -294,7 +293,7 @@ app.get('/operator', requireOperator, async (req, res) => {
 });
 
 // --------------------
-// Analytics Dashboard
+// Analytics Dashboard (with payments)
 // --------------------
 app.get('/analytics', requireAdmin, async (req, res) => {
   const total = await db.countAllVouchers();
@@ -302,16 +301,38 @@ app.get('/analytics', requireAdmin, async (req, res) => {
   const inactive = await db.countInactiveVouchers();
   const profiles = await db.countProfiles();
   const exportsByProfile = await db.countExportsByProfile();
+
+  const payments = await db.getPayments();
+  const totalPayments = payments.length;
+  const successfulPayments = payments.filter(p => p.status === 'success').length;
+  const failedPayments = payments.filter(p => p.status === 'failed').length;
+  const revenueByMethod = {};
+  payments.forEach(p => {
+    revenueByMethod[p.method] = (revenueByMethod[p.method] || 0) + p.amount;
+  });
+
+  const paymentsByDate = await db.getPaymentsByDate();
+  const revenueTrend = await db.getRevenueTrend();
+  const profileRevenue = await db.getProfileRevenue();
+
   res.render('analytics', {
     total,
     active,
     inactive,
     profiles,
     exportsByProfile,
+    totalPayments,
+    successfulPayments,
+    failedPayments,
+    revenueByMethod,
+    paymentsByDate,
+    revenueTrend,
+    profileRevenue,
     csrfToken: req.csrfToken(),
     role: 'admin'
   });
 });
+
 // --------------------
 // Logs Dashboard (Audit Logs + Payments)
 // --------------------
@@ -344,7 +365,8 @@ app.post('/pay/cash', async (req, res) => {
     const { voucherId, amount } = req.body;
     await db.runQuery("UPDATE payments SET status='success', method='cash' WHERE voucher_id=?", [voucherId]);
     await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
-    res.render('payment_result', { success: true, message: 'Cash payment recorded.' });
+    const voucher = await db.runQuery("SELECT username, password FROM vouchers WHERE id=?", [voucherId]);
+    res.render('payment_result', { success: true, message: `Cash payment recorded. Voucher: ${voucher[0].username}/${voucher[0].password}` });
   } catch (err) {
     console.error('Cash payment error:', err);
     res.render('payment_result', { success: false, message: 'Error recording cash payment' });
