@@ -6,6 +6,37 @@
 
 # RAPIDWIFI-ZONE
 
+RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
+
+## Recent Fixes (2026-01-28)
+
+- **Voucher List**: Admin dashboard now displays vouchers correctly. Added `/api/vouchers` endpoint returning JSON `{ data: [...] }` for DataTables.
+- **Audit Logs**: Fixed DataTables Ajax error. `/api/audit-logs` consistently returns `{ data: [...] }`.
+- **CSRF Handling**: Middleware exempts API and callback routes, tokens passed to templates, error handler improved.
+- **Self-service Payments**: Mobile money vouchers are created and marked as sold, payments recorded with `timestamp`.
+
+## Usage
+
+- Admin dashboard: `/admin`
+- Operator dashboard: `/operator`
+- Voucher login: `/login`
+- Logs dashboard: `/admin/logs`
+- Analytics dashboard: `/analytics`
+- APIs:
+  - `/api/vouchers`
+  - `/api/payments`
+  - `/api/audit-logs`
+
+## Development Notes
+
+- Ensure SQLite schema includes:
+  - `vouchers.created_by`
+  - `payments.timestamp`
+- Run smoke test checklist after deployment to validate dashboards and APIs.
+
+
+# RAPIDWIFI-ZONE
+
 ## Overview
 RAPIDWIFI-ZONE is a captive portal and admin dashboard for managing vouchers, operators, payments, and analytics.
 
