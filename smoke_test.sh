@@ -1,0 +1,84 @@
+#!/bin/bash
+# -----------------------------------------------------------------------------
+# RAPIDWIFI-ZONE Smoke Test Script
+# Timestamp: 2026-01-26
+# -----------------------------------------------------------------------------
+
+BASE_URL="http://192.168.88.2:3000"
+COOKIE_FILE="cookies.txt"
+
+total=0
+passed=0
+failed=0
+
+# Utility function
+check() {
+  local description="$1"
+  local command="$2"
+  total=$((total+1))
+  echo -n "[TEST] $description ... "
+  eval "$command" > /tmp/smoke_out 2>&1
+  if [ $? -eq 0 ] && [ -s /tmp/smoke_out ]; then
+    echo "PASS"
+    passed=$((passed+1))
+  else
+    echo "FAIL"
+    failed=$((failed+1))
+    cat /tmp/smoke_out
+  fi
+}
+
+# Robust CSRF extraction: handles single/double quotes and multiple hidden inputs
+get_csrf() {
+  local url="$1"
+  local outfile="$2"
+  curl -s -c "$COOKIE_FILE" "$url" -o "$outfile"
+  token=$(grep -oE 'name=[\"\']_csrf[\"\'] value=[\"\'][^\"\']+[\"\']' "$outfile" \
+          | sed -E 's/.*value=[\"\']([^\"\']+)[\"\'].*/\1/' \
+          | head -n1)
+  if [ -z "$token" ]; then
+    echo "[WARN] No CSRF token found at $url"
+    echo ""
+  else
+    echo "[INFO] Extracted CSRF token from $url: $token"
+    echo "$token"
+  fi
+}
+
+echo "=== RAPIDWIFI-ZONE Smoke Test ==="
+
+# 1. Environment variables
+check "MOMO_SUBSCRIPTION_KEY set" "[[ -n \"\$MOMO_SUBSCRIPTION_KEY\" ]]"
+check "MOMO_API_USER set" "[[ -n \"\$MOMO_API_USER\" ]]"
+check "GATEWAY_SECRET set" "[[ -n \"\$GATEWAY_SECRET\" ]]"
+
+# 2. Voucher Login
+csrf_login=$(get_csrf "$BASE_URL/login" login.html)
+check "Login page reachable" "grep -q '<title>Voucher Access' login.html"
+check "Invalid voucher rejected" "curl -s -b $COOKIE_FILE -c $COOKIE_FILE -X POST $BASE_URL/login -d \"username=WRONG&password=WRONG&_csrf=$csrf_login\" | grep -i 'Invalid'"
+
+# 3. Admin Login
+csrf_admin=$(get_csrf "$BASE_URL/admin-login" admin.html)
+check "Admin login page reachable" "grep -q '<title>' admin.html"
+check "Admin login with wrong creds rejected" "curl -s -b $COOKIE_FILE -c $COOKIE_FILE -X POST $BASE_URL/admin-login -d \"username=wrong&password=wrong&_csrf=$csrf_admin\" | grep -i 'Invalid'"
+
+# 4. Self-Service Payment
+csrf_pay=$(get_csrf "$BASE_URL/login" login.html)  # token is on login page
+check "Self-service payment form works" "curl -s -b $COOKIE_FILE -c $COOKIE_FILE -X POST $BASE_URL/selfservice/pay -d \"phone=22900000000&profile=day&_csrf=$csrf_pay\" | grep -i 'Payment initiated'"
+
+# 5. Callback Handling (sandbox simulation)
+check "Sandbox callback accepted" "curl -s -X POST $BASE_URL/payments/callback -H 'Content-Type: application/json' -d '{\"externalId\":\"1\",\"status\":\"SUCCESSFUL\"}' | grep -i 'success'"
+
+# 6. Dashboards
+check "Admin dashboard reachable" "curl -s -b $COOKIE_FILE $BASE_URL/admin | grep -i 'Admin'"
+check "Operator dashboard reachable" "curl -s -b $COOKIE_FILE $BASE_URL/operator | grep -i 'Operator'"
+check "Analytics dashboard reachable" "curl -s -b $COOKIE_FILE $BASE_URL/analytics | grep -i 'Analytics'"
+
+# 7. Exports
+check "Voucher export CSV" "curl -s -b $COOKIE_FILE $BASE_URL/admin/export-all | grep -i 'username'"
+check "Logs export CSV" "curl -s -b $COOKIE_FILE $BASE_URL/admin/export-logs-csv | grep -i 'profile'"
+check "Logs export JSON" "curl -s -b $COOKIE_FILE $BASE_URL/admin/export-logs-json | grep -i '{'"
+
+echo "=== Smoke Test Completed ==="
+echo "Summary: Total=$total, Passed=$passed, Failed=$failed"
+

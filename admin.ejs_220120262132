@@ -1,0 +1,135 @@
+<!-- --------------------------------------------------------------------------
+Timestamp: 2026-01-22 20:55 WAT
+File: views/admin.ejs (Part 1 of 2)
+Purpose: Admin dashboard with voucher management, exports, logs, analytics, and operator management
+---------------------------------------------------------------------------- -->
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container py-4">
+    <h2 class="mb-4">Admin Dashboard</h2>
+
+    <!-- Create Voucher -->
+    <div class="mb-4">
+      <form action="/admin/create" method="POST" class="row g-3">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="col-auto">
+          <select name="profile" class="form-select" required>
+            <option value="">Select Profile</option>
+            <option value="basic">Basic</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <input type="text" name="batchTag" class="form-control" placeholder="Batch Tag (optional)">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-success">Create Voucher</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="btn-toolbar mb-4" role="toolbar">
+      <div class="btn-group me-2">
+        <button type="button" class="btn btn-info dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          Export Options
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="/admin/export-all">Export All Vouchers (CSV)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-logs-csv">Export Filtered Logs (CSV)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-logs-json">Export Filtered Logs (JSON)</a></li>
+        </ul>
+      </div>
+      <div class="btn-group me-2">
+        <a href="/admin/logs" class="btn btn-outline-dark">View Logs</a>
+      </div>
+      <div class="btn-group">
+        <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
+      </div>
+    </div>
+              <td>
+                <% if (op.role === 'inactive') { %>
+                  <form action="/admin/activate-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-success btn-sm">Activate</button>
+                  </form>
+                <% } else { %>
+                  <form action="/admin/deactivate-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-warning btn-sm">Deactivate</button>
+                  </form>
+                  <form action="/admin/delete-operator/<%= op.id %>" method="POST" style="display:inline;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }) } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Voucher Table -->
+    <form action="/admin/bulk-action" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="row g-3 mb-3">
+        <div class="col-auto">
+          <select name="action" class="form-select" required>
+            <option value="">Choose Action</option>
+            <option value="block">Block Selected</option>
+            <option value="activate">Activate Selected</option>
+            <option value="delete">Delete Selected</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-outline-primary">Apply</button>
+        </div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+          <thead class="table-dark">
+            <tr>
+              <th><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th>
+              <th>ID</th>
+              <th>Username</th>
+              <th>Password</th>
+              <th>Profile</th>
+              <th>Status</th>
+              <th>Batch Tag</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% vouchers.forEach(v => { %>
+              <tr>
+                <td><input type="checkbox" name="voucherIds" value="<%= v.id %>"></td>
+                <td><%= v.id %></td>
+                <td><%= v.username %></td>
+                <td><%= v.password %></td>
+                <td><%= v.profile %></td>
+                <td><%= v.status %></td>
+                <td><%= v.batch_tag %></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    function toggleAll(source) {
+      const checkboxes = document.querySelectorAll('input[name="voucherIds"]');
+      checkboxes.forEach(cb => cb.checked = source.checked);
+    }
+  </script>
+</body>
+</html>
+

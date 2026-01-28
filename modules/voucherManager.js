@@ -1,70 +1,69 @@
 // -----------------------------------------------------------------------------
-// Timestamp: 2026-01-27 20:30 WAT
 // File: modules/voucherManager.js
-// Purpose: Voucher lifecycle management for RAPIDWIFI-ZONE
+// Purpose: Manage vouchers (create, list, filter, export)
 // -----------------------------------------------------------------------------
 
 const db = require('../data/db');
-
-// --------------------
-// Utility: Random String Generator
-// --------------------
-function generateRandomString(length) {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+const { Parser } = require('json2csv');
 
 // --------------------
 // Create Voucher
 // --------------------
 async function createVoucher(username, password, profile, batchTag, createdBy) {
-  // enforce username = 4 chars, password = 5 chars
-  const u = username && username.trim() !== '' ? username : generateRandomString(4);
-  const p = password && password.trim() !== '' ? password : generateRandomString(5);
-
-  if (u.length !== 4) {
-    throw new Error('Voucher username must be exactly 4 characters long');
-  }
-  if (p.length !== 5) {
-    throw new Error('Voucher password must be exactly 5 characters long');
-  }
-
-  const tag = batchTag && batchTag.trim() !== '' ? batchTag : `batch_${new Date().toISOString().slice(0, 10)}`;
-
-  await db.runQuery(
-    "INSERT INTO vouchers (username, password, profile, created_at, status, batch_tag, created_by) VALUES (?, ?, ?, datetime('now'), 'active', ?, ?)",
-    [u, p, profile, tag, createdBy]
-  );
+  const sql = `
+    INSERT INTO vouchers (username, password, profile, batch_tag, created_by, status)
+    VALUES (?, ?, ?, ?, ?, 'active')
+  `;
+  await db.runQuery(sql, [username, password, profile, batchTag, createdBy]);
 }
 
 // --------------------
-// Validate Voucher
-// --------------------
-async function validateVoucher(username, password) {
-  const rows = await db.runQuery(
-    "SELECT * FROM vouchers WHERE username = ? AND password = ? AND status = 'active'",
-    [username, password]
-  );
-  return rows.length > 0 ? rows[0] : null;
-}
-
-// --------------------
-// List Vouchers
+// List All Vouchers
 // --------------------
 async function listVouchers() {
-  return db.runQuery("SELECT * FROM vouchers ORDER BY created_at DESC");
+  return await db.runQuery("SELECT * FROM vouchers ORDER BY id DESC");
 }
 
 // --------------------
-// Exports
+// List Filtered Vouchers
+// --------------------
+async function listFiltered({ batch, status, profile }) {
+  let sql = "SELECT * FROM vouchers WHERE 1=1";
+  const params = [];
+
+  if (batch) {
+    sql += " AND batch_tag = ?";
+    params.push(batch);
+  }
+  if (status) {
+    sql += " AND status = ?";
+    params.push(status);
+  }
+  if (profile) {
+    sql += " AND profile = ?";
+    params.push(profile);
+  }
+
+  sql += " ORDER BY id DESC";
+  return await db.runQuery(sql, params);
+}
+
+// --------------------
+// Export Vouchers to CSV
+// --------------------
+async function exportCSV(vouchers) {
+  const fields = ['id', 'username', 'password', 'profile', 'batch_tag', 'status', 'created_by'];
+  const parser = new Parser({ fields });
+  return parser.parse(vouchers);
+}
+
+// --------------------
+// Module Exports
 // --------------------
 module.exports = {
   createVoucher,
-  validateVoucher,
-  listVouchers
+  listVouchers,
+  listFiltered,
+  exportCSV
 };
 

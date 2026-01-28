@@ -1,0 +1,69 @@
+// -----------------------------------------------------------------------------
+// File: momoSetup.js
+// Purpose: Create MTN MoMo API User and generate API Key in one run
+// -----------------------------------------------------------------------------
+
+const fetch = require('node-fetch');
+const { v4: uuidv4 } = require('uuid');
+
+// Load from environment
+const subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY; // Primary/Secondary Key
+const callbackHost = process.env.MOMO_CALLBACK_HOST || "https://localhost"; // Cloudflare Tunnel or localhost
+
+async function createApiUserAndKey() {
+  try {
+    // Step 1: Create API User
+    const apiUserId = uuidv4(); // generate UUID
+    const createUrl = "https://sandbox.momodeveloper.mtn.com/v1_0/apiuser";
+
+    const createResponse = await fetch(createUrl, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Content-Type": "application/json",
+        "X-Reference-Id": apiUserId
+      },
+      body: JSON.stringify({ providerCallbackHost: callbackHost })
+    });
+
+    if (!createResponse.ok) {
+      console.error("Failed to create API User:", await createResponse.text());
+      return;
+    }
+
+    console.log("✅ API User created successfully!");
+    console.log("API User ID:", apiUserId);
+
+    // Step 2: Generate API Key
+    const keyUrl = `https://sandbox.momodeveloper.mtn.com/v1_0/apiuser/${apiUserId}/apikey`;
+
+    const keyResponse = await fetch(keyUrl, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Content-Type": "application/json"
+      }
+    });
+
+    if (!keyResponse.ok) {
+      console.error("Failed to generate API Key:", await keyResponse.text());
+      return;
+    }
+
+    const data = await keyResponse.json();
+    console.log("✅ API Key generated successfully!");
+    console.log("API Key (secret):", data.apiKey);
+
+    console.log("\n👉 Add these to your .env file:");
+    console.log(`MOMO_API_USER=${apiUserId}`);
+    console.log(`GATEWAY_SECRET=${data.apiKey}`);
+    console.log(`MOMO_SUBSCRIPTION_KEY=${subscriptionKey}`);
+    console.log(`MOMO_CALLBACK_HOST=${callbackHost}`);
+
+  } catch (err) {
+    console.error("Error in workflow:", err);
+  }
+}
+
+createApiUserAndKey();
+

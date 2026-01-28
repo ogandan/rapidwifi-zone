@@ -1,0 +1,40 @@
+-- Migration: Backfill voucher_id in audit_logs from details text
+
+BEGIN TRANSACTION;
+
+-- Case 1: Details contain "Voucher ID <number>"
+UPDATE audit_logs
+SET voucher_id = CAST(
+    substr(
+        details,
+        instr(details, 'Voucher ID ') + 11,
+        5
+    ) AS INTEGER
+)
+WHERE voucher_id IS NULL
+  AND details LIKE '%Voucher ID %';
+
+-- Case 2: Payment failures logged as "Payment X for voucher <number> failed"
+UPDATE audit_logs
+SET voucher_id = CAST(
+    substr(
+        details,
+        instr(details, 'voucher ') + 8,
+        5
+    ) AS INTEGER
+)
+WHERE voucher_id IS NULL
+  AND details LIKE '%voucher % failed%';
+
+-- Optional: Expired logs without "Voucher ID" but with "Voucher <username>"
+-- If you want to handle those, you’d need a mapping table between usernames and voucher IDs.
+-- Example placeholder (requires a join with vouchers table):
+-- UPDATE audit_logs
+-- SET voucher_id = v.id
+-- FROM vouchers v
+-- WHERE audit_logs.voucher_id IS NULL
+--   AND audit_logs.details LIKE 'Voucher % expired'
+--   AND v.username = audit_logs.username;
+
+COMMIT;
+

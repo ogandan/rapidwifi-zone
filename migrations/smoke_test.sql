@@ -1,0 +1,97 @@
+BEGIN TRANSACTION;
+
+-- ============================
+-- RESET SECTION (runs first)
+-- ============================
+
+DELETE FROM payments
+WHERE voucher_id IN (
+    SELECT id FROM vouchers WHERE username='TESTUSER_SMOKE'
+);
+
+DELETE FROM vouchers
+WHERE username='TESTUSER_SMOKE';
+
+DELETE FROM audit_logs
+WHERE username='TESTUSER_SMOKE';
+
+-- ============================
+-- SMOKE TESTS
+-- ============================
+
+-- 1. Insert a new voucher (creation test)
+INSERT INTO vouchers (username, password, profile, status)
+VALUES ('TESTUSER_SMOKE','PASS123','default','pending');
+
+-- Show audit log entry for voucher creation
+SELECT 'Voucher Creation Log:' AS Test, * 
+FROM audit_logs 
+WHERE username='TESTUSER_SMOKE' AND action='voucher_created'
+ORDER BY timestamp DESC LIMIT 1;
+
+-- 2. Update voucher status (status change test)
+UPDATE vouchers SET status='sold' WHERE username='TESTUSER_SMOKE';
+
+-- Show audit log entry for voucher status change
+SELECT 'Voucher Status Change Log:' AS Test, * 
+FROM audit_logs 
+WHERE username='TESTUSER_SMOKE' AND action='voucher_status_change'
+ORDER BY timestamp DESC LIMIT 1;
+
+-- 3. Expire the voucher (expiration test)
+UPDATE vouchers SET status='expired' WHERE username='TESTUSER_SMOKE';
+
+-- Show audit log entry for voucher expiration
+SELECT 'Voucher Expiration Log:' AS Test, * 
+FROM audit_logs 
+WHERE username='TESTUSER_SMOKE' AND action='voucher_expired'
+ORDER BY timestamp DESC LIMIT 1;
+
+-- 4. Create a payment linked to the voucher (payment failure test)
+INSERT INTO payments (voucher_id, user_id, amount, currency, method, status)
+VALUES (
+    (SELECT id FROM vouchers WHERE username='TESTUSER_SMOKE'),
+    99,                -- arbitrary numeric user_id for test
+    1000,
+    'XOF',
+    'mobile_money',
+    'pending'
+);
+
+-- Mark payment as failed
+UPDATE payments 
+SET status='failed' 
+WHERE voucher_id=(SELECT id FROM vouchers WHERE username='TESTUSER_SMOKE');
+
+-- Show audit log entry for payment failure
+SELECT 'Payment Failure Log:' AS Test, * 
+FROM audit_logs 
+WHERE action='payment_failed'
+ORDER BY timestamp DESC LIMIT 1;
+
+-- ============================
+-- SUMMARY QUERY (before cleanup)
+-- ============================
+
+SELECT 'Summary of Audit Logs for TESTUSER_SMOKE:' AS Summary, *
+FROM audit_logs
+WHERE username='TESTUSER_SMOKE'
+ORDER BY timestamp;
+
+-- ============================
+-- FINAL CLEANUP (optional safety)
+-- ============================
+
+DELETE FROM payments
+WHERE voucher_id IN (
+    SELECT id FROM vouchers WHERE username='TESTUSER_SMOKE'
+);
+
+DELETE FROM vouchers
+WHERE username='TESTUSER_SMOKE';
+
+DELETE FROM audit_logs
+WHERE username='TESTUSER_SMOKE';
+
+COMMIT;
+

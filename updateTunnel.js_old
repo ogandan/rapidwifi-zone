@@ -1,0 +1,87 @@
+// -----------------------------------------------------------------------------
+// File: updateTunnel.js
+// Purpose: Detect new Cloudflare Quick Tunnel URL, update .env, re-register API User
+// -----------------------------------------------------------------------------
+
+import dotenv from 'dotenv';
+dotenv.config();
+
+import { spawn } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+
+const subscriptionKey = process.env.MOMO_SUBSCRIPTION_KEY;
+const apiUserId = process.env.MOMO_API_USER;
+
+if (!subscriptionKey || !apiUserId) {
+  console.error("❌ Missing MOMO_SUBSCRIPTION_KEY or MOMO_API_USER in .env");
+  process.exit(1);
+}
+
+const envPath = path.resolve(process.cwd(), '.env');
+
+// Function to update .env file
+function updateEnv(tunnelUrl) {
+  let envContent = fs.readFileSync(envPath, 'utf8').split('\n');
+  let found = false;
+
+  envContent = envContent.map(line => {
+    if (line.startsWith('MOMO_CALLBACK_HOST=')) {
+      found = true;
+      return `MOMO_CALLBACK_HOST=${tunnelUrl}`;
+    }
+    return line;
+  });
+
+  if (!found) {
+    envContent.push(`MOMO_CALLBACK_HOST=${tunnelUrl}`);
+  }
+
+  fs.writeFileSync(envPath, envContent.join('\n'));
+  console.log("✅ .env updated with new MOMO_CALLBACK_HOST:", tunnelUrl);
+}
+
+// Function to re-register API User
+async function reRegisterUser(tunnelUrl) {
+  try {
+    const response = await fetch("https://sandbox.momodeveloper.mtn.com/v1_0/apiuser", {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": subscriptionKey,
+        "Content-Type": "application/json",
+        "X-Reference-Id": apiUserId
+      },
+      body: JSON.stringify({ providerCallbackHost: tunnelUrl })
+    });
+
+    if (!response.ok) {
+      console.error("❌ Failed to re-register API User:", await response.text());
+    } else {
+      console.log("✅ API User re-registered with new callback host:", tunnelUrl);
+    }
+  } catch (err) {
+    console.error("❌ Error during API User re-registration:", err);
+  }
+}
+
+// Step 1: Start cloudflared tunnel
+const cloudflared = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:3000']);
+
+// Listen to both stdout and stderr
+function handleOutput(data) {
+  const output = data.toString();
+  const match = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+  if (match) {
+    const tunnelUrl = match[0];
+    console.log("✅ Tunnel URL detected:", tunnelUrl);
+
+    updateEnv(tunnelUrl);
+    reRegisterUser(tunnelUrl);
+
+    cloudflared.kill();
+  }
+}
+
+cloudflared.stdout.on('data', handleOutput);
+cloudflared.stderr.on('data', handleOutput);
+

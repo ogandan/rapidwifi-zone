@@ -1,7 +1,9 @@
 // -----------------------------------------------------------------------------
-// File: server.js (Part 1 of 4)
-// Purpose: RAPIDWIFI-ZONE captive portal, dashboards, voucher lifecycle,
-//          payments integration, and notifications.
+// Filename: server.js (Part 1 of 6)
+// Timestamp: 2026-01-28 17:26 WAT
+// Description: RAPIDWIFI-ZONE captive portal, dashboards, voucher lifecycle,
+//              payments integration, notifications, analytics, and audit logs.
+// Path: /home/chairman/rapidwifi-zone/server.js
 // -----------------------------------------------------------------------------
 
 const express = require('express');
@@ -11,50 +13,33 @@ const csrf = require('csurf');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const fetch = require('node-fetch');
-const { v4: uuidv4 } = require('uuid');
+const { exec } = require('child_process');
 
 const voucherManager = require('./modules/voucherManager');
 const db = require('./data/db');
 const notificationManager = require('./modules/notificationManager');
 
 const app = express();
-
-// --------------------
-// CSRF Protection
-// --------------------
 const csrfProtection = csrf({ cookie: false });
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-// --------------------
-// Session Config
-// --------------------
 app.use(session({
   secret: 'rapidwifi-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 // 1 hour
-  }
+  cookie: { secure: false, httpOnly: true, maxAge: 1000 * 60 * 60 }
 }));
 
-// --------------------
-// Apply CSRF Middleware Globally
-// --------------------
+// Apply CSRF globally except for callbacks and APIs
 app.use((req, res, next) => {
   if (req.path === '/payments/callback' || req.path.startsWith('/api/')) return next();
   csrfProtection(req, res, next);
 });
 
-// --------------------
-// CSRF Error Handler
-// --------------------
+// CSRF error handler
 app.use((err, req, res, next) => {
   if (err.code === 'EBADCSRFTOKEN') {
     console.error('Invalid CSRF token:', err);
@@ -63,9 +48,7 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// --------------------
-// Middleware Helpers
-// --------------------
+// Middleware helpers
 function requireAdmin(req, res, next) {
   if (req.session && req.session.user && req.session.role === 'admin') return next();
   res.redirect('/admin-login');
@@ -74,11 +57,46 @@ function requireOperator(req, res, next) {
   if (req.session && req.session.user && req.session.role === 'operator') return next();
   res.redirect('/admin-login');
 }
-// --------------------
-// Voucher Login
-// --------------------
-app.get('/login', (req, res) => {
-  res.render('login', { csrfToken: req.csrfToken() });
+
+// MikroTik SSH helper
+async function getMikroTikProfiles() {
+  return new Promise((resolve, reject) => {
+    exec(
+      'ssh -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostkeyAlgorithms=+ssh-rsa admin@192.168.88.1 "/ip hotspot user profile print terse"',
+      (error, stdout, stderr) => {
+        if (error) return reject(error);
+        if (stderr) return reject(stderr);
+        const lines = stdout.split('\n').filter(l => l.includes('name='));
+        const priceMap = {};
+        lines.forEach(line => {
+          const match = line.match(/name=([^ ]+)/);
+          if (match) {
+            const name = match[1];
+            if (name.includes('-')) {
+              const [duration, priceStr] = name.split('-');
+              const price = parseInt(priceStr.replace('FCFA', ''), 10);
+              priceMap[name] = { duration, price };
+            }
+          }
+        });
+        resolve(priceMap);
+      }
+    );
+  });
+}
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 2 of 6)
+// Timestamp: 2026-01-28 17:26 WAT
+// Description: Voucher login, admin login, operator dashboard, voucher selling,
+//              cash payments, and admin dashboard routes.
+// Path: /home/chairman/rapidwifi-zone/server.js
+// -----------------------------------------------------------------------------
+
+// Voucher login
+app.get('/login', async (req, res) => {
+  let profiles = {};
+  try { profiles = await getMikroTikProfiles(); } catch (err) { console.error("Error fetching MikroTik profiles:", err); }
+  res.render('login', { csrfToken: req.csrfToken(), profiles });
 });
 app.post('/login', async (req, res) => {
   try {
@@ -97,20 +115,13 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// --------------------
-// Admin Login
-// --------------------
-app.get('/admin-login', (req, res) => {
-  res.render('admin_login', { csrfToken: req.csrfToken() });
-});
-
+// Admin login
+app.get('/admin-login', (req, res) => res.render('admin_login', { csrfToken: req.csrfToken() }));
 app.post('/admin-login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const rows = await db.runQuery('SELECT * FROM users WHERE username = ?', [username.trim()]);
-    if (!rows.length) {
-      return res.render('admin_login', { csrfToken: req.csrfToken(), error: 'Invalid credentials' });
-    }
+    if (!rows.length) return res.render('admin_login', { csrfToken: req.csrfToken(), error: 'Invalid credentials' });
     const user = rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
     if (match) {
@@ -125,198 +136,193 @@ app.post('/admin-login', async (req, res) => {
     res.render('admin_login', { csrfToken: req.csrfToken(), error: 'System error during login' });
   }
 });
-// --------------------
-// Self-Service Payment
-// --------------------
-app.post('/selfservice/pay', async (req, res) => {
-  try {
-    const { phone, profile } = req.body;
 
+// Operator dashboard
+app.get('/operator', requireOperator, async (req, res) => {
+  const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
+  let profiles = {};
+  try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+  res.render("operator", { voucher: null, totalSoldToday, csrfToken: req.csrfToken(), role: "operator", toastMessage: null, profiles });
+});
+
+// Sell workflow
+app.post('/operator/sell', requireOperator, async (req, res) => {
+  try {
+    const { profile } = req.body;
+    let profiles = {};
+    try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+    const expected = profiles[profile];
+    if (!expected) {
+      return res.render("operator", { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Profile ${profile} not found on MikroTik`, profiles });
+    }
     const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
-
-    await voucherManager.createVoucher(
-      voucherUsername,
-      voucherPassword,
-      profile,
-      `batch_${new Date().toISOString().slice(0,10)}`,
-      req.session.user || 'selfservice'
-    );
-
-    const voucherRow = await db.runQuery(
-      "SELECT id FROM vouchers WHERE username = ? AND password = ?",
-      [voucherUsername, voucherPassword]
-    );
-    const voucherId = voucherRow[0].id;
-
-    const amount = profile === '1h' ? 500 : profile === 'day' ? 1000 : 5000;
-    await db.runQuery(
-      "INSERT INTO payments (voucher_id, amount, method, status, currency, timestamp) VALUES (?, ?, ?, ?, ?, datetime('now'))",
-      [voucherId, amount, 'mobile_money', 'pending', 'XOF']
-    );
-
-    res.render('payment_result', { success: true, message: `Payment initiated. Voucher: ${voucherUsername}/${voucherPassword}` });
+    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, `batch_${new Date().toISOString().slice(0,10)}`, req.session.user);
+    const voucherRow = await db.runQuery("SELECT id, username FROM vouchers WHERE username = ?", [voucherUsername]);
+    const voucher = voucherRow[0]; voucher.expectedPrice = expected.price;
+    res.render("operator", { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: null, profiles });
   } catch (err) {
-    console.error('Self-service payment error:', err);
-    res.render('payment_result', { success: false, message: 'Error initiating payment' });
+    console.error('Sell voucher error:', err);
+    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
+    res.status(500).render("operator", { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Error selling voucher", profiles });
+  }
+});
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 3 of 6)
+// Timestamp: 2026-01-28 17:46 WAT
+// Description: Operator cash payments, admin dashboard (corrected), and voucher creation.
+// Path: /home/chairman/rapidwifi-zone/server.js
+// -----------------------------------------------------------------------------
+
+// Cash payment confirmation
+app.post('/pay/cash', requireOperator, async (req, res) => {
+  try {
+    const { voucherId, amount } = req.body;
+    const voucherRow = await db.runQuery("SELECT id, username, password, profile FROM vouchers WHERE id=?", [voucherId]);
+    if (!voucherRow.length) {
+      let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+      return res.render('operator', { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Voucher not found", profiles });
+    }
+    const voucher = voucherRow[0];
+    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+    const expected = profiles[voucher.profile];
+    if (!expected) {
+      return res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Profile ${voucher.profile} not found on MikroTik`, profiles });
+    }
+    if (parseInt(amount) !== expected.price) {
+      return res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Cash received does not match profile price. Expected: ${expected.price} FCFA`, profiles });
+    }
+    await db.runQuery("UPDATE payments SET status='success', method='cash', amount=? WHERE voucher_id=?", [amount, voucherId]);
+    await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
+    res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Voucher sold successfully!", profiles });
+  } catch (err) {
+    console.error('Cash payment error:', err);
+    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
+    res.render('operator', { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Error recording cash payment", profiles });
   }
 });
 
-// --------------------
-// Operator Dashboard
-// --------------------
-app.get('/operator', requireOperator, async (req, res) => {
-  const vouchers = await voucherManager.listVouchers();
-  const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
-
-  res.render("operator", {
+// Admin dashboard (corrected)
+app.get('/admin', requireAdmin, async (req, res) => {
+  const { batch, status, profile } = req.query;
+  const vouchers = await voucherManager.listFiltered({ batch, status, profile });
+  const operators = await db.getOperators();
+  let profiles = {};
+  try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+  res.render('admin', {
     vouchers,
-    voucher: null, // ensure defined
-    totalSoldToday,
+    operators,
     csrfToken: req.csrfToken(),
-    role: "operator"
+    role: 'admin',
+    profiles,
+    batch: batch || '',     // ✅ correction
+    status: status || '',   // ✅ correction
+    profile: profile || ''  // ✅ correction
   });
 });
 
-// --------------------
-// JSON APIs for DataTables
-// --------------------
-app.get('/api/payments', requireAdmin, async (req, res) => {
-  try {
-    const payments = await db.getPayments();
-    res.json({ data: payments }); // ✅ DataTables expects { data: [...] }
-  } catch (err) {
-    console.error('Payments API error:', err);
-    res.json({ data: [] });
-  }
-});
-
-app.get('/api/audit_logs', requireAdmin, async (req, res) => {
-  try {
-    const logs = await db.getAuditLogs();
-    res.json({ data: logs }); // ✅ DataTables expects { data: [...] }
-  } catch (err) {
-    console.error('Audit Logs API error:', err);
-    res.json({ data: [] });
-  }
-});
-// --------------------
-// Admin Dashboard + Routes
-// --------------------
-app.get('/admin', requireAdmin, async (req, res) => {
-  const vouchers = await voucherManager.listVouchers();
-  const operators = await db.getOperators();
-  res.render('admin', { vouchers, operators, csrfToken: req.csrfToken(), role: 'admin' });
-});
-
-// Voucher creation route
+// Voucher creation
 app.post('/admin/create', requireAdmin, async (req, res) => {
   try {
     const { profile, batchTag } = req.body;
     const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
-
-    await voucherManager.createVoucher(
-      voucherUsername,
-      voucherPassword,
-      profile,
-      batchTag || `batch_${new Date().toISOString().slice(0,10)}`,
-      req.session.user
-    );
-
+    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, batchTag || `batch_${new Date().toISOString().slice(0,10)}`, req.session.user);
     res.redirect('/admin');
   } catch (err) {
     console.error('Voucher creation error:', err);
     res.status(500).send('Error creating voucher');
   }
 });
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 4 of 6)
+// Timestamp: 2026-01-28 17:46 WAT
+// Description: Admin operator management, bulk voucher actions, and export routes.
+// Path: /home/chairman/rapidwifi-zone/server.js
+// -----------------------------------------------------------------------------
 
-// --------------------
-// Operator Management Routes
-// --------------------
-app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
-  try {
-    await db.deactivateOperator(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Deactivate operator error:', err);
-    res.status(500).send('Error deactivating operator');
-  }
-});
-
-app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
-  try {
-    await db.activateOperator(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Activate operator error:', err);
-    res.status(500).send('Error activating operator');
-  }
-});
-
-app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
-  try {
-    await db.deleteOperator(req.params.id);
-    res.redirect('/admin');
-  } catch (err) {
-    console.error('Delete operator error:', err);
-    res.status(500).send('Error deleting operator');
-  }
-});
-
+// Admin operator management
 app.post('/admin/create-operator', requireAdmin, async (req, res) => {
+  const { username, password } = req.body;
   try {
-    const { username, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
-    await db.runQuery(
-      "INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')",
-      [username, hash]
-    );
+    await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')", [username, hash]);
     res.redirect('/admin');
   } catch (err) {
-    console.error('Create operator error:', err);
-    res.status(500).send('Error creating operator');
+    console.error("Create operator error:", err);
+    res.status(500).send("Error creating operator");
   }
 });
+app.post('/admin/deactivate-operator/:id', requireAdmin, async (req, res) => {
+  try { await db.runQuery("UPDATE users SET status='inactive' WHERE id=?", [req.params.id]); res.redirect('/admin'); }
+  catch (err) { console.error("Deactivate operator error:", err); res.status(500).send("Error deactivating operator"); }
+});
+app.post('/admin/activate-operator/:id', requireAdmin, async (req, res) => {
+  try { await db.runQuery("UPDATE users SET status='active' WHERE id=?", [req.params.id]); res.redirect('/admin'); }
+  catch (err) { console.error("Activate operator error:", err); res.status(500).send("Error activating operator"); }
+});
+app.post('/admin/delete-operator/:id', requireAdmin, async (req, res) => {
+  try { await db.runQuery("DELETE FROM users WHERE id=?", [req.params.id]); res.redirect('/admin'); }
+  catch (err) { console.error("Delete operator error:", err); res.status(500).send("Error deleting operator"); }
+});
 
-// --------------------
-// Bulk Action (Operators + Vouchers)
-// --------------------
+// Bulk voucher actions
 app.post('/admin/bulk-action', requireAdmin, async (req, res) => {
+  const { action, ids } = req.body;
   try {
-    let { action, ids } = req.body;
-
-    // Normalize ids into an array
-    if (!ids) {
-      ids = [];
-    } else if (typeof ids === 'string') {
-      ids = [ids];
-    }
-
-    if (action === 'deactivate') {
-      for (const id of ids) await db.deactivateOperator(id);
-    } else if (action === 'activate') {
-      for (const id of ids) await db.activateOperator(id);
-    } else if (action === 'delete') {
-      for (const id of ids) await db.deleteOperator(id);
-    } else if (action === 'block-voucher') {
-      for (const id of ids) await db.runQuery("UPDATE vouchers SET status='inactive' WHERE id=?", [id]);
+    if (!ids || !Array.isArray(ids)) return res.redirect('/admin');
+    const placeholders = ids.map(() => '?').join(',');
+    if (action === 'block-voucher') {
+      await db.runQuery(`UPDATE vouchers SET status='blocked' WHERE id IN (${placeholders})`, ids);
     } else if (action === 'activate-voucher') {
-      for (const id of ids) await db.runQuery("UPDATE vouchers SET status='active' WHERE id=?", [id]);
+      await db.runQuery(`UPDATE vouchers SET status='active' WHERE id IN (${placeholders})`, ids);
     } else if (action === 'delete-voucher') {
-      for (const id of ids) await db.runQuery("DELETE FROM vouchers WHERE id=?", [id]);
+      await db.runQuery(`DELETE FROM vouchers WHERE id IN (${placeholders})`, ids);
     }
-
     res.redirect('/admin');
   } catch (err) {
-    console.error('Bulk action error:', err);
-    res.status(500).send('Error performing bulk action');
+    console.error("Bulk action error:", err);
+    res.status(500).send("Error performing bulk action");
   }
 });
 
-// --------------------
-// Analytics Dashboard (with payments)
-// --------------------
+// Export routes
+app.get('/admin/export-all', requireAdmin, async (req, res) => {
+  try {
+    const vouchers = await voucherManager.listVouchers();
+    const csvString = await voucherManager.exportCSV(vouchers);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=vouchers_all.csv");
+    res.send(csvString);
+  } catch (err) {
+    console.error("Export all error:", err);
+    res.status(500).send("Error exporting vouchers");
+  }
+});
+app.get('/admin/export-filtered-csv', requireAdmin, async (req, res) => {
+  try {
+    const vouchers = await voucherManager.listFiltered(req.query);
+    const csvString = await voucherManager.exportCSV(vouchers);
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=vouchers_filtered.csv");
+    res.send(csvString);
+  } catch (err) {
+    console.error("Export filtered CSV error:", err);
+    res.status(500).send("Error exporting vouchers");
+  }
+});
+app.get('/admin/export-filtered-json', requireAdmin, async (req, res) => {
+  try { const vouchers = await voucherManager.listFiltered(req.query); res.json(vouchers); }
+  catch (err) { console.error("Export filtered JSON error:", err); res.status(500).send("Error exporting vouchers"); }
+});
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 5 of 6)
+// Timestamp: 2026-01-28 17:54 WAT
+// Description: Analytics dashboard, logs dashboard, and supporting APIs.
+// Path: /home/chairman/rapidwifi-zone/server.js
+// -----------------------------------------------------------------------------
+
+// Analytics dashboard
 app.get('/analytics', requireAdmin, async (req, res) => {
   const total = await db.countAllVouchers();
   const active = await db.countActiveVouchers();
@@ -328,6 +334,7 @@ app.get('/analytics', requireAdmin, async (req, res) => {
   const totalPayments = payments.length;
   const successfulPayments = payments.filter(p => p.status === 'success').length;
   const failedPayments = payments.filter(p => p.status === 'failed').length;
+
   const revenueByMethod = {};
   payments.forEach(p => {
     revenueByMethod[p.method] = (revenueByMethod[p.method] || 0) + p.amount;
@@ -355,63 +362,74 @@ app.get('/analytics', requireAdmin, async (req, res) => {
   });
 });
 
-// --------------------
-// Logs Dashboard (Audit Logs + Payments)
-// --------------------
+// Logs dashboard
 app.get('/admin/logs', requireAdmin, async (req, res) => {
   res.render('audit_logs', { csrfToken: req.csrfToken(), role: 'admin' });
 });
 
-app.get('/admin/export-all', requireAdmin, async (req, res) => {
-  const vouchers = await voucherManager.listVouchers();
-  const csv = vouchers.map(v => `${v.id},${v.username},${v.password},${v.profile},${v.status},${v.batch_tag},${v.created_by || ''}`).join('\n');
-  res.type('text/csv').send(csv);
-});
-
-app.get('/admin/export-logs-csv', requireAdmin, async (req, res) => {
-  const logs = await db.getLogs();
-  const csv = logs.map(l => `${l.id},${l.profile},${l.filename},${l.exported_by},${l.timestamp}`).join('\n');
-  res.type('text/csv').send(csv);
-});
-
-app.get('/admin/export-logs-json', requireAdmin, async (req, res) => {
-  const logs = await db.getLogs();
-  res.json(logs);
-});
-
-// --------------------
-// Extra Routes
-// --------------------
-app.post('/pay/cash', async (req, res) => {
+// APIs
+app.get('/api/payments', async (req, res) => {
   try {
-    const { voucherId, amount } = req.body;
-    await db.runQuery("UPDATE payments SET status='success', method='cash', amount=? WHERE voucher_id=?", [amount, voucherId]);
-    await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
-    const voucher = await db.runQuery("SELECT username, password FROM vouchers WHERE id=?", [voucherId]);
-    if (voucher.length > 0) {
-      res.render('payment_result', { success: true, message: `Cash payment recorded. Voucher: ${voucher[0].username}/${voucher[0].password}` });
-    } else {
-      res.render('payment_result', { success: true, message: 'Cash payment recorded, but voucher credentials not found.' });
-    }
+    const payments = await db.getPayments();
+    res.json({ data: payments });
   } catch (err) {
-    console.error('Cash payment error:', err);
-    res.render('payment_result', { success: false, message: 'Error recording cash payment' });
+    console.error("Payments API error:", err);
+    res.status(500).json({ data: [] });
   }
 });
 
+app.get('/api/audit-logs', async (req, res) => {
+  try {
+    const logs = await db.getAuditLogs();
+    res.json({ data: logs });
+  } catch (err) {
+    console.error("Audit logs API error:", err);
+    res.status(500).json({ data: [] });
+  }
+});
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 6 of 6)
+// Timestamp: 2026-01-28 17:54 WAT
+// Description: Self-service payments, logout, and server start.
+// Path: /home/chairman/rapidwifi-zone/server.js
+// -----------------------------------------------------------------------------
+
+// Self-service payment route
+app.post('/selfservice/pay', async (req, res) => {
+  try {
+    const { phone, profile } = req.body;
+    let profiles = {};
+    try { profiles = await getMikroTikProfiles(); } catch (err) {
+      console.error("Error fetching MikroTik profiles:", err);
+      return res.json({ success: false, message: "Unable to fetch profiles" });
+    }
+    const expected = profiles[profile];
+    if (!expected) return res.json({ success: false, message: `Profile ${profile} not found` });
+
+    const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
+    const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
+
+    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, `selfservice_${new Date().toISOString().slice(0,10)}`, 'selfservice');
+    await db.runQuery("INSERT INTO payments (voucher_id, amount, method, status, phone) VALUES ((SELECT id FROM vouchers WHERE username=?), ?, 'mobilemoney', 'success', ?)", [voucherUsername, expected.price, phone]);
+    await db.runQuery("UPDATE vouchers SET status='sold' WHERE username=?", [voucherUsername]);
+
+    res.json({ success: true, voucher: { username: voucherUsername, password: voucherPassword, profile, price: expected.price } });
+  } catch (err) {
+    console.error("Selfservice pay error:", err);
+    res.json({ success: false, message: "Payment failed" });
+  }
+});
+
+// Logout
 app.get('/logout', (req, res) => {
   const role = req.session.role;
   req.session.destroy(() => {
-    if (role === 'operator' || role === 'admin') {
-      return res.redirect('/admin-login'); // ✅ fixed redirect
-    }
+    if (role === 'operator' || role === 'admin') return res.redirect('/admin-login');
     return res.redirect('/login');
   });
 });
 
-// --------------------
-// Server Start
-// --------------------
+// Server start
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`RAPIDWIFI-ZONE server running on port ${PORT}`);

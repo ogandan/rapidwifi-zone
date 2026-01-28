@@ -53,8 +53,8 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
         </button>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="/admin/export-all">Export All Vouchers (CSV)</a></li>
-          <li><a class="dropdown-item" href="/admin/export-filtered-csv?<%= new URLSearchParams({batch: batch || '', status: status || '', profile: profile || ''}).toString() %>">Export Filtered Vouchers (CSV)</a></li>
-          <li><a class="dropdown-item" href="/admin/export-filtered-json?<%= new URLSearchParams({batch: batch || '', status: status || '', profile: profile || ''}).toString() %>">Export Filtered Vouchers (JSON)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-filtered-csv">Export Filtered Vouchers (CSV)</a></li>
+          <li><a class="dropdown-item" href="/admin/export-filtered-json">Export Filtered Vouchers (JSON)</a></li>
         </ul>
       </div>
       <div class="btn-group me-2">
@@ -75,14 +75,14 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
     <div class="mb-3">
       <form action="/admin" method="GET" class="row g-3">
         <div class="col-auto">
-          <input type="text" name="batch" class="form-control" placeholder="Filter by Batch" value="<%= batch || '' %>">
+          <input type="text" name="batch" class="form-control" placeholder="Filter by Batch">
         </div>
         <div class="col-auto">
           <select name="status" class="form-select">
             <option value="">Filter by Status</option>
-            <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
-            <option value="blocked" <%= status === 'blocked' ? 'selected' : '' %>>Blocked</option>
-            <option value="sold" <%= status === 'sold' ? 'selected' : '' %>>Sold</option>
+            <option value="active">Active</option>
+            <option value="blocked">Blocked</option>
+            <option value="sold">Sold</option>
           </select>
         </div>
         <div class="col-auto">
@@ -90,7 +90,7 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
             <option value="">Filter by Profile</option>
             <% if (profiles) { %>
               <% Object.keys(profiles).forEach(function(p) { %>
-                <option value="<%= p %>" <%= profile === p ? 'selected' : '' %>><%= p %></option>
+                <option value="<%= p %>"><%= p %></option>
               <% }) %>
             <% } %>
           </select>
