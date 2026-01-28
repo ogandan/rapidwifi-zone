@@ -71,7 +71,7 @@ async function operatorHasActions(id) {
   return rows[0].cnt > 0;
 }
 
-// ✅ Fixed helper query: now uses created_by column
+// ✅ Uses vouchers.created_by and payments.timestamp
 async function countOperatorSoldToday(username) {
   const rows = await runQuery(`
     SELECT COUNT(*) AS total
