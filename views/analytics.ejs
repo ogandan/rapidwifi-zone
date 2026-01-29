@@ -1,40 +1,67 @@
-<!-- --------------------------------------------------------------------------
-File: views/analytics.ejs
-Purpose: Analytics dashboard for RAPIDWIFI-ZONE
----------------------------------------------------------------------------- -->
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Analytics Dashboard</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <meta charset="UTF-8">
+  <title>Analytics Dashboard - RAPIDWIFI-ZONE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-light">
-  <div class="container py-4">
-    <h2 class="mb-4">Analytics Dashboard</h2>
+<body class="container mt-5">
+  <h1 class="mb-4 text-primary">Analytics Dashboard</h1>
 
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="voucherStatusChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="paymentsTrendChart"></canvas>
-      </div>
+  <!-- Voucher Charts -->
+  <div class="row">
+    <div class="col-md-6">
+      <canvas id="voucherStatusChart"></canvas>
     </div>
+    <div class="col-md-6">
+      <canvas id="profileChart"></canvas>
+    </div>
+  </div>
 
-    <div class="row mb-4">
-      <div class="col-md-6">
-        <canvas id="revenueTrendChart"></canvas>
-      </div>
-      <div class="col-md-6">
-        <canvas id="profileRevenueChart"></canvas>
-      </div>
+  <!-- Export Logs -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <canvas id="exportChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Payments Overview -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <canvas id="paymentsStatusChart"></canvas>
+    </div>
+    <div class="col-md-6">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Payments Trends -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <canvas id="paymentsTimeChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Revenue Trends -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <canvas id="revenueTrendChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Profile-based Revenue -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <canvas id="profileRevenueChart"></canvas>
     </div>
   </div>
 
   <script>
     // Voucher Status Chart
-    new Chart(document.getElementById('voucherStatusChart'), {
+    new Chart(document.getElementById('voucherStatusChart').getContext('2d'), {
       type: 'doughnut',
       data: {
         labels: ['Active', 'Inactive'],
@@ -46,46 +73,109 @@ Purpose: Analytics dashboard for RAPIDWIFI-ZONE
       options: { plugins: { title: { display: true, text: 'Voucher Status' } } }
     });
 
-    // Payments Trend Chart
-    new Chart(document.getElementById('paymentsTrendChart'), {
+    // Profile Distribution Chart
+    new Chart(document.getElementById('profileChart').getContext('2d'), {
       type: 'bar',
       data: {
-        labels: <%- JSON.stringify(paymentsTrend.map(p => p.date)) %>,
+        labels: <%- JSON.stringify(profiles.map(p => p.profile)) %>,
         datasets: [{
-          label: 'Payments Count',
-          data: <%- JSON.stringify(paymentsTrend.map(p => p.count)) %>,
-          backgroundColor: '#17a2b8'
+          label: 'Vouchers per Profile',
+          data: <%- JSON.stringify(profiles.map(p => p.count)) %>,
+          backgroundColor: '#28a745'
         }]
       },
-      options: { plugins: { title: { display: true, text: 'Payments Trend (Daily)' } } }
+      options: { plugins: { title: { display: true, text: 'Profile Distribution' } } }
     });
 
-    // Revenue Trend Chart
-    new Chart(document.getElementById('revenueTrendChart'), {
+    // Export Logs by Profile Chart
+    new Chart(document.getElementById('exportChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(exportsByProfile.map(e => e.profile)) %>,
+        datasets: [{
+          label: 'Exports per Profile',
+          data: <%- JSON.stringify(exportsByProfile.map(e => e.count)) %>,
+          backgroundColor: '#ffc107'
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Exports by Profile' } } }
+    });
+
+    // Payments Status Chart
+    new Chart(document.getElementById('paymentsStatusChart').getContext('2d'), {
+      type: 'pie',
+      data: {
+        labels: ['Success', 'Failed'],
+        datasets: [{
+          data: [<%= successfulPayments %>, <%= failedPayments %>],
+          backgroundColor: ['#28a745', '#dc3545']
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Payments Status' } } }
+    });
+
+    // Revenue by Method Chart
+    new Chart(document.getElementById('revenueChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(Object.keys(revenueByMethod)) %>,
+        datasets: [{
+          label: 'Revenue (XOF)',
+          data: <%- JSON.stringify(Object.values(revenueByMethod)) %>,
+          backgroundColor: '#007bff'
+        }]
+      },
+      options: {
+        plugins: { title: { display: true, text: 'Revenue by Method' } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    // Payments Time-Series Chart
+    new Chart(document.getElementById('paymentsTimeChart').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: <%- JSON.stringify(paymentsByDate.map(p => p.date)) %>,
+        datasets: [{
+          label: 'Payments per Day',
+          data: <%- JSON.stringify(paymentsByDate.map(p => p.count)) %>,
+          borderColor: '#17a2b8',
+          fill: false
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Payments Over Time' } } }
+    });
+
+    // Revenue Trend Chart (cumulative)
+    new Chart(document.getElementById('revenueTrendChart').getContext('2d'), {
       type: 'line',
       data: {
         labels: <%- JSON.stringify(revenueTrend.map(r => r.date)) %>,
         datasets: [{
-          label: 'Revenue',
+          label: 'Cumulative Revenue (XOF)',
           data: <%- JSON.stringify(revenueTrend.map(r => r.total)) %>,
-          borderColor: '#28a745',
+          borderColor: '#6f42c1',
           fill: false
         }]
       },
-      options: { plugins: { title: { display: true, text: 'Revenue Trend (Daily)' } } }
+      options: { plugins: { title: { display: true, text: 'Revenue Trend Over Time' } } }
     });
 
-    // Profile Revenue Breakdown
-    new Chart(document.getElementById('profileRevenueChart'), {
-      type: 'pie',
+    // Profile-based Revenue Chart
+    new Chart(document.getElementById('profileRevenueChart').getContext('2d'), {
+      type: 'bar',
       data: {
-        labels: <%- JSON.stringify(profileRevenue.map(pr => pr.profile)) %>,
+        labels: <%- JSON.stringify(profileRevenue.map(p => p.profile)) %>,
         datasets: [{
-          data: <%- JSON.stringify(profileRevenue.map(pr => pr.total)) %>,
-          backgroundColor: ['#007bff','#ffc107','#28a745','#dc3545','#6f42c1']
+          label: 'Revenue per Profile (XOF)',
+          data: <%- JSON.stringify(profileRevenue.map(p => p.total)) %>,
+          backgroundColor: '#20c997'
         }]
       },
-      options: { plugins: { title: { display: true, text: 'Revenue by Profile' } } }
+      options: { 
+        plugins: { title: { display: true, text: 'Revenue by Profile' } },
+        scales: { y: { beginAtZero: true } } 
+      }
     });
   </script>
 </body>
