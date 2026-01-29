@@ -1,5 +1,5 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-28
+Timestamp: 2026-01-29
 File: views/admin.ejs
 Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTik profiles
 ---------------------------------------------------------------------------- -->
@@ -68,51 +68,38 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
       </div>
     </div>
 
-    <!-- Operator Management -->
-    <!-- (unchanged from your current version) -->
-
-    <!-- Voucher Filtering -->
-    <div class="mb-3">
-      <form action="/admin" method="GET" class="row g-3">
-        <div class="col-auto">
-          <input type="text" name="batch" class="form-control" placeholder="Filter by Batch" value="<%= batch || '' %>">
-        </div>
-        <div class="col-auto">
-          <select name="status" class="form-select">
-            <option value="">Filter by Status</option>
-            <option value="active" <%= status === 'active' ? 'selected' : '' %>>Active</option>
-            <option value="blocked" <%= status === 'blocked' ? 'selected' : '' %>>Blocked</option>
-            <option value="sold" <%= status === 'sold' ? 'selected' : '' %>>Sold</option>
-          </select>
-        </div>
-        <div class="col-auto">
-          <select name="profile" class="form-select">
-            <option value="">Filter by Profile</option>
-            <% if (profiles) { %>
-              <% Object.keys(profiles).forEach(function(p) { %>
-                <option value="<%= p %>" <%= profile === p ? 'selected' : '' %>><%= p %></option>
-              <% }) %>
-            <% } %>
-          </select>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-outline-secondary">Apply Filters</button>
-        </div>
-      </form>
+    <!-- Voucher Table -->
+    <div class="table-responsive mb-4">
+      <table id="voucherTable" class="table table-striped table-bordered"></table>
     </div>
 
-    <!-- Voucher Table -->
-    <!-- (unchanged except filters above) -->
-
+    <!-- Payments Table -->
+    <div class="table-responsive">
+      <table id="paymentsTable" class="table table-striped table-bordered"></table>
+    </div>
   </div>
 
   <script>
-    function toggleAll(source) {
-      const checkboxes = document.querySelectorAll('input[name="ids[]"]');
-      checkboxes.forEach(cb => cb.checked = source.checked);
-    }
-
     $(document).ready(function() {
+      // ✅ Voucher DataTable
+      const voucherTable = $('#voucherTable').DataTable({
+        ajax: '/api/vouchers',
+        columns: [
+          { data: 'id', title: 'ID' },
+          { data: 'username', title: 'Username' },
+          { data: 'password', title: 'Password' },
+          { data: 'profile', title: 'Profile' },
+          { data: 'status', title: 'Status' },
+          { data: 'created_by', title: 'Created By' },
+          { data: 'created_at', title: 'Created At' }
+        ],
+        order: [[6, 'desc']],
+        pageLength: 25,
+        dom: 'Bfrtip',
+        buttons: ['csv', 'excel']
+      });
+
+      // Payments DataTable
       const paymentsTable = $('#paymentsTable').DataTable({
         ajax: '/api/payments',
         columns: [
@@ -129,7 +116,9 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
         buttons: ['csv', 'excel']
       });
 
+      // Auto-refresh
       setInterval(() => {
+        voucherTable.ajax.reload(null, false);
         paymentsTable.ajax.reload(null, false);
       }, 30000);
     });
