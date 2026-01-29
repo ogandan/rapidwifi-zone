@@ -6,6 +6,41 @@
 
 # RAPIDWIFI-ZONE
 
+## Enhancements (2026-01-29)
+
+### Admin Dashboard (admin.ejs)
+- Preserved all existing features: voucher table, payments table, export options, logs, analytics, logout.
+- Added **voucher bulk‑actions**:
+  - New checkbox column in voucher table.
+  - Dropdown with “Activate”, “Block”, “Delete” and an “Apply” button.
+  - Selected vouchers can be activated, blocked, or deleted in bulk.
+- Added **Operator/Admin Management**:
+  - New button in Admin Dashboard toolbar.
+  - Opens a dedicated management page where admins can:
+    - Create new operators/admins.
+    - Activate/deactivate operators.
+    - Delete operators (restricted if vouchers exist).
+
+### Server.js
+- Added backend routes for voucher bulk‑actions:
+  - `/admin/vouchers/bulk-activate`
+  - `/admin/vouchers/bulk-block`
+  - `/admin/vouchers/bulk-delete`
+- Added backend routes for operator management:
+  - `/api/operators`
+  - `/admin/operator/create`
+  - `/admin/operator/activate`
+  - `/admin/operator/deactivate`
+  - `/admin/operator/delete` (restricted if vouchers exist).
+
+### Database
+- Confirmed `payments` table includes `phone TEXT` for mobile money support.
+- `vouchers` table uses `created_by` to enforce operator deletion restriction.
+- `operators` table extended with `status` column for active/inactive state.
+
+
+# RAPIDWIFI-ZONE
+
 RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
 
 ## Recent Fixes and Enhancements (2026-01-29)
