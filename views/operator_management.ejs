@@ -1,5 +1,4 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-29
 File: views/operator_management.ejs
 Purpose: Operator/Admin management page
 ---------------------------------------------------------------------------- -->
@@ -69,20 +68,15 @@ Purpose: Operator/Admin management page
             orderable: false
           },
           { data: 'id', title: 'ID' },
-          { data: 'name', title: 'Username' },
+          { data: 'username', title: 'Username' },
           { data: 'role', title: 'Role' },
-          { data: 'active', title: 'Active',
-            render: function(data) {
-              return data == 1 ? 'Active' : 'Inactive';
-            }
-          },
-          { data: 'created_at', title: 'Created At' },
+          { data: 'status', title: 'Status' },
           {
             data: null,
             title: 'Actions',
             render: function(row) {
               let buttons = '';
-              if (row.active == 1) {
+              if (row.status === 'active') {
                 buttons += `<form action="/admin/operator/deactivate" method="POST" style="display:inline">
                   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                   <input type="hidden" name="id" value="${row.id}">
@@ -95,7 +89,7 @@ Purpose: Operator/Admin management page
                   <button type="submit" class="btn btn-success btn-sm">Activate</button>
                 </form>`;
               }
-              buttons += ` <form action="/admin/operator/delete" method="POST" style="display:inline" onsubmit="return confirmDelete(${row.id}, '${row.name}')">
+              buttons += ` <form action="/admin/operator/delete" method="POST" style="display:inline" onsubmit="return confirmDelete(${row.id}, '${row.username}')">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <input type="hidden" name="id" value="${row.id}">
                 <button type="submit" class="btn btn-danger btn-sm">Delete</button>
@@ -104,7 +98,7 @@ Purpose: Operator/Admin management page
             }
           }
         ],
-        order: [[5, 'desc']],
+        order: [[1, 'asc']],
         pageLength: 25
       });
 
@@ -129,8 +123,8 @@ Purpose: Operator/Admin management page
     });
 
     // Prevent deleting operators with vouchers (client-side check)
-    function confirmDelete(id, name) {
-      return confirm(`Are you sure you want to delete operator ${name}? Operators with vouchers cannot be deleted.`);
+    function confirmDelete(id, username) {
+      return confirm(`Are you sure you want to delete operator ${username}? Operators with vouchers cannot be deleted.`);
     }
   </script>
 </body>
