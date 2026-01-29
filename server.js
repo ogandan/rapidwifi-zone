@@ -445,22 +445,57 @@ app.get('/api/audit-logs', requireAdmin, async (req, res) => {
 // Analytics page
 app.get('/analytics', requireAdmin, async (req, res) => {
   try {
-    const stats = await db.getAnalyticsStats();
-    const paymentsTrend = await db.getPaymentsByDate();
-    const revenueTrend = await db.getRevenueTrend();
-    const profileRevenue = await db.getProfileRevenue();
+    // Voucher stats
+    const stats = await db.getAnalyticsStats(); // should return { active, inactive, successfulPayments, failedPayments }
+
+    // Profile distribution
+    const profiles = await db.getProfileCounts(); // [{ profile, count }]
+
+    // Exports by profile
+    const exportsByProfile = await db.getExportsByProfile(); // [{ profile, count }]
+
+    // Revenue by method
+    const revenueByMethod = await db.getRevenueByMethod(); // { cash: 1000, mobilemoney: 2000, ... }
+
+    // Payments trend (daily counts)
+    const paymentsByDate = await db.getPaymentsByDate(); // [{ date, count }]
+
+    // Revenue trend (daily sums)
+    const revenueTrend = await db.getRevenueTrend(); // [{ date, total }]
+
+    // Profile revenue breakdown
+    const profileRevenue = await db.getProfileRevenue(); // [{ profile, total }]
+
     res.render('analytics', { 
-      active: stats.active, 
-      inactive: stats.inactive, 
-      paymentsTrend,
+      active: stats.active || 0,
+      inactive: stats.inactive || 0,
+      successfulPayments: stats.successfulPayments || 0,
+      failedPayments: stats.failedPayments || 0,
+      profiles,
+      exportsByProfile,
+      revenueByMethod,
+      paymentsByDate,
       revenueTrend,
       profileRevenue,
-      csrfToken: req.csrfToken(), 
-      role: 'admin' 
+      csrfToken: req.csrfToken(),
+      role: 'admin'
     });
   } catch (err) {
     console.error("Analytics error:", err);
-    res.render('analytics', { active: 0, inactive: 0, paymentsTrend: [], revenueTrend: [], profileRevenue: [], csrfToken: req.csrfToken(), role: 'admin' });
+    res.render('analytics', { 
+      active: 0,
+      inactive: 0,
+      successfulPayments: 0,
+      failedPayments: 0,
+      profiles: [],
+      exportsByProfile: [],
+      revenueByMethod: {},
+      paymentsByDate: [],
+      revenueTrend: [],
+      profileRevenue: [],
+      csrfToken: req.csrfToken(),
+      role: 'admin'
+    });
   }
 });
 // -----------------------------------------------------------------------------
