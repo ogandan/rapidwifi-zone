@@ -6,6 +6,46 @@
 
 # RAPIDWIFI-ZONE
 
+RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
+
+## Recent Fixes and Enhancements (2026-01-29)
+
+### Server.js
+- Split into 6 logical parts for clarity and maintainability.
+- Preserved all existing voucher, payment, audit log, and analytics features.
+- Added **operator management routes**:
+  - `/api/operators` → list operators
+  - `/admin/operator/create` → create operator
+  - `/admin/operator/activate` → activate operator
+  - `/admin/operator/deactivate` → deactivate operator
+  - `/admin/operator/delete` → delete operator (restricted if vouchers exist)
+- Added **voucher bulk-action routes**:
+  - `/admin/vouchers/bulk-activate`
+  - `/admin/vouchers/bulk-block`
+  - `/admin/vouchers/bulk-delete`
+- Improved self-service payment route to show alerts (green for success, red for failure) instead of raw JSON.
+
+### Templates
+- **login.ejs**: Now displays Bootstrap alerts for payment success/failure with voucher details.
+- **operator.ejs**: Cash payment form aligned with `/operator/pay/cash`, dynamic profiles, CSRF handling intact.
+- **audit_logs.ejs**: Corrected Ajax URL to `/api/audit-logs`, filters working, auto-refresh every 30s.
+- **admin.ejs**: Extended with operator management UI, voucher filters (status, profile, date, created_by), and bulk actions (activate, block, delete selected vouchers). Existing voucher and payments tables preserved.
+
+### Database
+- `payments` table confirmed to include `phone TEXT` column for mobile money support.
+- `vouchers` table rebuilt with `created_by` referencing `users.username` and `ON DELETE RESTRICT` to prevent operator deletion if vouchers exist.
+- `operators` table extended with `status` column for active/inactive state.
+
+## Smoke Test Checklist
+- Operator lifecycle: create, activate, deactivate, delete (restricted if vouchers exist).
+- Voucher bulk actions: activate, block, delete selected vouchers.
+- API validation: `/api/operators` and `/api/vouchers` return correct JSON.
+- CSRF enforcement: invalid tokens blocked, valid tokens succeed.
+- UI integration: operators table, voucher filters, bulk actions functional.
+
+
+# RAPIDWIFI-ZONE
+
 ## Template & Route Changes (2026-01-29)
 
 - **Admin Dashboard**
