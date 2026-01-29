@@ -62,6 +62,22 @@ Purpose: Voucher login + Mobile Money payment for RAPIDWIFI-ZONE
 
       <button type="submit" class="btn btn-primary w-100">Pay with Mobile Money</button>
     </form>
+
+    <!-- Alerts for payment result -->
+    <% if (paymentResult) { %>
+      <% if (paymentResult.success) { %>
+        <div class="alert alert-success mt-3">
+          Payment successful! Voucher:
+          <strong><%= paymentResult.voucher.username %></strong> /
+          <strong><%= paymentResult.voucher.password %></strong>
+          (<%= paymentResult.voucher.profile %>, <%= paymentResult.voucher.price %> FCFA)
+        </div>
+      <% } else { %>
+        <div class="alert alert-danger mt-3">
+          Payment failed: <%= paymentResult.message %>
+        </div>
+      <% } %>
+    <% } %>
   </div>
 </body>
 </html>
