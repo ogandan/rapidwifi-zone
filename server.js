@@ -151,7 +151,14 @@ app.get('/operator', requireOperator, async (req, res) => {
   const totalSoldToday = await db.countOperatorSoldToday(req.session.user);
   let profiles = {};
   try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
-  res.render("operator", { voucher: null, totalSoldToday, csrfToken: req.csrfToken(), role: "operator", toastMessage: null, profiles });
+  res.render("operator", { 
+    voucher: null, 
+    totalSoldToday, 
+    csrfToken: req.csrfToken(), 
+    role: "operator", 
+    toastMessage: null, 
+    profiles 
+  });
 });
 
 // Sell workflow
@@ -162,18 +169,47 @@ app.post('/operator/sell', requireOperator, async (req, res) => {
     try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
     const expected = profiles[profile];
     if (!expected) {
-      return res.render("operator", { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Profile ${profile} not found on MikroTik`, profiles });
+      return res.render("operator", { 
+        voucher: null, 
+        totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+        csrfToken: req.csrfToken(), 
+        role: "operator", 
+        toastMessage: `Profile ${profile} not found on MikroTik`, 
+        profiles 
+      });
     }
     const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
-    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, `batch_${new Date().toISOString().slice(0,10)}`, req.session.user);
+    await voucherManager.createVoucher(
+      voucherUsername, 
+      voucherPassword, 
+      profile, 
+      `batch_${new Date().toISOString().slice(0,10)}`, 
+      req.session.user
+    );
     const voucherRow = await db.runQuery("SELECT id, username FROM vouchers WHERE username = ?", [voucherUsername]);
-    const voucher = voucherRow[0]; voucher.expectedPrice = expected.price;
-    res.render("operator", { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: null, profiles });
+    const voucher = voucherRow[0]; 
+    voucher.expectedPrice = expected.price;
+    res.render("operator", { 
+      voucher, 
+      totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+      csrfToken: req.csrfToken(), 
+      role: "operator", 
+      toastMessage: null, 
+      profiles 
+    });
   } catch (err) {
     console.error('Sell voucher error:', err);
-    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
-    res.status(500).render("operator", { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Error selling voucher", profiles });
+    let profiles = {}; 
+    try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
+    res.status(500).render("operator", { 
+      voucher: null, 
+      totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+      csrfToken: req.csrfToken(), 
+      role: "operator", 
+      toastMessage: "Error selling voucher", 
+      profiles 
+    });
   }
 });
 
@@ -181,27 +217,68 @@ app.post('/operator/sell', requireOperator, async (req, res) => {
 app.post('/operator/pay/cash', requireOperator, async (req, res) => {
   try {
     const { voucherId, amount } = req.body;
-    const voucherRow = await db.runQuery("SELECT id, username, password, profile, status FROM vouchers WHERE id=?", [voucherId]);
+    const voucherRow = await db.runQuery(
+      "SELECT id, username, password, profile, status FROM vouchers WHERE id=?", 
+      [voucherId]
+    );
     if (!voucherRow.length) {
-      let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
-      return res.render('operator', { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Voucher not found", profiles });
+      let profiles = {}; 
+      try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+      return res.render('operator', { 
+        voucher: null, 
+        totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+        csrfToken: req.csrfToken(), 
+        role: "operator", 
+        toastMessage: "Voucher not found", 
+        profiles 
+      });
     }
     const voucher = voucherRow[0];
-    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
+    let profiles = {}; 
+    try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
     const expected = profiles[voucher.profile];
     if (!expected) {
-      return res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Profile ${voucher.profile} not found on MikroTik`, profiles });
+      return res.render('operator', { 
+        voucher, 
+        totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+        csrfToken: req.csrfToken(), 
+        role: "operator", 
+        toastMessage: `Profile ${voucher.profile} not found on MikroTik`, 
+        profiles 
+      });
     }
     if (parseInt(amount) !== expected.price) {
-      return res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: `Cash received does not match profile price. Expected: ${expected.price} FCFA`, profiles });
+      return res.render('operator', { 
+        voucher, 
+        totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+        csrfToken: req.csrfToken(), 
+        role: "operator", 
+        toastMessage: `Cash received does not match profile price. Expected: ${expected.price} FCFA`, 
+        profiles 
+      });
     }
     await db.runQuery("UPDATE payments SET status='success', method='cash', amount=? WHERE voucher_id=?", [amount, voucherId]);
     await db.runQuery("UPDATE vouchers SET status='sold' WHERE id=?", [voucherId]);
-    res.render('operator', { voucher, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Voucher sold successfully!", profiles });
+    res.render('operator', { 
+      voucher, 
+      totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+      csrfToken: req.csrfToken(), 
+      role: "operator", 
+      toastMessage: "Voucher sold successfully!", 
+      profiles 
+    });
   } catch (err) {
     console.error('Cash payment error:', err);
-    let profiles = {}; try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
-    res.render('operator', { voucher: null, totalSoldToday: await db.countOperatorSoldToday(req.session.user), csrfToken: req.csrfToken(), role: "operator", toastMessage: "Error recording cash payment", profiles });
+    let profiles = {}; 
+    try { profiles = await getMikroTikProfiles(); } catch (err2) { console.error(err2); }
+    res.render('operator', { 
+      voucher: null, 
+      totalSoldToday: await db.countOperatorSoldToday(req.session.user), 
+      csrfToken: req.csrfToken(), 
+      role: "operator", 
+      toastMessage: "Error recording cash payment", 
+      profiles 
+    });
   }
 });
 // -----------------------------------------------------------------------------
@@ -261,23 +338,37 @@ app.post('/admin/operator/create', requireAdmin, async (req, res) => {
   await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, 'active')", [username, hash, role]);
   res.redirect('/admin/operator-management');
 });
+
+// Activate operator (single or bulk)
 app.post('/admin/operator/activate', requireAdmin, async (req, res) => {
-  const { id } = req.body;
-  await db.activateOperator(id);
-  res.redirect('/admin/operator-management');
-});
-app.post('/admin/operator/deactivate', requireAdmin, async (req, res) => {
-  const { id } = req.body;
-  await db.deactivateOperator(id);
-  res.redirect('/admin/operator-management');
-});
-app.post('/admin/operator/delete', requireAdmin, async (req, res) => {
-  const { id } = req.body;
-  const hasActions = await db.operatorHasActions(id);
-  if (hasActions) {
-    return res.render('operator_management', { csrfToken: req.csrfToken(), role: 'admin', error: 'Cannot delete operator with existing actions' });
+  const ids = req.body.ids || [req.body.id];
+  for (const id of ids) {
+    await db.activateOperator(id);
   }
-  await db.deleteOperator(id);
+  if (req.body.ids) return res.json({ success: true });
+  res.redirect('/admin/operator-management');
+});
+
+// Deactivate operator (single or bulk)
+app.post('/admin/operator/deactivate', requireAdmin, async (req, res) => {
+  const ids = req.body.ids || [req.body.id];
+  for (const id of ids) {
+    await db.deactivateOperator(id);
+  }
+  if (req.body.ids) return res.json({ success: true });
+  res.redirect('/admin/operator-management');
+});
+
+// Delete operator (single or bulk)
+app.post('/admin/operator/delete', requireAdmin, async (req, res) => {
+  const ids = req.body.ids || [req.body.id];
+  for (const id of ids) {
+    const hasActions = await db.operatorHasActions(id);
+    if (!hasActions) {
+      await db.deleteOperator(id);
+    }
+  }
+  if (req.body.ids) return res.json({ success: true });
   res.redirect('/admin/operator-management');
 });
 
@@ -355,15 +446,21 @@ app.get('/api/audit-logs', requireAdmin, async (req, res) => {
 app.get('/analytics', requireAdmin, async (req, res) => {
   try {
     const stats = await db.getAnalyticsStats();
+    const paymentsTrend = await db.getPaymentsByDate();
+    const revenueTrend = await db.getRevenueTrend();
+    const profileRevenue = await db.getProfileRevenue();
     res.render('analytics', { 
       active: stats.active, 
       inactive: stats.inactive, 
+      paymentsTrend,
+      revenueTrend,
+      profileRevenue,
       csrfToken: req.csrfToken(), 
       role: 'admin' 
     });
   } catch (err) {
     console.error("Analytics error:", err);
-    res.render('analytics', { active: 0, inactive: 0, csrfToken: req.csrfToken(), role: 'admin' });
+    res.render('analytics', { active: 0, inactive: 0, paymentsTrend: [], revenueTrend: [], profileRevenue: [], csrfToken: req.csrfToken(), role: 'admin' });
   }
 });
 // -----------------------------------------------------------------------------
@@ -376,17 +473,39 @@ app.post('/selfservice/pay', async (req, res) => {
     const { phone, profile } = req.body;
     const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
-    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, 'selfservice', 'selfservice');
+
+    // Create voucher
+    await voucherManager.createVoucher(
+      voucherUsername,
+      voucherPassword,
+      profile,
+      'selfservice',
+      'selfservice'
+    );
+
+    // Record payment
     await db.runQuery(
-      "INSERT INTO payments (voucher_id, amount, currency, method, status, phone, timestamp) VALUES ((SELECT id FROM vouchers WHERE username=?), ?, 'XOF', 'mobilemoney', 'success', ?, datetime('now'))",
+      `INSERT INTO payments 
+       (voucher_id, amount, currency, method, status, phone, timestamp) 
+       VALUES (
+         (SELECT id FROM vouchers WHERE username=?), 
+         ?, 'XOF', 'mobilemoney', 'success', ?, datetime('now')
+       )`,
       [voucherUsername, 500, phone]
     );
+
+    // Render login with payment result
     res.render('login', { 
       csrfToken: req.csrfToken(), 
       profiles: await getMikroTikProfiles(), 
       paymentResult: { 
         success: true, 
-        voucher: { username: voucherUsername, password: voucherPassword, profile, price: 500 } 
+        voucher: { 
+          username: voucherUsername, 
+          password: voucherPassword, 
+          profile, 
+          price: 500 
+        } 
       } 
     });
   } catch (err) {
