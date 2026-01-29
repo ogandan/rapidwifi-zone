@@ -4,6 +4,12 @@
 
 ## 🏷️ Tags
 
+- Fixed audit logs DataTables integration (`audit_logs.ejs` now matches API output).
+- Corrected operator management DataTable to use `username` instead of `name`.
+- Added missing operator management POST routes (`/admin/operator/create`, `/admin/operator/activate`, `/admin/operator/deactivate`, `/admin/operator/delete`).
+- Restored `/analytics` route to serve analytics dashboard.
+
+
 
 # RAPIDWIFI-ZONE
 
