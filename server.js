@@ -71,7 +71,7 @@ async function getMikroTikProfiles() {
             if (name.includes('-')) {
               const [duration, priceStr] = name.split('-');
               const price = parseInt(priceStr.replace('FCFA', ''), 10);
-              priceMap[duration] = { duration, price }; // ✅ key by duration
+              priceMap[duration] = { duration, price };
             }
           }
         });
@@ -88,7 +88,7 @@ async function getMikroTikProfiles() {
 app.get('/login', async (req, res) => {
   let profiles = {};
   try { profiles = await getMikroTikProfiles(); } catch (err) { console.error("Error fetching MikroTik profiles:", err); }
-  res.render('login', { csrfToken: req.csrfToken(), profiles });
+  res.render('login', { csrfToken: req.csrfToken(), profiles, paymentResult: null });
 });
 app.post('/login', async (req, res) => {
   try {
@@ -163,7 +163,7 @@ app.post('/operator/sell', requireOperator, async (req, res) => {
   }
 });
 
-// ✅ Cash payment route corrected
+// Cash payment route
 app.post('/operator/pay/cash', requireOperator, async (req, res) => {
   try {
     const { voucherId, amount } = req.body;
@@ -198,7 +198,7 @@ app.post('/operator/pay/cash', requireOperator, async (req, res) => {
 app.get('/admin', requireAdmin, async (req, res) => {
   const { batch, status, profile } = req.query;
   const vouchers = await voucherManager.listFiltered({ batch, status, profile });
-  const operators = await db.getOperators();
+  const operators = await db.runQuery("SELECT * FROM operators");
   let profiles = {};
   try { profiles = await getMikroTikProfiles(); } catch (err) { console.error(err); }
   res.render('admin', {
@@ -213,7 +213,7 @@ app.get('/admin', requireAdmin, async (req, res) => {
   });
 });
 
-// ✅ DataTables endpoint for vouchers
+// Vouchers API
 app.get('/api/vouchers', requireAdmin, async (req, res) => {
   try {
     const vouchers = await db.listVouchers();
@@ -223,134 +223,106 @@ app.get('/api/vouchers', requireAdmin, async (req, res) => {
     res.status(500).json({ data: [] });
   }
 });
-// -----------------------------------------------------------------------------
-// Filename: server.js (Part 5 of 6)
-// -----------------------------------------------------------------------------
 
-// Analytics dashboard
-app.get('/analytics', requireAdmin, async (req, res) => {
-  const total = await db.countAllVouchers();
-  const active = await db.countActiveVouchers();
-  const inactive = await db.countInactiveVouchers();
-  const profiles = await db.countProfiles();
-  const exportsByProfile = await db.countExportsByProfile();
-
-  const payments = await db.getPayments();
-  const totalPayments = payments.length;
-  const successfulPayments = payments.filter(p => p.status === 'success').length;
-  const failedPayments = payments.filter(p => p.status === 'failed').length;
-
-  const revenueByMethod = {};
-  payments.forEach(p => {
-    revenueByMethod[p.method] = (revenueByMethod[p.method] || 0) + p.amount;
-  });
-
-  const paymentsByDate = await db.getPaymentsByDate();
-  const revenueTrend = await db.getRevenueTrend();
-  const profileRevenue = await db.getProfileRevenue();
-
-  res.render('analytics', {
-    total,
-    active,
-    inactive,
-    profiles,
-    exportsByProfile,
-    totalPayments,
-    successfulPayments,
-    failedPayments,
-    revenueByMethod,
-    paymentsByDate,
-    revenueTrend,
-    profileRevenue,
-    csrfToken: req.csrfToken(),
-    role: 'admin'
-  });
-});
-
-// Logs dashboard
-app.get('/admin/logs', requireAdmin, async (req, res) => {
-  res.render('audit_logs', { csrfToken: req.csrfToken(), role: 'admin' });
-});
-
-// ✅ Corrected audit logs API
-app.get('/api/audit-logs', async (req, res) => {
+// Operators API
+app.get('/api/operators', requireAdmin, async (req, res) => {
   try {
-    const logs = await db.getAuditLogs();
-    res.json({ data: logs });
+    const operators = await db.runQuery("SELECT * FROM operators");
+    res.json({ data: operators });
   } catch (err) {
-    console.error("Audit logs API error:", err);
+    console.error("Operators API error:", err);
     res.status(500).json({ data: [] });
   }
 });
 
-// Payments API
-app.get('/api/payments', async (req, res) => {
-  try {
-    const payments = await db.getPayments();
-    res.json({ data: payments });
-  } catch (err) {
-    console.error("Payments API error:", err);
-    res.status(500).json({ data: [] });
+// Operator management routes
+app.post('/admin/operator/create', requireAdmin, async (req, res) => {
+  const { username, password } = req.body;
+  const hash = await bcrypt.hash(password, 10);
+  await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, 'operator', 'active')", [username, hash]);
+  await db.runQuery("INSERT INTO operators (name, role, active) VALUES (?, 'operator', 1)", [username]);
+  res.redirect('/admin');
+});
+
+app.post('/admin/operator/activate', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  await db.runQuery("UPDATE operators SET active=1 WHERE id=?", [id]);
+  await db.runQuery("UPDATE users SET status='active' WHERE username=(SELECT name FROM operators WHERE id=?)", [id]);
+  res.redirect('/admin');
+});
+
+app.post('/admin/operator/deactivate', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  await db.runQuery("UPDATE operators SET active=0 WHERE id=?", [id]);
+  await db.runQuery("UPDATE users SET status='inactive' WHERE username=(SELECT name FROM operators WHERE id=?)", [id]);
+  res.redirect('/admin');
+});
+
+app.post('/admin/operator/delete', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  const opRow = await db.runQuery("SELECT name FROM operators WHERE id=?", [id]);
+  if (!opRow.length) return res.redirect('/admin');
+  const opName = opRow[0].name;
+  const countRow = await db.runQuery("SELECT COUNT(*) as cnt FROM vouchers WHERE created_by=?", [opName]);
+  if (countRow[0].cnt > 0) {
+    return res.redirect('/admin'); // Restrict deletion if vouchers exist
   }
+  await db.runQuery("DELETE FROM operators WHERE id=?", [id]);
+  await db.runQuery("DELETE FROM users WHERE username=?", [opName]);
+  res.redirect('/admin');
+});
+
+// Bulk voucher actions
+app.post('/admin/vouchers/bulk-activate', requireAdmin, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !ids.length) return res.json({ success: false });
+  await db.runQuery(`UPDATE vouchers SET status='active' WHERE id IN (${ids.join(',')})`);
+  res.json({ success: true });
+});
+
+app.post('/admin/vouchers/bulk-block', requireAdmin, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !ids.length) return res.json({ success: false });
+  await db.runQuery(`UPDATE vouchers SET status='inactive' WHERE id IN (${ids.join(',')})`);
+  res.json({ success: true });
+});
+
+app.post('/admin/vouchers/bulk-delete', requireAdmin, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids || !ids.length) return res.json({ success: false });
+  await db.runQuery(`DELETE FROM vouchers WHERE id IN (${ids.join(',')})`);
+  res.json({ success: true });
 });
 // -----------------------------------------------------------------------------
 // Filename: server.js (Part 6 of 6)
 // -----------------------------------------------------------------------------
 
-// Self-service payment route
+// Self-service payment
 app.post('/selfservice/pay', async (req, res) => {
   try {
     const { phone, profile } = req.body;
-    let profiles = {};
-    try { profiles = await getMikroTikProfiles(); } catch (err) {
-      console.error("Error fetching MikroTik profiles:", err);
-      return res.json({ success: false, message: "Unable to fetch profiles" });
-    }
-    const expected = profiles[profile];
-    if (!expected) return res.json({ success: false, message: `Profile ${profile} not found` });
-
     const voucherUsername = crypto.randomBytes(2).toString('hex').toUpperCase().slice(0,4);
     const voucherPassword = crypto.randomBytes(3).toString('hex').toUpperCase().slice(0,5);
-
-    await voucherManager.createVoucher(
-      voucherUsername,
-      voucherPassword,
-      profile,
-      `selfservice_${new Date().toISOString().slice(0,10)}`,
-      'selfservice'
-    );
-
+    await voucherManager.createVoucher(voucherUsername, voucherPassword, profile, 'selfservice', 'selfservice');
     await db.runQuery(
-      "INSERT INTO payments (voucher_id, amount, method, status, phone, timestamp) VALUES ((SELECT id FROM vouchers WHERE username=?), ?, 'mobilemoney', 'success', ?, datetime('now'))",
-      [voucherUsername, expected.price, phone]
+      "INSERT INTO payments (voucher_id, amount, currency, method, status, phone, timestamp) VALUES ((SELECT id FROM vouchers WHERE username=?), ?, 'XOF', 'mobilemoney', 'success', ?, datetime('now'))",
+      [voucherUsername, 500, phone]
     );
-    await db.runQuery("UPDATE vouchers SET status='sold' WHERE username=?", [voucherUsername]);
-
-    res.json({
-      success: true,
-      voucher: {
-        username: voucherUsername,
-        password: voucherPassword,
-        profile,
-        price: expected.price
-      }
-    });
+    res.render('login', { csrfToken: req.csrfToken(), profiles: await getMikroTikProfiles(), paymentResult: { success: true, voucher: { username: voucherUsername, password: voucherPassword, profile, price: 500 } } });
   } catch (err) {
     console.error("Selfservice pay error:", err);
-    res.json({ success: false, message: "Payment failed" });
+    res.render('login', { csrfToken: req.csrfToken(), profiles: await getMikroTikProfiles(), paymentResult: { success: false, message: "Payment failed" } });
   }
 });
 
 // Logout
 app.get('/logout', (req, res) => {
-  const role = req.session.role;
   req.session.destroy(() => {
-    if (role === 'operator' || role === 'admin') return res.redirect('/admin-login');
-    return res.redirect('/login');
+    res.redirect('/admin-login');
   });
 });
 
-// Server start
+// Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`RAPIDWIFI-ZONE server running on port ${PORT}`);
