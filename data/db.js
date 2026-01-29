@@ -142,6 +142,18 @@ async function getAuditLogs(limit = 100) {
 }
 
 // --------------------
+// Analytics Functions
+// --------------------
+async function getAnalyticsStats() {
+  const activeRow = await runQuery("SELECT COUNT(*) AS cnt FROM vouchers WHERE status='active'");
+  const inactiveRow = await runQuery("SELECT COUNT(*) AS cnt FROM vouchers WHERE status='inactive'");
+  return {
+    active: activeRow[0] ? activeRow[0].cnt : 0,
+    inactive: inactiveRow[0] ? inactiveRow[0].cnt : 0
+  };
+}
+
+// --------------------
 // Module Exports
 // --------------------
 module.exports = {
@@ -173,6 +185,9 @@ module.exports = {
   getProfileRevenue,
 
   // Audit Logs
-  getAuditLogs
+  getAuditLogs,
+
+  // Analytics
+  getAnalyticsStats
 };
 
