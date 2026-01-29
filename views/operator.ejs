@@ -1,5 +1,5 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-28
+Timestamp: 2026-01-29
 File: views/operator.ejs
 Purpose: Operator dashboard with dynamic MikroTik profiles, print button, and toast notifications
 ---------------------------------------------------------------------------- -->
@@ -51,7 +51,8 @@ Purpose: Operator dashboard with dynamic MikroTik profiles, print button, and to
           <% } %>
 
           <% if (!voucher.password) { %>
-            <form action="/pay/cash" method="POST" class="row g-3">
+            <!-- ✅ Corrected route for cash payment -->
+            <form action="/operator/pay/cash" method="POST" class="row g-3">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="voucherId" value="<%= voucher.id %>">
               <div class="col-auto">
