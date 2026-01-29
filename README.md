@@ -8,6 +8,45 @@
 
 RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
 
+## Recent Fixes (2026-01-29)
+
+### Server.js
+- Added `/api/vouchers` endpoint returning `{ data: [...] }` for DataTables.
+- Corrected `/api/audit-logs` endpoint (hyphen instead of underscore).
+- Adjusted MikroTik profile parsing so profiles like `day-FCFA100` are keyed by `day`.
+- Fixed operator cash payment route to `/operator/pay/cash`.
+- Enforced CSRF tokens consistently across forms and Ajax requests.
+- Self-service payment route now records payments with timestamp and updates voucher status.
+
+### Templates
+- **admin.ejs**: Added DataTables initialization for vouchers (`/api/vouchers`), ensured CSRF hidden fields, auto-refresh for vouchers and payments.
+- **audit_logs.ejs**: Corrected Ajax URL to `/api/audit-logs`, ensured filters work, auto-refresh every 30s.
+- **login.ejs**: Profile dropdown now dynamically populated from MikroTik profiles instead of hardcoded values.
+- **operator.ejs**: Cash payment form posts to `/operator/pay/cash`, CSRF token included, profiles rendered dynamically.
+
+## Key Routes
+- Admin dashboard: `/admin`
+- Operator dashboard: `/operator`
+- Voucher login: `/login`
+- Logs dashboard: `/admin/logs`
+- Analytics dashboard: `/analytics`
+
+## APIs
+- `/api/vouchers` → voucher list for DataTables
+- `/api/payments` → payments list
+- `/api/audit-logs` → audit logs list
+
+## Development Notes
+- Ensure SQLite schema includes:
+  - `vouchers.created_by`
+  - `payments.timestamp`
+- Run smoke test checklist after deployment to validate dashboards and APIs.
+
+
+# RAPIDWIFI-ZONE
+
+RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
+
 ## Recent Fixes (2026-01-28)
 
 - **Voucher List**: Admin dashboard now displays vouchers correctly. Added `/api/vouchers` endpoint returning JSON `{ data: [...] }` for DataTables.
