@@ -64,7 +64,6 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
         <a href="/analytics" class="btn btn-outline-primary">View Analytics</a>
       </div>
       <div class="btn-group me-2">
-        <!-- New Operator/Admin Management button -->
         <a href="/admin/operator-management" class="btn btn-outline-secondary">Operator/Admin Management</a>
       </div>
       <div class="btn-group">
@@ -96,14 +95,15 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
 
   <script>
     $(document).ready(function() {
-      // ✅ Voucher DataTable with checkbox column
+      // Voucher DataTable with select-all checkbox
       const voucherTable = $('#voucherTable').DataTable({
         ajax: '/api/vouchers',
         columns: [
-          { data: 'id', title: 'Select',
+          { data: 'id', title: '<input type="checkbox" id="selectAll">',
             render: function(data) {
               return `<input type="checkbox" class="voucher-select" value="${data}">`;
-            }
+            },
+            orderable: false
           },
           { data: 'id', title: 'ID' },
           { data: 'username', title: 'Username' },
@@ -117,6 +117,12 @@ Purpose: Admin dashboard with vouchers, operators, payments, and dynamic MikroTi
         pageLength: 25,
         dom: 'Bfrtip',
         buttons: ['csv', 'excel']
+      });
+
+      // Select-all checkbox logic
+      $('#voucherTable').on('click', '#selectAll', function() {
+        const checked = this.checked;
+        $('.voucher-select').prop('checked', checked);
       });
 
       // Payments DataTable
