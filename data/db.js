@@ -21,7 +21,7 @@ function runQuery(sql, params = []) {
 // Voucher Functions
 // --------------------
 async function listVouchers() {
-  return await runQuery('SELECT * FROM vouchers ORDER BY id DESC');
+  return await runQuery('SELECT id, username, password, profile, status, created_by, created_at FROM vouchers ORDER BY id DESC');
 }
 
 async function countAllVouchers() {
@@ -39,11 +39,11 @@ async function countInactiveVouchers() {
   return rows[0].inactive;
 }
 
-async function countProfiles() {
+async function getProfileCounts() {
   return await runQuery('SELECT profile, COUNT(*) AS count FROM vouchers GROUP BY profile');
 }
 
-async function countExportsByProfile() {
+async function getExportsByProfile() {
   return await runQuery('SELECT profile, COUNT(*) AS count FROM export_logs GROUP BY profile');
 }
 
@@ -71,7 +71,6 @@ async function operatorHasActions(id) {
   return rows[0].cnt > 0;
 }
 
-// ✅ Uses vouchers.created_by and payments.timestamp
 async function countOperatorSoldToday(username) {
   const rows = await runQuery(`
     SELECT COUNT(*) AS total
@@ -131,6 +130,18 @@ async function getProfileRevenue() {
   `);
 }
 
+async function getRevenueByMethod() {
+  const rows = await runQuery(`
+    SELECT method, SUM(amount) AS total
+    FROM payments
+    WHERE status='success'
+    GROUP BY method
+  `);
+  const result = {};
+  rows.forEach(r => { result[r.method] = r.total; });
+  return result;
+}
+
 // --------------------
 // Audit Logs Functions
 // --------------------
@@ -147,9 +158,13 @@ async function getAuditLogs(limit = 100) {
 async function getAnalyticsStats() {
   const activeRow = await runQuery("SELECT COUNT(*) AS cnt FROM vouchers WHERE status='active'");
   const inactiveRow = await runQuery("SELECT COUNT(*) AS cnt FROM vouchers WHERE status='inactive'");
+  const successRow = await runQuery("SELECT COUNT(*) AS cnt FROM payments WHERE status='success'");
+  const failedRow = await runQuery("SELECT COUNT(*) AS cnt FROM payments WHERE status='failed'");
   return {
     active: activeRow[0] ? activeRow[0].cnt : 0,
-    inactive: inactiveRow[0] ? inactiveRow[0].cnt : 0
+    inactive: inactiveRow[0] ? inactiveRow[0].cnt : 0,
+    successfulPayments: successRow[0] ? successRow[0].cnt : 0,
+    failedPayments: failedRow[0] ? failedRow[0].cnt : 0
   };
 }
 
@@ -164,8 +179,8 @@ module.exports = {
   countAllVouchers,
   countActiveVouchers,
   countInactiveVouchers,
-  countProfiles,
-  countExportsByProfile,
+  getProfileCounts,
+  getExportsByProfile,
 
   // Operator
   getOperators,
@@ -183,6 +198,7 @@ module.exports = {
   getPaymentsByDate,
   getRevenueTrend,
   getProfileRevenue,
+  getRevenueByMethod,
 
   // Audit Logs
   getAuditLogs,
