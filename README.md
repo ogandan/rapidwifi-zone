@@ -6,6 +6,48 @@
 
 # RAPIDWIFI-ZONE
 
+## Template & Route Changes (2026-01-29)
+
+- **Admin Dashboard**
+  - Added DataTables voucher table (`/api/vouchers`).
+  - Added filters: status, profile, batch, created by, date.
+  - Bulk-action select boxes for vouchers still missing.
+  - Operator management features missing (create, activate, deactivate, delete).
+  - Export via DataTables CSV/Excel works; custom export routes (`/admin/export-*`) not yet implemented.
+
+- **Audit Logs**
+  - Corrected Ajax URL to `/api/audit-logs`.
+  - Filters working.
+  - Payments table displays but does not auto-refresh.
+
+- **Voucher Login**
+  - Profile dropdown dynamically populated from MikroTik.
+  - Payment failure now shows red alert instead of raw JSON.
+  - DB schema missing `phone` column in `payments` table → causes errors.
+
+- **Operator Dashboard**
+  - Cash payment form aligned with `/operator/pay/cash`.
+  - Profiles rendered dynamically.
+  - Logout button missing.
+
+- **Analytics**
+  - Charts and counts display correctly.
+
+- **CSRF**
+  - Tokens enforced; invalid tokens throw `EBADCSRFTOKEN`.
+  - Need operator/admin guidance on how to test CSRF manually.
+
+## Outstanding Fixes
+- Add operator management (create, activate, deactivate, delete).
+- Implement bulk voucher actions.
+- Implement `/admin/export-*` routes.
+- Add `phone` column to `payments` table schema.
+- Add logout button to operator dashboard.
+- Ensure payments table auto-refreshes.
+
+
+# RAPIDWIFI-ZONE
+
 RAPIDWIFI-ZONE is a captive portal and voucher management system with admin/operator dashboards, payment integration, analytics, and audit logs.
 
 ## Recent Fixes (2026-01-29)
