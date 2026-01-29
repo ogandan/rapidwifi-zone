@@ -1,6 +1,6 @@
 <!-- -----------------------------------------------------------------------------
-Timestamp: 2026-01-23
-File: login.ejs
+Timestamp: 2026-01-29
+File: views/login.ejs
 Purpose: Voucher login + Mobile Money payment for RAPIDWIFI-ZONE
 ----------------------------------------------------------------------------- -->
 
@@ -48,9 +48,15 @@ Purpose: Voucher login + Mobile Money payment for RAPIDWIFI-ZONE
         <label for="profile" class="form-label">Select Profile</label>
         <select id="profile" name="profile" class="form-select" required>
           <option value="">Choose...</option>
-          <option value="1h">1 Hour Pass</option>
-          <option value="day">Daily Pass</option>
-          <option value="week">Weekly Pass</option>
+          <% if (profiles) { %>
+            <% Object.keys(profiles).forEach(function(p) { %>
+              <option value="<%= p %>">
+                <%= p %> (Price: <%= profiles[p].price %> FCFA)
+              </option>
+            <% }) %>
+          <% } else { %>
+            <option disabled>No profiles available</option>
+          <% } %>
         </select>
       </div>
 
