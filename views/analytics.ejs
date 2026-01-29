@@ -13,20 +13,28 @@ Purpose: Analytics dashboard for RAPIDWIFI-ZONE
   <div class="container py-4">
     <h2 class="mb-4">Analytics Dashboard</h2>
 
-    <div class="row">
+    <div class="row mb-4">
       <div class="col-md-6">
         <canvas id="voucherStatusChart"></canvas>
       </div>
       <div class="col-md-6">
+        <canvas id="paymentsTrendChart"></canvas>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-6">
         <canvas id="revenueTrendChart"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="profileRevenueChart"></canvas>
       </div>
     </div>
   </div>
 
   <script>
     // Voucher Status Chart
-    const ctx1 = document.getElementById('voucherStatusChart').getContext('2d');
-    new Chart(ctx1, {
+    new Chart(document.getElementById('voucherStatusChart'), {
       type: 'doughnut',
       data: {
         labels: ['Active', 'Inactive'],
@@ -35,33 +43,49 @@ Purpose: Analytics dashboard for RAPIDWIFI-ZONE
           backgroundColor: ['#0077cc', '#cccccc']
         }]
       },
-      options: {
-        responsive: true,
-        plugins: {
-          title: { display: true, text: 'Voucher Status' }
-        }
-      }
+      options: { plugins: { title: { display: true, text: 'Voucher Status' } } }
     });
 
-    // Revenue Trend Chart (placeholder, extend with backend data later)
-    const ctx2 = document.getElementById('revenueTrendChart').getContext('2d');
-    new Chart(ctx2, {
+    // Payments Trend Chart
+    new Chart(document.getElementById('paymentsTrendChart'), {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(paymentsTrend.map(p => p.date)) %>,
+        datasets: [{
+          label: 'Payments Count',
+          data: <%- JSON.stringify(paymentsTrend.map(p => p.count)) %>,
+          backgroundColor: '#17a2b8'
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Payments Trend (Daily)' } } }
+    });
+
+    // Revenue Trend Chart
+    new Chart(document.getElementById('revenueTrendChart'), {
       type: 'line',
       data: {
-        labels: [], // to be populated with dates
+        labels: <%- JSON.stringify(revenueTrend.map(r => r.date)) %>,
         datasets: [{
           label: 'Revenue',
-          data: [], // to be populated with totals
+          data: <%- JSON.stringify(revenueTrend.map(r => r.total)) %>,
           borderColor: '#28a745',
           fill: false
         }]
       },
-      options: {
-        responsive: true,
-        plugins: {
-          title: { display: true, text: 'Revenue Trend' }
-        }
-      }
+      options: { plugins: { title: { display: true, text: 'Revenue Trend (Daily)' } } }
+    });
+
+    // Profile Revenue Breakdown
+    new Chart(document.getElementById('profileRevenueChart'), {
+      type: 'pie',
+      data: {
+        labels: <%- JSON.stringify(profileRevenue.map(pr => pr.profile)) %>,
+        datasets: [{
+          data: <%- JSON.stringify(profileRevenue.map(pr => pr.total)) %>,
+          backgroundColor: ['#007bff','#ffc107','#28a745','#dc3545','#6f42c1']
+        }]
+      },
+      options: { plugins: { title: { display: true, text: 'Revenue by Profile' } } }
     });
   </script>
 </body>
