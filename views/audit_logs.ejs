@@ -1,5 +1,5 @@
 <!-- --------------------------------------------------------------------------
-Timestamp: 2026-01-27
+Timestamp: 2026-01-29
 File: views/audit_logs.ejs
 Purpose: Dedicated page for Audit Logs and Payments
 ---------------------------------------------------------------------------- -->
@@ -57,7 +57,7 @@ Purpose: Dedicated page for Audit Logs and Payments
       </select>
       <select id="methodFilter" class="form-select d-inline w-auto">
         <option value="">All Methods</option>
-        <option value="mobile_money">Mobile Money</option>
+        <option value="mobilemoney">Mobile Money</option>
         <option value="cash">Cash</option>
       </select>
     </div>
@@ -68,9 +68,9 @@ Purpose: Dedicated page for Audit Logs and Payments
 
   <script>
     $(document).ready(function() {
-      // Audit Logs DataTable
+      // ✅ Audit Logs DataTable (fixed URL)
       const auditLogsTable = $('#auditLogsTable').DataTable({
-        ajax: '/api/audit_logs',
+        ajax: '/api/audit-logs',
         columns: [
           { data: 'id', title: 'Log ID' },
           { data: 'voucher_id', title: 'Voucher ID' },
