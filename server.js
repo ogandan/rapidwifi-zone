@@ -254,6 +254,33 @@ app.get('/admin/operator-management', requireAdmin, (req, res) => {
   res.render('operator_management', { csrfToken: req.csrfToken(), role: 'admin' });
 });
 
+// Operator management routes
+app.post('/admin/operator/create', requireAdmin, async (req, res) => {
+  const { username, password, role } = req.body;
+  const hash = await bcrypt.hash(password, 10);
+  await db.runQuery("INSERT INTO users (username, password_hash, role, status) VALUES (?, ?, ?, 'active')", [username, hash, role]);
+  res.redirect('/admin/operator-management');
+});
+app.post('/admin/operator/activate', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  await db.activateOperator(id);
+  res.redirect('/admin/operator-management');
+});
+app.post('/admin/operator/deactivate', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  await db.deactivateOperator(id);
+  res.redirect('/admin/operator-management');
+});
+app.post('/admin/operator/delete', requireAdmin, async (req, res) => {
+  const { id } = req.body;
+  const hasActions = await db.operatorHasActions(id);
+  if (hasActions) {
+    return res.render('operator_management', { csrfToken: req.csrfToken(), role: 'admin', error: 'Cannot delete operator with existing actions' });
+  }
+  await db.deleteOperator(id);
+  res.redirect('/admin/operator-management');
+});
+
 // Export routes
 app.get('/admin/export-all', requireAdmin, async (req, res) => {
   const vouchers = await db.listVouchers();
@@ -308,6 +335,36 @@ app.post('/admin/vouchers/bulk-delete', requireAdmin, async (req, res) => {
   if (!ids || !ids.length) return res.json({ success: false });
   await db.runQuery(`DELETE FROM vouchers WHERE id IN (${ids.join(',')})`);
   res.json({ success: true });
+});
+// -----------------------------------------------------------------------------
+// Filename: server.js (Part 5 of 6)
+// -----------------------------------------------------------------------------
+
+// Audit logs API
+app.get('/api/audit-logs', requireAdmin, async (req, res) => {
+  try {
+    const logs = await db.getAuditLogs();
+    res.json({ data: logs });
+  } catch (err) {
+    console.error("Audit logs API error:", err);
+    res.status(500).json({ data: [] });
+  }
+});
+
+// Analytics page
+app.get('/analytics', requireAdmin, async (req, res) => {
+  try {
+    const stats = await db.getAnalyticsStats();
+    res.render('analytics', { 
+      active: stats.active, 
+      inactive: stats.inactive, 
+      csrfToken: req.csrfToken(), 
+      role: 'admin' 
+    });
+  } catch (err) {
+    console.error("Analytics error:", err);
+    res.render('analytics', { active: 0, inactive: 0, csrfToken: req.csrfToken(), role: 'admin' });
+  }
 });
 // -----------------------------------------------------------------------------
 // Filename: server.js (Part 6 of 6)
